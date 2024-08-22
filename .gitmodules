@@ -1,0 +1,6 @@
+[submodule "thirdparty/cspec"]
+	path = thirdparty/cspec
+	url = https://github.com/mumuki/cspec
+[submodule "thirdparty/so-commons-library"]
+	path = thirdparty/so-commons-library
+	url = https://github.com/sisoputnfrba/so-commons-library

@@ -1,0 +1,15 @@
+{
+  // See https://code.visualstudio.com/docs/cpp/c-cpp-properties-schema-reference
+  // for the documentation about the c_cpp_properties.json format
+  "configurations": [
+    {
+      "name": "Linux",
+      "defines": [],
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
+}

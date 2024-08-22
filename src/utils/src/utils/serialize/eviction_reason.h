@@ -1,0 +1,53 @@
+/* En los archivos de cabecera (header files) (*.h) poner DECLARACIONES (evitar DEFINICIONES) de C, así como directivas de preprocesador */
+/* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
+
+#ifndef UTILS_SERIALIZE_EVICTION_REASON_H
+#define UTILS_SERIALIZE_EVICTION_REASON_H
+
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <string.h>
+#include "commons/config.h"
+#include "commons/string.h"
+#include "utils/package.h"
+
+#include "commons/log.h"
+#include "utils/module.h"
+
+typedef enum e_Eviction_Reason {
+    UNEXPECTED_ERROR_EVICTION_REASON,
+    OUT_OF_MEMORY_EVICTION_REASON,
+    EXIT_EVICTION_REASON, // Exclusivamente para la syscall EXIT
+    KILL_KERNEL_INTERRUPT_EVICTION_REASON,
+    SYSCALL_EVICTION_REASON, // No incluye a la syscall EXIT
+    QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON
+} e_Eviction_Reason;
+
+extern const char *EVICTION_REASON_NAMES[];
+
+/**
+ * @brief Serializacion de un e_Eviction_Reason para ser enviado.
+ * @param payload Payload a encolar.
+ * @param source e_Eviction_Reason fuente a serializar
+ */
+void eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source);
+
+
+/**
+ * @brief Deserializacion de un e_Eviction_Reason para ser leido.
+ * @param payload Payload a desencolar.
+ * @param destination Destino del e_Eviction_Reason deserializado
+ */
+void eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination);
+
+
+/**
+ * @brief Loguea un e_Eviction_Reason.
+ * @param eviction_reason e_Eviction_Reason a loguear.
+ */
+void eviction_reason_log(e_Eviction_Reason eviction_reason);
+
+#endif // UTILS_SERIALIZE_EVICTION_REASON_H

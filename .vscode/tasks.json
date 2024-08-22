@@ -1,0 +1,142 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make all",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "tools"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Construir todos los programas y bibliotecas definidos",
+      "command": "make all -j -O",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": ["$gcc"],
+    },
+    {
+      "label": "make cleandeps",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "trash"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Eliminar los archivos asociados con la generación automática de dependencias",
+      "command": "make cleandeps",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make mostlyclean",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "trash"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "make cleandeps + Eliminar los programas y archivos de salida del compilador",
+      "command": "make mostlyclean",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make clean",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "trash"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "make mostlyclean + Eliminar las bibliotecas",
+      "command": "make clean",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make cleandirs",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "trash"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "make clean + Eliminar los directorios objetivo",
+      "command": "make cleandirs",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+  ]
+}

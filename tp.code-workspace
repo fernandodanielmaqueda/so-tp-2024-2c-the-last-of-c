@@ -1,31 +1,31 @@
 {
-  "folders": [
-    {
-      "name": "kernel",
-      "path": "kernel"
-    },
-    {
-      "name": "cpu",
-      "path": "cpu"
-    },
-    {
-      "name": "memoria",
-      "path": "memoria"
-    },
-    {
-      "name": "filesystem",
-      "path": "filesystem"
-    },
-    {
-      "name": "utils",
-      "path": "utils"
-    }
-  ],
-  "settings": {
-    "debug.onTaskErrors": "abort",
-    "files.associations": {
-      "*.h": "c"
-    },
-    "C_Cpp.errorSquiggles": "disabled"
-  }
+	"settings": {
+		"debug.onTaskErrors": "abort",
+		"files.associations": {
+			"*.h": "c",
+			"functional": "c",
+			"typeinfo": "c",
+			"type_traits": "c",
+			"compare": "c",
+			"cmath": "c"
+		},
+		"C_Cpp.errorSquiggles": "disabled",
+	},
+	"folders": [
+		{
+			"path": "src/cpu"
+		},
+		{
+			"path": "src/filesystem"
+		},
+		{
+			"path": "src/kernel"
+		},
+		{
+			"path": "src/memoria"
+		},
+		{
+			"path": "src/utils"
+		}
+	]
 }

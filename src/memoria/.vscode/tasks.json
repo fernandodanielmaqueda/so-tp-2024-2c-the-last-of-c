@@ -1,0 +1,169 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make src/memoria/bin/memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "file-binary"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Construir el programa: src/memoria/bin/memoria",
+      "command": "make ${workspaceFolder}/bin/${workspaceFolderBasename} -j -O",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": ["$gcc"],
+    },
+    {
+      "label": "make run-memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "run"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa memoria",
+      "command": "make run-${workspaceFolderBasename}",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "debug-console"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa memoria",
+      "command": "make gdb-${workspaceFolderBasename}",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "debug"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa memoria",
+      "command": "make valgrind-none-${workspaceFolderBasename}",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "debug"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa memoria",
+      "command": "make valgrind-memcheck-${workspaceFolderBasename}",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-memoria",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {"id": "debug"},
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa memoria",
+      "command": "make valgrind-helgrind-${workspaceFolderBasename}",
+      "args": [],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
