@@ -3,6 +3,8 @@
 
 #include "module.h"
 
+t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
+
 t_log *MINIMAL_LOGGER;
 char *MINIMAL_LOG_PATHNAME = "minimal.log";
 
@@ -13,10 +15,10 @@ t_log *SERIALIZE_LOGGER;
 char *SERIALIZE_LOG_PATHNAME = "serialize.log";
 
 void initialize_loggers(void) {
-	MINIMAL_LOGGER = log_create(MINIMAL_LOG_PATHNAME, "Minimal", true, LOG_LEVEL_TRACE);
-	MODULE_LOGGER = log_create(MODULE_LOG_PATHNAME, MODULE_NAME, true, LOG_LEVEL_TRACE);
-	SOCKET_LOGGER = log_create(SOCKET_LOG_PATHNAME, "Socket", true, LOG_LEVEL_TRACE);
-	SERIALIZE_LOGGER = log_create(SERIALIZE_LOG_PATHNAME, "Serialize", true, LOG_LEVEL_TRACE);
+	MINIMAL_LOGGER = log_create(MINIMAL_LOG_PATHNAME, "Minimal", true, LOG_LEVEL);
+	MODULE_LOGGER = log_create(MODULE_LOG_PATHNAME, MODULE_NAME, true, LOG_LEVEL);
+	SOCKET_LOGGER = log_create(SOCKET_LOG_PATHNAME, "Socket", true, LOG_LEVEL);
+	SERIALIZE_LOGGER = log_create(SERIALIZE_LOG_PATHNAME, "Serialize", true, LOG_LEVEL);
 }
 
 void finish_loggers(void) {

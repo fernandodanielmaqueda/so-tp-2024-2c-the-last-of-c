@@ -20,6 +20,9 @@
 typedef uint16_t t_PID;
 #define PID_MAX UINT16_MAX
 
+typedef uint16_t t_TID;
+#define TID_MAX UINT16_MAX
+
 typedef uint32_t t_PC;
 
 typedef int64_t t_Quantum;
@@ -54,7 +57,6 @@ typedef enum e_Exit_Reason {
 typedef struct t_Exec_Context {
     t_PID PID;
     t_PC PC;
-    t_Quantum quantum;
     t_CPU_Registers cpu_registers;
 } t_Exec_Context;
 

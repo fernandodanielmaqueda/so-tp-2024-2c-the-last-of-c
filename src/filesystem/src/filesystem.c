@@ -62,8 +62,8 @@ int module(int argc, char *argv[]) {
 
 	INTERFACE_NAME = argv[1];
 
-	initialize_loggers();
 	initialize_configs(argv[2]);
+	initialize_loggers();
 
 	initialize_sockets();
 
@@ -140,6 +140,8 @@ void read_module_config(t_config* MODULE_CONFIG) {
 			COMPRESSION_DELAY = config_get_int_value(MODULE_CONFIG, "RETRASO_COMPACTACION");
 			break;
 	}
+
+	LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
 int io_type_find(char *name, e_IO_Type *destination) {
@@ -263,7 +265,7 @@ int io_gen_sleep_io_operation(t_Payload *operation_arguments) {
 	uint32_t work_units;
 	payload_remove(operation_arguments, &work_units, sizeof(work_units));
 
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_GEN_SLEEP>", (int) PID);
+	log_info(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_GEN_SLEEP>", (int) PID);
 
 	usleep(WORK_UNIT_TIME * work_units * 1000);
 
@@ -290,7 +292,7 @@ int io_stdin_read_io_operation(t_Payload *operation_arguments) {
 	int char_to_verify = '\n';
 
 	//Aviso que operacion voy a hacer
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_STDIN_READ>", (int) PID);
+	log_info(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_STDIN_READ>", (int) PID);
 
 	log_info(MODULE_LOGGER, "Escriba una cadena de %d caracteres", (int) bytes);
 	fgets(text_to_send, bytes + 1, stdin);
@@ -343,7 +345,7 @@ int io_stdout_write_io_operation(t_Payload *operation_arguments) {
 	size_deserialize(operation_arguments, &bytes);
 	list_deserialize(operation_arguments, physical_addresses, size_deserialize_element);
 
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_STDOUT_WRITE>", (int) PID);
+	log_info(MINIMAL_LOGGER, "PID: <%d> - OPERACION <IO_STDOUT_WRITE>", (int) PID);
 
 	t_Package* package;
 
@@ -383,7 +385,7 @@ int io_fs_create_io_operation(t_Payload *operation_arguments) {
     text_deserialize(operation_arguments, &(file_name));
 	uint32_t location = seek_first_free_block();
 
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - Crear archivo: <%s>", PID, file_name);
+	log_info(MINIMAL_LOGGER, "PID: <%d> - Crear archivo: <%s>", PID, file_name);
 	//Crear variable de control de archivo
 	t_FS_File* new_entry = malloc(sizeof(t_FS_File));
 	new_entry->name = malloc(sizeof(file_name));
@@ -413,7 +415,7 @@ int io_fs_delete_io_operation(t_Payload *operation_arguments) {
 	usleep(WORK_UNIT_TIME * 1000);
     text_deserialize(operation_arguments, &(file_name));
 
-    log_debug(MINIMAL_LOGGER, "PID: <%d> - Eliminar archivo: <%s>", PID, file_name);
+    log_info(MINIMAL_LOGGER, "PID: <%d> - Eliminar archivo: <%s>", PID, file_name);
 	
 	uint32_t size = list_size(LIST_FILES);
 
@@ -517,9 +519,9 @@ int io_fs_truncate_io_operation(t_Payload *operation_arguments) {
 		}
 		else if(quantity_free_blocks() >= valueNUM){//VERIFICA SI COMPACTAR SOLUCIONA EL PROBLEMA
 
-			log_debug(MINIMAL_LOGGER, "PID: <%d> - Inicio Compactacion", PID);
+			log_info(MINIMAL_LOGGER, "PID: <%d> - Inicio Compactacion", PID);
 			compact_blocks(file, valueNUM, value);
-			log_debug(MINIMAL_LOGGER, "PID: <%d> - Fin Compactacion", PID);
+			log_info(MINIMAL_LOGGER, "PID: <%d> - Fin Compactacion", PID);
 
 /*			//initial_pos = file->initial_bloq + file->len;
  			for (size_t i = 0; i < diff; i++)
@@ -543,7 +545,7 @@ int io_fs_truncate_io_operation(t_Payload *operation_arguments) {
         	exit(EXIT_FAILURE);
     	}
 	
-    log_debug(MINIMAL_LOGGER, "PID: <%d> - Truncar archivo: <%s> - Tamaño: <%d>", PID, file_name, (int) value);
+    log_info(MINIMAL_LOGGER, "PID: <%d> - Truncar archivo: <%s> - Tamaño: <%d>", PID, file_name, (int) value);
 	
 /* 	t_Package* respond = package_create_with_header(IO_FS_TRUNCATE_CPU_OPCODE);
 	payload_add(respond->payload, &PID, sizeof(t_PID));
@@ -603,7 +605,7 @@ del valor del Registro Puntero Archivo.*/
 	package_destroy(package_memory); 
 
 
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - Escribir Archivo: <%s> - Tamaño a Escribir: <%d> - Puntero Archivo: <%d>",
+	log_info(MINIMAL_LOGGER, "PID: <%d> - Escribir Archivo: <%s> - Tamaño a Escribir: <%d> - Puntero Archivo: <%d>",
 				 (int) PID, file_name, (int)bytes, (int)ptro);
 
 	
@@ -668,7 +670,7 @@ indicada en el Registro Dirección*/
 
 	free(context);
 
-	log_debug(MINIMAL_LOGGER, "PID: <%d> - Leer Archivo: <%s> - Tamaño a Leer: <%d> - Puntero Archivo: <%d>",
+	log_info(MINIMAL_LOGGER, "PID: <%d> - Leer Archivo: <%s> - Tamaño a Leer: <%d> - Puntero Archivo: <%d>",
 				 (int) PID, file_name, (int)bytes, (int)ptro);
 
 	if(receive_return_value_with_expected_header(WRITE_REQUEST,0,CONNECTION_MEMORY.fd_connection)){

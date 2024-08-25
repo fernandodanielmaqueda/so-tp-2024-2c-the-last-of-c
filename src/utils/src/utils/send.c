@@ -261,8 +261,7 @@ int send_io_operation_finished(t_PID pid, t_Return_Value return_value, int fd_so
 
 int receive_io_operation_finished(t_PID *pid, t_Return_Value *return_value, int fd_socket) {
   t_Package *package;
-  if(package_receive(&package, fd_socket))
-    return 1;
+  if(package_receive(&package, fd_socket)) return 1;
   if(package->header == IO_OPERATION_FINISHED_HEADER) {
     payload_remove(&(package->payload), pid, sizeof(*pid));
     return_value_deserialize(&(package->payload), return_value);

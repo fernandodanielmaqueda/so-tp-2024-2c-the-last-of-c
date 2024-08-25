@@ -39,12 +39,16 @@ const char *EXIT_REASONS[] = {
 
 int module(int argc, char *argv[]) {
 
-	initialize_loggers();
+	if(argc < 3) {
+		fprintf(stderr, "Uso: %s <ARCHIVO_PSEUDOCODIGO> <TAMANIO_PROCESO> [ARGUMENTOS]\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
 	initialize_configs(MODULE_CONFIG_PATHNAME);
+	initialize_loggers();
 	
 	// initialize_global_variables();
 	init_resource_sync(&SCHEDULING_SYNC);
-	init_resource_sync(&INTERFACES_SYNC);
 	initialize_mutexes();
 	initialize_semaphores();
 	LIST_RELEASED_PIDS = list_create();
@@ -54,21 +58,16 @@ int module(int argc, char *argv[]) {
 	SHARED_LIST_READY_PRIORITARY.list = list_create();
 	SHARED_LIST_EXEC.list = list_create();
 	SHARED_LIST_EXIT.list = list_create();
-	
-	LIST_INTERFACES = list_create();
 
 	initialize_sockets();
 	initialize_scheduling();
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-	initialize_kernel_console(NULL);
-
 	finish_scheduling();
 	//finish_threads();
 	finish_sockets();
 	destroy_resource_sync(&SCHEDULING_SYNC);
-	destroy_resource_sync(&INTERFACES_SYNC);
 	//finish_configs();
 	finish_loggers();
 	finish_semaphores();
@@ -90,13 +89,6 @@ void initialize_mutexes(void) {
 	pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL);
 
 	pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPT, NULL);
-
-	pthread_mutex_init(&MUTEX_KILL_EXEC_PROCESS, NULL);
-
-	pthread_mutex_init(&MUTEX_MULTIPROGRAMMING_LEVEL, NULL);
-	pthread_cond_init(&COND_MULTIPROGRAMMING_LEVEL, NULL);
-
-	pthread_mutex_init(&MUTEX_SCHEDULING_PAUSED, NULL);
 }
 
 void finish_mutexes(void) {
@@ -112,13 +104,6 @@ void finish_mutexes(void) {
 	pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex));
 
 	pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT);
-
-	pthread_mutex_destroy(&MUTEX_KILL_EXEC_PROCESS);
-
-	pthread_mutex_destroy(&MUTEX_MULTIPROGRAMMING_LEVEL);
-	pthread_cond_destroy(&COND_MULTIPROGRAMMING_LEVEL);
-	
-	pthread_mutex_destroy(&MUTEX_SCHEDULING_PAUSED);
 }
 
 void initialize_semaphores(void) {
@@ -129,24 +114,23 @@ void initialize_semaphores(void) {
 }
 
 void finish_semaphores(void) {
-
 	sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW);
 	sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT);
 	sem_destroy(&SEM_SHORT_TERM_SCHEDULER);
 }
 
 void read_module_config(t_config *module_config) {
-	COORDINATOR_IO = (t_Server) {.server_type = KERNEL_PORT_TYPE, .clients_type = IO_PORT_TYPE, .port = config_get_string_value(module_config, "PUERTO_ESCUCHA")};
-	CONNECTION_MEMORY = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_MEMORIA"), .port = config_get_string_value(module_config, "PUERTO_MEMORIA")};
+	//CONNECTION_MEMORY = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_MEMORIA"), .port = config_get_string_value(module_config, "PUERTO_MEMORIA")};
 	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
 	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
+	
 	if(find_scheduling_algorithm(config_get_string_value(module_config, "ALGORITMO_PLANIFICACION"), &SCHEDULING_ALGORITHM)) {
 		log_error(MODULE_LOGGER, "ALGORITMO_PLANIFICACION invalido");
 		exit(EXIT_FAILURE);
 	}
+
 	QUANTUM = config_get_int_value(module_config, "QUANTUM");
-	resources_read_module_config(module_config);
-	MULTIPROGRAMMING_LEVEL = config_get_int_value(module_config, "GRADO_MULTIPROGRAMACION");
+	LOG_LEVEL = log_level_from_string(config_get_string_value(module_config, "LOG_LEVEL"));
 }
 
 t_PCB *pcb_create(void) {
@@ -157,38 +141,24 @@ t_PCB *pcb_create(void) {
 		exit(EXIT_FAILURE);
 	}
 
-	pcb->exec_context.PID = pid_assign(pcb);
-    pcb->exec_context.PC = 0;
-	pcb->exec_context.quantum = QUANTUM;
-    pcb->exec_context.cpu_registers.AX = 0;
-    pcb->exec_context.cpu_registers.BX = 0;
-    pcb->exec_context.cpu_registers.CX = 0;
-    pcb->exec_context.cpu_registers.DX = 0;
-    pcb->exec_context.cpu_registers.EAX = 0;
-    pcb->exec_context.cpu_registers.EBX = 0;
-    pcb->exec_context.cpu_registers.ECX = 0;
-    pcb->exec_context.cpu_registers.EDX = 0;
-    pcb->exec_context.cpu_registers.RAX = 0;
-    pcb->exec_context.cpu_registers.RBX = 0;
-    pcb->exec_context.cpu_registers.RCX = 0;
-    pcb->exec_context.cpu_registers.RDX = 0;
-    pcb->exec_context.cpu_registers.SI = 0;
-    pcb->exec_context.cpu_registers.DI = 0;
+	pcb->PID = pid_assign(pcb);
+	//pcb->list_tids = list_create();
+	pcb->list_mutexes = list_create();
 
-	pcb->current_state = NEW_STATE;
-	pcb->shared_list_state = NULL;
+	//pcb->current_state = NEW_STATE;
+	//pcb->shared_list_state = NULL;
 
-	pcb->assigned_resources = list_create();
+	//pcb->exec_context.quantum = QUANTUM;
 
-	payload_init(&(pcb->io_operation));
+	//payload_init(&(pcb->syscall_instruction));
 
 	return pcb;
 }
 
 void pcb_destroy(t_PCB *pcb) {
-	list_destroy(pcb->assigned_resources);
+	//list_destroy(pcb->assigned_resources);
 
-	payload_destroy(&(pcb->io_operation));
+	//payload_destroy(&(pcb->syscall_instruction));
 
 	free(pcb);
 }
@@ -264,7 +234,7 @@ void pid_release(t_PID pid) {
 }
 
 bool pcb_matches_pid(t_PCB *pcb, t_PID *pid) {
-	return pcb->exec_context.PID == *pid;
+	return pcb->PID == *pid;
 }
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
@@ -285,7 +255,7 @@ void pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
 
 	char *pid_as_string;
 	while(element != NULL) {
-        pid_as_string = string_from_format("%" PRIu32, ((t_PCB *) element->data)->exec_context.PID);
+        pid_as_string = string_from_format("%" PRIu32, ((t_PCB *) element->data)->PID);
         string_append(destination, pid_as_string);
         free(pid_as_string);
 		element = element->next;

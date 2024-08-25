@@ -29,8 +29,8 @@ int RESPONSE_DELAY;
 
 int module(int argc, char* argv[]) {
 
-	initialize_loggers();
 	initialize_configs(MODULE_CONFIG_PATHNAME);
+    initialize_loggers();
     initialize_mutexes();
 	initialize_semaphores();
 
@@ -101,6 +101,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
         }
 
     RESPONSE_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_RESPUESTA");
+    LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
 void listen_kernel(void) {
@@ -220,7 +221,7 @@ void create_process(t_Payload *payload) {
     log_debug(MODULE_LOGGER, "Archivo de pseudocódigo encontrado: %s", target_path);
     free(target_path);
 
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño: <%d>", new_process->PID, 0);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño: <%d>", new_process->PID, 0);
 
     // TODO: Agregar MUTEX
     list_add(LIST_PROCESSES, new_process);
@@ -550,7 +551,7 @@ void respond_frame_request(t_Payload *payload) {
     
     size_t *frame_number = seek_frame_number_by_page_number(procesoBuscado->pages_table, page_number);
     if(frame_number != NULL)
-        log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Pagina: <%zd> - Marco: <%zd>", pidProceso, page_number, *frame_number);
+        log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Pagina: <%zd> - Marco: <%zd>", pidProceso, page_number, *frame_number);
     else
         log_error(MODULE_LOGGER, "El numero de página <%zd> no existe en la tabla de paginas.", page_number);
 
@@ -596,7 +597,7 @@ void io_read_memory(t_Payload *payload, int socket) {
 
     size_t physical_address = *((size_t *) list_get(list_physical_addresses, 0));
     
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
     t_Package* package = package_create_with_header(READ_REQUEST);
 
@@ -654,7 +655,7 @@ void copy_memory(t_Payload *payload, int socket) {
 
     size_t physical_address = *((size_t *) list_get(list_physical_addresses_origin, 0));
     
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
     int size = list_size(list_physical_addresses_origin);
     for (int i = 0; i < size; i++) {
@@ -692,7 +693,7 @@ void copy_memory(t_Payload *payload, int socket) {
     physical_address = *((size_t *) list_get(list_physical_addresses_destiny, 0));
     offset = 0;
     size = list_size(list_physical_addresses_destiny);
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
         
         for (int i = 0; i < size; i++) {
             physical_address = *((size_t *) list_get(list_physical_addresses_destiny, i));
@@ -742,7 +743,7 @@ void io_write_memory(t_Payload *payload, int socket) {
 
     size_t physical_address = *((size_t *) list_get(list_physical_addresses, 0));
 
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
     //char text_to_send[bytes];
     size_t offset = 0;
@@ -806,7 +807,7 @@ void read_memory(t_Payload *payload, int socket) {
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
     size_t current_frame = physical_address / PAGE_SIZE;
 
@@ -875,7 +876,7 @@ void write_memory(t_Payload *payload, int socket) {
     
     size_t current_frame = physical_address / PAGE_SIZE;
 
-    log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <ESCRIBIR> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
 //COMIENZA LA ESCRITURA
     if(list_size(list_physical_addresses) == 1) {//En caso de que sea igual a 1 página
@@ -982,7 +983,7 @@ void resize_process(t_Payload *payload){
                 return_value = 1;
             else {
                 
-                log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño Actual: <%d> - Tamaño a Ampliar: <%zd>", pid, size, page_quantity);
+                log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño Actual: <%d> - Tamaño a Ampliar: <%zd>", pid, size, page_quantity);
 
                 //CASO: HAY ESPACIO Y SUMA PAGINAS
                 for (size_t i = size; i < page_quantity; i++)
@@ -1012,7 +1013,7 @@ void resize_process(t_Payload *payload){
 
         if(size > page_quantity) { // RESTA paginas
                 
-            log_debug(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño Actual: <%" PRIu32 "> - Tamaño a Reducir: <%zd>", pid, size, page_quantity);
+            log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Tamaño Actual: <%" PRIu32 "> - Tamaño a Reducir: <%zd>", pid, size, page_quantity);
             
             for(size_t i = size; i > page_quantity; i--) {
                 int pos_lista = seek_oldest_page_updated(process->pages_table);

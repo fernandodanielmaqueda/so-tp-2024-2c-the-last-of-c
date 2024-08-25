@@ -7,6 +7,7 @@ void exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
   if(payload == NULL)
     return;
 
+  /*
   payload_add(payload, &(source.PID), sizeof(source.PID));
   payload_add(payload, &(source.PC), sizeof(source.PC));
   payload_add(payload, &(source.quantum), sizeof(source.quantum));
@@ -24,6 +25,7 @@ void exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
   payload_add(payload, &(source.cpu_registers.RDX), sizeof(source.cpu_registers.RDX));
   payload_add(payload, &(source.cpu_registers.SI), sizeof(source.cpu_registers.SI));
   payload_add(payload, &(source.cpu_registers.DI), sizeof(source.cpu_registers.DI));
+  */
 
   exec_context_log(source);
 }
@@ -32,6 +34,7 @@ void exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
   if(payload == NULL || destination == NULL)
     return;
 
+  /*
   payload_remove(payload, &(destination->PID), sizeof(destination->PID));
   payload_remove(payload, &(destination->PC), sizeof(destination->PC));
   payload_remove(payload, &(destination->quantum), sizeof(destination->quantum));
@@ -49,11 +52,13 @@ void exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
   payload_remove(payload, &(destination->cpu_registers.RDX), sizeof(destination->cpu_registers.RDX));
   payload_remove(payload, &(destination->cpu_registers.SI), sizeof(destination->cpu_registers.SI));
   payload_remove(payload, &(destination->cpu_registers.DI), sizeof(destination->cpu_registers.DI));
+  */
 
   exec_context_log(*destination);
 }
 
 void exec_context_log(t_Exec_Context source) {
+  /*
   log_info(SERIALIZE_LOGGER,
     "t_Exec_Context:\n"
     "* PID: %" PRIu32 "\n"
@@ -91,4 +96,5 @@ void exec_context_log(t_Exec_Context source) {
     , source.cpu_registers.SI
     , source.cpu_registers.DI
     );
+  */
 }

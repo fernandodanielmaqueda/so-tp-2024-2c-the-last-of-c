@@ -78,7 +78,7 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 	while(1) {
 		sem_wait(&SEM_LONG_TERM_SCHEDULER_NEW);
-		wait_multiprogramming_level();
+		//wait_multiprogramming_level();
 
     	wait_draining_requests(&SCHEDULING_SYNC);
 			pthread_mutex_lock(&(SHARED_LIST_NEW.mutex));
@@ -116,6 +116,7 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 		signal_draining_requests(&SCHEDULING_SYNC);
 
 		// Libera recursos asignados al proceso
+		/*
 		while(pcb->assigned_resources->head != NULL) {
 
 			t_Resource *resource = (t_Resource *) list_remove(pcb->assigned_resources, 0);
@@ -147,7 +148,7 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 			}
 		}
 
-		if(send_process_destroy(pcb->exec_context.PID, CONNECTION_MEMORY.fd_connection)) {
+		if(send_process_destroy(pcb->PID, CONNECTION_MEMORY.fd_connection)) {
 			// TODO
 			exit(1);
 		}
@@ -156,12 +157,13 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 			// TODO
         	exit(1);
 		}
+		*/
 
-		log_debug(MINIMAL_LOGGER, "Finaliza el proceso <%d> - Motivo: <%s>", pcb->exec_context.PID, EXIT_REASONS[pcb->exit_reason]);
+		//log_info(MINIMAL_LOGGER, "Finaliza el proceso <%d> - Motivo: <%s>", pcb->PID, EXIT_REASONS[pcb->exit_reason]);
 
 		//pid_release(pcb->PID);
 		pcb_destroy(pcb);
-		signal_multiprogramming_level();
+		//signal_multiprogramming_level();
 	}
 
 	return NULL;
@@ -175,7 +177,6 @@ void *short_term_scheduler(void *NULL_parameter) {
 	e_Eviction_Reason eviction_reason;
 	t_Payload syscall_instruction;
 	int exit_status;
-	int64_t cpu_burst;
 
 	while(1) {
 		sem_wait(&SEM_SHORT_TERM_SCHEDULER);
@@ -189,6 +190,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 			switch_process_state(pcb, EXEC_STATE);
 
 			EXEC_PCB = 1;
+			/*
 			while(EXEC_PCB) {
 
 				if(send_process_dispatch(pcb->exec_context, CONNECTION_CPU_DISPATCH.fd_connection)) {
@@ -238,7 +240,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 						temporal_stop(TEMPORAL_DISPATCHED);
 							cpu_burst = temporal_gettime(TEMPORAL_DISPATCHED);
 						temporal_destroy(TEMPORAL_DISPATCHED);
-						log_trace(MODULE_LOGGER, "PID: <%d> - Rafaga de CPU: %" PRId64, (int) pcb->exec_context.PID, cpu_burst);
+						log_trace(MODULE_LOGGER, "PID: <%d> - Rafaga de CPU: %" PRId64, (int) pcb->PID, cpu_burst);
 
 						pcb->exec_context.quantum -= cpu_burst;
 						if(pcb->exec_context.quantum <= 0)
@@ -306,7 +308,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 						break;
 
 					case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
-						log_debug(MINIMAL_LOGGER, "PID: <%d> - Desalojado por fin de Quantum", (int) pcb->exec_context.PID);
+						log_info(MINIMAL_LOGGER, "PID: <%d> - Desalojado por fin de Quantum", (int) pcb->PID);
 
 						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);             
 							if(KILL_EXEC_PROCESS) {
@@ -324,6 +326,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 						break;
 				}
 			}
+			*/
 		signal_draining_requests(&SCHEDULING_SYNC);
 	}
 
@@ -331,10 +334,10 @@ void *short_term_scheduler(void *NULL_parameter) {
 }
 
 void *start_quantum(t_PCB *pcb) {
-
+	/*
 	t_Quantum quantum = pcb->exec_context.quantum;
 
-    log_trace(MODULE_LOGGER, "PID: <%d> - Hilo de interrupción por quantum de %li milisegundos iniciado", (int) pcb->exec_context.PID, quantum);
+    log_trace(MODULE_LOGGER, "PID: <%d> - Hilo de interrupción por quantum de %li milisegundos iniciado", (int) pcb->PID, quantum);
 
     usleep(quantum * 1000); // en milisegundos
 
@@ -346,12 +349,13 @@ void *start_quantum(t_PCB *pcb) {
 		QUANTUM_INTERRUPT = 1;
 	pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT);
 
-    if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, pcb->exec_context.PID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
+    if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, pcb->PID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
 		// TODO
 		exit(1);
 	}
 
-    log_trace(MODULE_LOGGER, "PID: <%d> - Se envia interrupcion por quantum tras %li milisegundos", (int) pcb->exec_context.PID, quantum);
+    log_trace(MODULE_LOGGER, "PID: <%d> - Se envia interrupcion por quantum tras %li milisegundos", (int) pcb->PID, quantum);
+	*/
 
 	return NULL;
 }
@@ -399,13 +403,14 @@ t_PCB *VRR_scheduling_algorithm(void) {
 
 void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 
+	/*
 	e_Process_State previous_state = pcb->current_state;
 
 	switch(previous_state) {
 
 		case NEW_STATE:
 			pthread_mutex_lock(&(SHARED_LIST_NEW.mutex));
-				list_remove_by_condition_with_comparation((SHARED_LIST_NEW.list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
+				list_remove_by_condition_with_comparation((SHARED_LIST_NEW.list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->PID));
 				pcb->shared_list_state = NULL;
 			pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex));
 			break;
@@ -414,7 +419,7 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 		{
 			t_Shared_List *shared_list_state = pcb->shared_list_state;
 			pthread_mutex_lock(&(shared_list_state->mutex));
-				list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
+				list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->PID));
 				pcb->shared_list_state = NULL;
 			pthread_mutex_unlock(&(shared_list_state->mutex));
 			break;
@@ -423,7 +428,7 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 		case EXEC_STATE:
 		{
 			pthread_mutex_lock(&(SHARED_LIST_EXEC.mutex));
-				list_remove_by_condition_with_comparation((SHARED_LIST_EXEC.list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
+				list_remove_by_condition_with_comparation((SHARED_LIST_EXEC.list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->PID));
 				pcb->shared_list_state = NULL;
 			pthread_mutex_unlock(&(SHARED_LIST_EXEC.mutex));
 			break;
@@ -445,14 +450,14 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 				case VRR_SCHEDULING_ALGORITHM:
 					if(pcb->exec_context.quantum < QUANTUM) {
 						pthread_mutex_lock(&(SHARED_LIST_READY_PRIORITARY.mutex));
-							log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);
+							log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->PID, STATE_NAMES[previous_state]);
 							list_add((SHARED_LIST_READY_PRIORITARY.list), pcb);
 							log_state_list(MODULE_LOGGER, "Ready Prioridad", (SHARED_LIST_READY_PRIORITARY.list));
 							pcb->shared_list_state = &(SHARED_LIST_READY_PRIORITARY);
 						pthread_mutex_unlock(&(SHARED_LIST_READY_PRIORITARY.mutex));					
 					} else {
 						pthread_mutex_lock(&(SHARED_LIST_READY.mutex));
-							log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);
+							log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->PID, STATE_NAMES[previous_state]);
 							list_add((SHARED_LIST_READY.list), pcb);
 							log_state_list(MODULE_LOGGER, "Cola Ready", (SHARED_LIST_READY.list));
 							pcb->shared_list_state = &(SHARED_LIST_READY);
@@ -463,7 +468,7 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 				case RR_SCHEDULING_ALGORITHM:
 				case FIFO_SCHEDULING_ALGORITHM:
 					pthread_mutex_lock(&(SHARED_LIST_READY.mutex));
-						log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);
+						log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <READY>", (int) pcb->PID, STATE_NAMES[previous_state]);
 						list_add((SHARED_LIST_READY.list), pcb);
 						log_state_list(MODULE_LOGGER, "Cola Ready", (SHARED_LIST_READY.list));
 						pcb->shared_list_state = &(SHARED_LIST_READY);
@@ -480,7 +485,7 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 		case EXEC_STATE:
 		{
 			pthread_mutex_lock(&(SHARED_LIST_EXEC.mutex));
-				log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);
+				log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) pcb->PID, STATE_NAMES[previous_state]);
 				list_add((SHARED_LIST_EXEC.list), pcb);
 				pcb->shared_list_state = &(SHARED_LIST_EXEC);
 			pthread_mutex_unlock(&(SHARED_LIST_EXEC.mutex));
@@ -489,14 +494,14 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 
 		case BLOCKED_STATE:
 		{
-			log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <BLOCKED>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);	
+			log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <BLOCKED>", (int) pcb->PID, STATE_NAMES[previous_state]);	
 			break;
 		}
 
 		case EXIT_STATE:
 		{
 			pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex));
-				log_debug(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXIT>", (int) pcb->exec_context.PID, STATE_NAMES[previous_state]);
+				log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXIT>", (int) pcb->PID, STATE_NAMES[previous_state]);
 				list_add((SHARED_LIST_EXIT.list), pcb);
 				pcb->shared_list_state = &(SHARED_LIST_EXIT);
 			pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex));
@@ -509,4 +514,5 @@ void switch_process_state(t_PCB *pcb, e_Process_State new_state) {
 		default:
 			break;
 	}
+	*/
 }

@@ -25,7 +25,6 @@
 #include "utils/module.h"
 #include "utils/send.h"
 #include "utils/socket.h"
-#include "console.h"
 #include "socket.h"
 
 typedef enum e_Process_State {
@@ -36,22 +35,33 @@ typedef enum e_Process_State {
 	EXIT_STATE
 } e_Process_State;
 
-typedef struct t_PCB {
-    t_Exec_Context exec_context;
+typedef unsigned int t_Priority;
+
+typedef struct t_TCB {
+    //t_PCB *pcb;
+    t_TID tid;
 
     e_Process_State current_state;
     t_Shared_List *shared_list_state;
 
-    t_list *assigned_resources;
+    t_Priority priority;
 
-    t_Payload io_operation;
+    t_Quantum quantum;
 
-    e_Exit_Reason exit_reason;
+    t_Payload syscall_instruction;
+} t_TCB;
+
+typedef struct t_PCB {
+    t_PID PID;
+
+    t_TID TID_COUNTER;
+    t_TCB **TCB_ARRAY;
+    t_list *LIST_RELEASED_TIDS; // LIFO
+
+    t_list *list_mutexes;
 } t_PCB;
 
 #include "scheduler.h"
-#include "resources.h"
-#include "interfaces.h"
 #include "syscalls.h"
 
 extern char *MODULE_NAME;

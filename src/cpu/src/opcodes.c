@@ -396,13 +396,13 @@ int copy_string_cpu_operation(int argc, char **argv)
         return 1;
     }
 
-	log_debug(MINIMAL_LOGGER, "ANTES DEL READ");
+	log_info(MINIMAL_LOGGER, "ANTES DEL READ");
     attend_read(EXEC_CONTEXT.PID, list_physical_addresses_si, &source, size); 
-	log_debug(MINIMAL_LOGGER, "DESPUES DEL READ");
+	log_info(MINIMAL_LOGGER, "DESPUES DEL READ");
 
-	log_debug(MINIMAL_LOGGER, "ANTES DEL WRITE");
+	log_info(MINIMAL_LOGGER, "ANTES DEL WRITE");
     attend_write(EXEC_CONTEXT.PID, list_physical_addresses_di, source, size);
-	log_debug(MINIMAL_LOGGER, "DESPUES DEL WRITE");
+	log_info(MINIMAL_LOGGER, "DESPUES DEL WRITE");
 
     free(source);
 */

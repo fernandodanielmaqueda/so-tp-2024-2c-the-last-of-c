@@ -2,13 +2,17 @@
 
 ## Grupo "so"
 
-| Legajo    | Apellido(s) | Nombre(s)         | Usuario de GitHub                                                  | Correo electrónico institucional  | Curso |
-| --------- | ----------- | ----------------- | ------------------------------------------------------------------ | --------------------------------- | ----- |
-| 173.065-4 | Maqueda     | Fernando Daniel   | [@fernandodanielmaqueda](https://github.com/fernandodanielmaqueda) | fmaqueda@frba.utn.edu.ar          | K3574 |
-| 144.922-9 | Fink        | Brian             | [@Brai93](https://github.com/Brai93)                               | brianfink@frba.utn.edu.ar         | K3774 |
-| 149.201-9 | Baldiviezo  | Ramon Angel Vega  | [@rvegabaldiviezo](https://github.com/rvegabaldiviezo)             | rvegabaldiviezo@frba.utn.edu.ar   | K3574 |
-| 175.400-2 | Morosini    | Pablo Ariel       | [@MorosiniP](https://github.com/MorosiniP)                         | pmorosini@frba.utn.edu.ar         | K3723 |
-| 204.155-8 | Vigilante   | Santiago Fabrizio | [@svigilante](https://github.com/svigilante)                       | svigilante@frba.utn.edu.ar        | K3673 |
+| Legajo    | Apellido(s)     | Nombre(s)         | Usuario de GitHub                                                  | Correo electrónico institucional  | Curso |
+| --------- | --------------- | ----------------- | ------------------------------------------------------------------ | --------------------------------- | ----- |
+| 173.065-4 | Maqueda         | Fernando Daniel   | [@fernandodanielmaqueda](https://github.com/fernandodanielmaqueda) | fmaqueda@frba.utn.edu.ar          | K3574 |
+| 144.922-9 | Fink            | Brian             | [@Brai93](https://github.com/Brai93)                               | brianfink@frba.utn.edu.ar         | K3774 |
+| 149.201-9 | Baldiviezo Vega | Ramón Ángel       | [@rvegabaldiviezo](https://github.com/rvegabaldiviezo)             | rvegabaldiviezo@frba.utn.edu.ar   | K3574 |
+| 175.400-2 | Morosini        | Pablo Ariel       | [@MorosiniP](https://github.com/MorosiniP)                         | pmorosini@frba.utn.edu.ar         | K3723 |
+| 204.155-8 | Vigilante       | Santiago Fabrizio | [@svigilante](https://github.com/svigilante)                       | svigilante@frba.utn.edu.ar        | K3673 |
+
+## Prerequisitos
+
+Sistema operativo tipo Unix (probado en `Ubuntu Server`)
 
 ## Dependencias
 

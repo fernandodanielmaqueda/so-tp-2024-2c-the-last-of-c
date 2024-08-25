@@ -25,6 +25,8 @@ typedef struct t_Drain_Ongoing_Resource_Sync {
 
 extern char *MODULE_NAME;
 
+extern t_log_level LOG_LEVEL;
+
 extern t_log *MINIMAL_LOGGER;
 extern char *MINIMAL_LOG_PATHNAME;
 

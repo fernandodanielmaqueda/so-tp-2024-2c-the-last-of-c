@@ -45,8 +45,8 @@ pthread_mutex_t MUTEX_TLB;
 int module(int argc, char *argv[])
 {
 
-    initialize_loggers();
     initialize_configs(MODULE_CONFIG_PATHNAME);
+    initialize_loggers();
     initialize_mutexes();
 	initialize_semaphores();
     initialize_sockets();
@@ -109,6 +109,8 @@ void read_module_config(t_config *MODULE_CONFIG)
 		log_error(MODULE_LOGGER, "ALGORITMO_PLANIFICACION invalido");
 		exit(EXIT_FAILURE);
 	}
+
+    LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
 int find_tlb_algorithm(char *name, e_TLB_Algorithm *destination) {
@@ -158,7 +160,7 @@ void instruction_cycle(void)
         while(1) {
 
             // Fetch
-            log_debug(MINIMAL_LOGGER,"PID: %" PRIu16 " - FETCH - Program Counter: %" PRIu32, EXEC_CONTEXT.PID, EXEC_CONTEXT.PC);
+            log_info(MINIMAL_LOGGER,"PID: %" PRIu16 " - FETCH - Program Counter: %" PRIu32, EXEC_CONTEXT.PID, EXEC_CONTEXT.PC);
             cpu_fetch_next_instruction(&IR);
             if(IR == NULL) {
                 log_error(MODULE_LOGGER, "Error al fetchear la instruccion");
@@ -307,7 +309,7 @@ t_list *mmu(t_PID pid, size_t logical_address, size_t bytes) {
         if(check_tlb(pid, page_number, &frame_number)) { // NO HAY HIT
             pthread_mutex_unlock(&MUTEX_TLB);
 
-            log_debug(MINIMAL_LOGGER, "PID: %" PRIu16 " - TLB MISS - PAGINA: %zd", pid, page_number);
+            log_info(MINIMAL_LOGGER, "PID: %" PRIu16 " - TLB MISS - PAGINA: %zd", pid, page_number);
 
             request_frame_memory(pid, page_number);
 
@@ -345,7 +347,7 @@ t_list *mmu(t_PID pid, size_t logical_address, size_t bytes) {
         else { // HAY HIT
             pthread_mutex_unlock(&MUTEX_TLB);
 
-            log_debug(MINIMAL_LOGGER, "PID: %" PRIu16 " - TLB HIT - PAGINA: %zd", pid, page_number);
+            log_info(MINIMAL_LOGGER, "PID: %" PRIu16 " - TLB HIT - PAGINA: %zd", pid, page_number);
             log_debug(MODULE_LOGGER, "PID: %" PRIu16 " - OBTENER MARCO - Página: %zd - Marco: %zd", pid, page_number, frame_number);
 
         }

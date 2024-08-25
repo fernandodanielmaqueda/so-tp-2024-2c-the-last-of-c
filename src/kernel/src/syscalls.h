@@ -35,15 +35,6 @@ extern t_PCB *SYSCALL_PCB;
 int syscall_execute(t_Payload *syscall_instruction);
 int wait_kernel_syscall(t_Payload *syscall_arguments);
 int signal_kernel_syscall(t_Payload *syscall_arguments);
-int io_gen_sleep_kernel_syscall(t_Payload *syscall_arguments);
-int io_stdin_read_kernel_syscall(t_Payload *syscall_arguments);
-int io_stdout_write_kernel_syscall(t_Payload *syscall_arguments);
-int io_fs_create_kernel_syscall(t_Payload *syscall_arguments);
-int io_fs_delete_kernel_syscall(t_Payload *syscall_arguments);
-int io_fs_truncate_kernel_syscall(t_Payload *syscall_arguments);
-int io_fs_write_kernel_syscall(t_Payload *syscall_arguments);
-int io_fs_read_kernel_syscall(t_Payload *syscall_arguments);
 int exit_kernel_syscall(t_Payload *syscall_arguments);
-int process_io_syscall(t_Payload *syscall_arguments, e_CPU_OpCode syscall_opcode, e_IO_Type required_io_type);
 
 #endif // KERNEL_SYSCALLS_H
