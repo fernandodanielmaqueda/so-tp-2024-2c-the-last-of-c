@@ -96,13 +96,36 @@ int receive_return_value_with_expected_header(e_Header expected_header, t_Return
   return 0;
 }
 
+int send_pid_and_tid_with_header(e_Header header, t_PID pid, t_TID tid, int fd_socket) {
+  t_Package *package = package_create_with_header(header);
+  payload_add(&(package->payload), &pid, sizeof(pid));
+  payload_add(&(package->payload), &tid, sizeof(tid));
+  if(package_send(package, fd_socket))
+    return 1;
+  package_destroy(package);
+  return 0;
+}
+
+int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pid, t_TID *tid, int fd_socket) {
+  t_Package *package;
+  if(package_receive(&package, fd_socket))
+    return 1;
+  if(package->header == expected_header) {
+    payload_remove(&(package->payload), pid, sizeof(*pid));
+    payload_remove(&(package->payload), tid, sizeof(*tid));
+  } else {
+    log_error(SERIALIZE_LOGGER, "Header invalido");
+    return 1;
+  }
+  package_destroy(package);
+  return 0;
+}
+
 // Kernel - Memoria
 
-int send_process_create(t_PID pid, char *instructions_path, t_Return_Value flag_relative_path, int fd_socket) {
+int send_process_create(t_PID pid, int fd_socket) {
     t_Package *package = package_create_with_header(PROCESS_CREATE_HEADER);
     payload_add(&(package->payload), &pid, sizeof(pid));
-    text_serialize(&(package->payload), instructions_path);
-    return_value_serialize(&(package->payload), flag_relative_path);
     if(package_send(package, fd_socket))
       return 1;
     package_destroy(package);
@@ -118,34 +141,31 @@ int send_process_destroy(t_PID pid, int fd_socket) {
   return 0;
 }
 
-// Kernel - CPU
+int send_thread_create(t_PID pid, t_TID tid, char *instructions_path, int fd_socket) {
+    t_Package *package = package_create_with_header(THREAD_CREATE_HEADER);
+    payload_add(&(package->payload), &pid, sizeof(pid));
+    payload_add(&(package->payload), &tid, sizeof(tid));
+    text_serialize(&(package->payload), instructions_path);
+    if(package_send(package, fd_socket))
+      return 1;
+    package_destroy(package);
+    return 0;
+}
 
-int send_process_dispatch(t_Exec_Context exec_context, int fd_socket) {
-  t_Package *package = package_create_with_header(PROCESS_DISPATCH_HEADER);
-  exec_context_serialize(&(package->payload), exec_context);
+int send_thread_destroy(t_PID pid, t_TID tid, int fd_socket) {
+  t_Package *package = package_create_with_header(THREAD_DESTROY_HEADER);
+  payload_add(&(package->payload), &pid, sizeof(pid));
+  payload_add(&(package->payload), &tid, sizeof(tid));
   if(package_send(package, fd_socket))
     return 1;
   package_destroy(package);
   return 0;
 }
 
-int receive_process_dispatch(t_Exec_Context *exec_context, int fd_socket) {
-  t_Package *package;
-  if(package_receive(&package, fd_socket))
-    return 1;
-  if(package->header == PROCESS_DISPATCH_HEADER) {
-    exec_context_deserialize(&(package->payload), exec_context);
-  } else {
-    log_error(SERIALIZE_LOGGER, "Header invalido");
-    return 1;
-  }
-  package_destroy(package);
-  return 0;
-}
+// Kernel - CPU
 
-int send_process_eviction(t_Exec_Context exec_context, e_Eviction_Reason eviction_reason, t_Payload syscall_instruction, int fd_socket) {
-  t_Package *package = package_create_with_header(PROCESS_EVICTION_HEADER);
-  exec_context_serialize(&(package->payload), exec_context);
+int send_thread_eviction(e_Eviction_Reason eviction_reason, t_Payload syscall_instruction, int fd_socket) {
+  t_Package *package = package_create_with_header(THREAD_EVICTION_HEADER);
   eviction_reason_serialize(&(package->payload), eviction_reason);
   subpayload_serialize(&(package->payload), syscall_instruction);
   if(package_send(package, fd_socket))
@@ -154,12 +174,11 @@ int send_process_eviction(t_Exec_Context exec_context, e_Eviction_Reason evictio
   return 0;
 }
 
-int receive_process_eviction(t_Exec_Context *exec_context, e_Eviction_Reason *eviction_reason, t_Payload *syscall_instruction, int fd_socket) {
+int receive_thread_eviction(e_Eviction_Reason *eviction_reason, t_Payload *syscall_instruction, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return 1;
-  if(package->header == PROCESS_EVICTION_HEADER) {
-    exec_context_deserialize(&(package->payload), exec_context);
+  if(package->header == THREAD_EVICTION_HEADER) {
     eviction_reason_deserialize(&(package->payload), eviction_reason);
     subpayload_deserialize(&(package->payload), syscall_instruction);
   } else {
@@ -170,23 +189,25 @@ int receive_process_eviction(t_Exec_Context *exec_context, e_Eviction_Reason *ev
   return 0;
 }
 
-int send_kernel_interrupt(e_Kernel_Interrupt type, t_PID pid, int fd_socket) {
+int send_kernel_interrupt(e_Kernel_Interrupt type, t_PID pid, t_TID tid, int fd_socket) {
 	t_Package *package = package_create_with_header(KERNEL_INTERRUPT_HEADER);
 	kernel_interrupt_serialize(&(package->payload), type);
 	payload_add(&(package->payload), &pid, sizeof(pid));
+	payload_add(&(package->payload), &tid, sizeof(tid));
   if(package_send(package, fd_socket))
     return 1;
 	package_destroy(package);
   return 0;
 }
 
-int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, int fd_socket) {
+int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t_TID *tid, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return 1;
   if(package->header == KERNEL_INTERRUPT_HEADER) {
     kernel_interrupt_deserialize(&(package->payload), kernel_interrupt);
     payload_remove(&(package->payload), pid, sizeof(*pid));
+    payload_remove(&(package->payload), tid, sizeof(*tid));
   } else {
     log_error(SERIALIZE_LOGGER, "Header invalido");
     return 1;
@@ -195,7 +216,7 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, i
   return 0;
 }
 
-// Kernel - Entrada/Salida
+// Kernel - Filesystem
 
 int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket) {
 	t_Package *package = package_create_with_header(INTERFACE_DATA_REQUEST_HEADER);
@@ -276,10 +297,43 @@ int receive_io_operation_finished(t_PID *pid, t_Return_Value *return_value, int 
 
 // CPU - Memoria
 
-int send_instruction_request(t_PID pid, t_PC pc, int fd_socket) {
-  t_Package *package = package_create_with_header(INSTRUCTION_REQUEST);
+int send_exec_context(t_Exec_Context exec_context, int fd_socket) {
+  t_Package *package = package_create_with_header(EXEC_CONTEXT_REQUEST_HEADER);
+  exec_context_serialize(&(package->payload), exec_context);
+  if(package_send(package, fd_socket))
+    return 1;
+  package_destroy(package);
+  return 0;
+}
+
+int receive_exec_context(t_Exec_Context *exec_context, int fd_socket) {
+  t_Package *package;
+  if(package_receive(&package, fd_socket))
+    return 1;
+  if(package->header == EXEC_CONTEXT_REQUEST_HEADER) {
+    exec_context_deserialize(&(package->payload), exec_context);
+  } else {
+    log_error(SERIALIZE_LOGGER, "Header invalido");
+    return 1;
+  }
+  package_destroy(package);
+  return 0;
+}
+
+int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket) {
+  t_Package *package = package_create_with_header(INSTRUCTION_REQUEST_HEADER);
   payload_add(&(package->payload), &pid, sizeof(pid));
+  payload_add(&(package->payload), &tid, sizeof(tid));
   payload_add(&(package->payload), &pc, sizeof(pc));
+  if(package_send(package, fd_socket))
+    return 1;
+  package_destroy(package);
+  return 0;
+}
+
+int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, int fd_socket) {
+  t_Package *package = package_create_with_header(EXEC_CONTEXT_UPDATE_HEADER);
+  exec_context_serialize(&(package->payload), exec_context);
   if(package_send(package, fd_socket))
     return 1;
   package_destroy(package);

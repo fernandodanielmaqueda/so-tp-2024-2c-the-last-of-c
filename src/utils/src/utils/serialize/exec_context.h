@@ -44,16 +44,6 @@ typedef struct t_CPU_Registers {
     uint32_t DI;
 } t_CPU_Registers;
 
-typedef enum e_Exit_Reason {
-    UNEXPECTED_ERROR_EXIT_REASON,
-
-    SUCCESS_EXIT_REASON,
-    INVALID_RESOURCE_EXIT_REASON,
-    INVALID_INTERFACE_EXIT_REASON,
-    OUT_OF_MEMORY_EXIT_REASON,
-    INTERRUPTED_BY_USER_EXIT_REASON
-} e_Exit_Reason;
-
 typedef struct t_Exec_Context {
     t_PID PID;
     t_PC PC;

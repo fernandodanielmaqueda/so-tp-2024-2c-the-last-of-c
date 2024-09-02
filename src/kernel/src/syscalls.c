@@ -14,7 +14,7 @@ t_Syscall SYSCALLS[] = {
     [EXIT_CPU_OPCODE] = {.name = "EXIT" , .function = exit_kernel_syscall}
 };
 
-t_PCB *SYSCALL_PCB;
+t_TCB *SYSCALL_TCB;
 
 int syscall_execute(t_Payload *syscall_instruction) {
 
@@ -45,7 +45,6 @@ int wait_kernel_syscall(t_Payload *syscall_arguments) {
     if(resource == NULL) {
         log_trace(MODULE_LOGGER, "WAIT %s: recurso no encontrado", resource_name);
         free(resource_name);
-        SYSCALL_PCB->exit_reason = INVALID_RESOURCE_EXIT_REASON;
         return 1;
     }
 
@@ -91,7 +90,6 @@ int signal_kernel_syscall(t_Payload *syscall_arguments) {
     if(resource == NULL) {
         log_trace(MODULE_LOGGER, "SIGNAL %s: recurso no encontrado", resource_name);
         free(resource_name);
-        SYSCALL_PCB->exit_reason = INVALID_RESOURCE_EXIT_REASON;
         return 1;
     }
 
@@ -135,7 +133,7 @@ int exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "EXIT");
 
-    EXEC_PCB = 0;
+    EXEC_TCB = 0;
 
     return 0;
 }

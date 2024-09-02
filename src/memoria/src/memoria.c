@@ -366,49 +366,49 @@ void listen_cpu(void) {
             exit(1);
         }
         switch (package->header) {
-            case INSTRUCTION_REQUEST:
+            case INSTRUCTION_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de instruccion recibido.");
                 seek_instruccion(&(package->payload));
                 package_destroy(package);
                 break;
                 
-            case FRAME_REQUEST:
+            case FRAME_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de frame recibido.");
                 respond_frame_request(&(package->payload));
                 package_destroy(package);
                 break;
                 
-            case PAGE_SIZE_REQUEST:
+            case PAGE_SIZE_REQUEST_HEADER:
             {
                 log_info(MODULE_LOGGER, "CPU: Pedido de tamaño de pagina recibido.");
                 package_destroy(package);
 
-                package = package_create_with_header(PAGE_SIZE_REQUEST);
+                package = package_create_with_header(PAGE_SIZE_REQUEST_HEADER);
                 size_serialize(&(package->payload), PAGE_SIZE);
                 package_send(package, CLIENT_CPU->fd_client);
                 package_destroy(package);
 
                 break;
             }
-            case RESIZE_REQUEST:
+            case RESIZE_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de tamaño de pagina recibido.");
                 resize_process(&(package->payload));
                 package_destroy(package);
                 break;
                 
-            case READ_REQUEST:
+            case READ_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de lectura recibido.");
                 io_read_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
-            case WRITE_REQUEST:
+            case WRITE_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de escritura recibido.");
                 io_write_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
-            case COPY_REQUEST:
+            case COPY_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de escritura recibido.");
                 copy_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
@@ -440,22 +440,22 @@ void listen_io(t_Client *client) {
         }
         switch(package->header) {
 
-            case IO_STDIN_WRITE_MEMORY:
+            case IO_STDIN_WRITE_MEMORY_HEADER:
                 log_info(MODULE_LOGGER, "IO: Nueva peticion STDIN_IO (write) recibido.");
                 io_write_memory(&(package->payload), client->fd_client);
                 break;
             
-            case IO_STDOUT_READ_MEMORY:
+            case IO_STDOUT_READ_MEMORY_HEADER:
                 log_info(MODULE_LOGGER, "IO: Nueva peticion STDOUT_IO (read) recibido.");
                 io_read_memory(&(package->payload), client->fd_client);
                 break;
             
-            case IO_FS_READ_MEMORY:
+            case IO_FS_READ_MEMORY_HEADER:
                 log_info(MODULE_LOGGER, "IO: Nueva peticion STDOUT_IO (write) recibido.");
                 io_write_memory(&(package->payload), client->fd_client);
                 break;
             
-            case IO_FS_WRITE_MEMORY:
+            case IO_FS_WRITE_MEMORY_HEADER:
                 log_info(MODULE_LOGGER, "IO: Nueva peticion STDOUT_IO (read) recibido.");
                 io_read_memory(&(package->payload), client->fd_client);
                 break;
@@ -487,7 +487,7 @@ void seek_instruccion(t_Payload *payload) {
     }
 
     usleep(RESPONSE_DELAY * 1000);
-    if(send_text_with_header(INSTRUCTION_REQUEST, instruccionBuscada, CLIENT_CPU->fd_client)) {
+    if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruccionBuscada, CLIENT_CPU->fd_client)) {
         // TODO
 
         pthread_cancel(SERVER_MEMORY.thread_server);
@@ -558,7 +558,7 @@ void respond_frame_request(t_Payload *payload) {
 //Respuesta
     usleep(RESPONSE_DELAY * 1000);
     
-    t_Package* package = package_create_with_header(FRAME_REQUEST);
+    t_Package* package = package_create_with_header(FRAME_REQUEST_HEADER);
     if(frame_number != NULL) {
         return_value_serialize(&(package->payload), 0);
         size_serialize(&(package->payload), *frame_number);
@@ -599,7 +599,7 @@ void io_read_memory(t_Payload *payload, int socket) {
     
     log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
 
-    t_Package* package = package_create_with_header(READ_REQUEST);
+    t_Package* package = package_create_with_header(READ_REQUEST_HEADER);
 
     int size = list_size(list_physical_addresses);
     for (int i = 0; i < size; i++) {
@@ -725,7 +725,7 @@ void copy_memory(t_Payload *payload, int socket) {
     list_destroy_and_destroy_elements(list_physical_addresses_destiny, free);
     list_destroy_and_destroy_elements(list_physical_addresses_origin, free);
 
-    if(send_return_value_with_header(COPY_REQUEST, 0, socket)) {
+    if(send_return_value_with_header(COPY_REQUEST_HEADER, 0, socket)) {
         log_info(MODULE_LOGGER, "PID: %i - Accion: COPY FAIL!.", pid);
         exit(1);
     }
@@ -788,7 +788,7 @@ void io_write_memory(t_Payload *payload, int socket) {
     
     list_destroy_and_destroy_elements(list_physical_addresses, free);
 
-    if(send_return_value_with_header(WRITE_REQUEST, 0, socket)) {
+    if(send_return_value_with_header(WRITE_REQUEST_HEADER, 0, socket)) {
         // TODO
         exit(1);
     }
@@ -811,7 +811,7 @@ void read_memory(t_Payload *payload, int socket) {
 
     size_t current_frame = physical_address / PAGE_SIZE;
 
-    t_Package *package = package_create_with_header(READ_REQUEST);
+    t_Package *package = package_create_with_header(READ_REQUEST_HEADER);
 
     if(list_size(list_physical_addresses) == 1) { //En caso de que sea igual a una página
         pthread_mutex_lock(&MUTEX_MAIN_MEMORY);
@@ -927,7 +927,7 @@ void write_memory(t_Payload *payload, int socket) {
 
     list_destroy_and_destroy_elements(list_physical_addresses, free);
 
-    if(send_return_value_with_header(WRITE_REQUEST, 0, socket)) {
+    if(send_return_value_with_header(WRITE_REQUEST_HEADER, 0, socket)) {
         // TODO
         exit(1);
     }
@@ -1032,7 +1032,7 @@ void resize_process(t_Payload *payload){
     }
     //No hace falta el caso page == size ya que no sucederia nada
 
-    if(send_return_value_with_header(RESIZE_REQUEST, return_value, CLIENT_CPU->fd_client)) {
+    if(send_return_value_with_header(RESIZE_REQUEST_HEADER, return_value, CLIENT_CPU->fd_client)) {
         // TODO
 
         pthread_cancel(SERVER_MEMORY.thread_server);

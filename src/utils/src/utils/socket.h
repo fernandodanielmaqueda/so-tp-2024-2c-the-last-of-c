@@ -45,9 +45,9 @@ typedef struct t_Client {
 } t_Client;
 
 void *client_thread_connect_to_server(t_Connection *connection);
-int client_start_try(char* ip, char* port);
+int client_start_try(char *ip, char *port);
 void server_start(t_Server *server);
-int server_start_try(char* port);
+int server_start_try(char *port);
 int server_accept(int socket_servidor);
 
 #endif // UTILS_SOCKET_H

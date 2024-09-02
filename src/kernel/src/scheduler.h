@@ -25,8 +25,8 @@
 
 typedef enum e_Scheduling_Algorithm {
     FIFO_SCHEDULING_ALGORITHM,
-    RR_SCHEDULING_ALGORITHM,
-    VRR_SCHEDULING_ALGORITHM
+    PRIORITIES_SCHEDULING_ALGORITHM,
+    MLQ_SCHEDULING_ALGORITHM
 } e_Scheduling_Algorithm;
 
 typedef struct t_Scheduling_Algorithm {
@@ -35,8 +35,11 @@ typedef struct t_Scheduling_Algorithm {
 } t_Scheduling_Algorithm;
 
 extern t_Shared_List SHARED_LIST_NEW;
-extern t_Shared_List SHARED_LIST_READY;
-extern t_Shared_List SHARED_LIST_READY_PRIORITARY;
+
+extern t_Priority PRIORITY_COUNT;
+extern t_Shared_List **ARRAY_LIST_READY;
+extern t_Drain_Ongoing_Resource_Sync READY_SYNC;
+
 extern t_Shared_List SHARED_LIST_EXEC;
 extern t_Shared_List SHARED_LIST_EXIT;
 
@@ -47,9 +50,9 @@ extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 extern pthread_t THREAD_SHORT_TERM_SCHEDULER;
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 
-extern int EXEC_PCB;
+extern int EXEC_TCB;
 
-extern t_Scheduling_Algorithm SCHEDULING_ALGORITHMS[];
+extern char *SCHEDULING_ALGORITHMS[];
 
 extern e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 
@@ -57,8 +60,6 @@ extern t_Quantum QUANTUM;
 extern pthread_t THREAD_QUANTUM_INTERRUPT;
 extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
 extern int QUANTUM_INTERRUPT;
-
-extern t_temporal *TEMPORAL_DISPATCHED;
 
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
@@ -70,10 +71,7 @@ void initialize_short_term_scheduler(void);
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
 void *short_term_scheduler(void *NULL_parameter);
-void* start_quantum(t_PCB *pcb);
-t_PCB *FIFO_scheduling_algorithm(void);
-t_PCB *RR_scheduling_algorithm(void);
-t_PCB *VRR_scheduling_algorithm(void);
-void switch_process_state(t_PCB* pcb, e_Process_State NEW_STATE);
+void* start_quantum(t_TCB *tcb);
+void switch_process_state(t_TCB *tcb, e_Process_State new_state);
 
 #endif // KERNEL_SCHEDULER_H

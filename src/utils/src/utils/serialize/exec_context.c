@@ -8,7 +8,7 @@ void exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
     return;
 
   /*
-  payload_add(payload, &(source.PID), sizeof(source.PID));
+
   payload_add(payload, &(source.PC), sizeof(source.PC));
   payload_add(payload, &(source.quantum), sizeof(source.quantum));
   payload_add(payload, &(source.cpu_registers.AX), sizeof(source.cpu_registers.AX));
@@ -35,7 +35,7 @@ void exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
     return;
 
   /*
-  payload_remove(payload, &(destination->PID), sizeof(destination->PID));
+  
   payload_remove(payload, &(destination->PC), sizeof(destination->PC));
   payload_remove(payload, &(destination->quantum), sizeof(destination->quantum));
   payload_remove(payload, &(destination->cpu_registers.AX), sizeof(destination->cpu_registers.AX));

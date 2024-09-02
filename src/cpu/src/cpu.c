@@ -11,19 +11,8 @@ char *MODULE_LOG_PATHNAME = "cpu.log";
 char *MODULE_CONFIG_PATHNAME = "cpu.config";
 t_config *MODULE_CONFIG;
 
-int TLB_ENTRY_COUNT;
-
-const char *TLB_ALGORITHMS[] = {
-    [FIFO_TLB_ALGORITHM] = "FIFO",
-    [LRU_TLB_ALGORITHM] = "LRU"
-};
-
-e_TLB_Algorithm TLB_ALGORITHM;
-
-size_t PAGE_SIZE;
-long TIMESTAMP;
-t_list *TLB;          // TLB que voy a ir creando para darle valores que obtengo de la estructura de t_tlb
-
+t_PID PID;
+t_TID TID;
 t_Exec_Context EXEC_CONTEXT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
 
@@ -38,10 +27,6 @@ pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
 int SYSCALL_CALLED;
 t_Payload SYSCALL_INSTRUCTION;
 
-int TLB_REPLACE_INDEX_FIFO = 0;
-
-pthread_mutex_t MUTEX_TLB;
-
 int module(int argc, char *argv[])
 {
 
@@ -52,11 +37,6 @@ int module(int argc, char *argv[])
     initialize_sockets();
 
     pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL);
-
-    TLB = list_create();
-
-    //Se pide a memoria el tamaño de pagina y lo setea como dato global
-    ask_memory_page_size();
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
     instruction_cycle();
@@ -74,15 +54,13 @@ int module(int argc, char *argv[])
 void initialize_mutexes(void) {
     pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL);
     pthread_mutex_init(&MUTEX_EXECUTING, NULL);
-    pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);    
-    pthread_mutex_init(&MUTEX_TLB, NULL);
+    pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);
 }
 
 void finish_mutexes(void) {
     pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT);
     pthread_mutex_destroy(&MUTEX_EXECUTING);
-    pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);    
-    pthread_mutex_destroy(&MUTEX_TLB);
+    pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);
 }
 
 void initialize_semaphores(void) {
@@ -102,30 +80,8 @@ void read_module_config(t_config *MODULE_CONFIG)
     
     SERVER_CPU_INTERRUPT = (t_Server){.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
     CLIENT_KERNEL_CPU_INTERRUPT = (t_Client){.client_type = KERNEL_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
-    
-    TLB_ENTRY_COUNT = config_get_int_value(MODULE_CONFIG, "CANTIDAD_ENTRADAS_TLB");
-
-    if(find_tlb_algorithm(config_get_string_value(MODULE_CONFIG, "ALGORITMO_TLB"), &TLB_ALGORITHM)) {
-		log_error(MODULE_LOGGER, "ALGORITMO_PLANIFICACION invalido");
-		exit(EXIT_FAILURE);
-	}
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
-}
-
-int find_tlb_algorithm(char *name, e_TLB_Algorithm *destination) {
-
-    if(name == NULL || destination == NULL)
-        return 1;
-    
-    size_t tlb_algorithms_number = sizeof(TLB_ALGORITHMS) / sizeof(TLB_ALGORITHMS[0]);
-    for (register e_TLB_Algorithm tlb_algorithm = 0; tlb_algorithm < tlb_algorithms_number; tlb_algorithm++)
-        if (strcmp(TLB_ALGORITHMS[tlb_algorithm], name) == 0) {
-            *destination = tlb_algorithm;
-            return 0;
-        }
-
-    return 1;
 }
 
 void instruction_cycle(void)
@@ -145,7 +101,17 @@ void instruction_cycle(void)
         payload_init(&SYSCALL_INSTRUCTION);
 
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
-            if(receive_process_dispatch(&EXEC_CONTEXT, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
+            if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
+                // TODO
+                exit(1);
+            }
+
+            if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
+                // TODO
+                exit(1);
+            }
+
+            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(1);
             }
@@ -241,7 +207,12 @@ void instruction_cycle(void)
         pthread_mutex_unlock(&MUTEX_EXECUTING);
 
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
-            if(send_process_eviction(EXEC_CONTEXT, EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
+            if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
+                // TODO
+                exit(1);
+            }
+
+            if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
                 exit(1);
             }
@@ -259,10 +230,11 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
 
     e_Kernel_Interrupt kernel_interrupt;
     t_PID pid;
+    t_TID tid;
 
     while(1) {
 
-        if(receive_kernel_interrupt(&kernel_interrupt, &pid, CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
+        if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
             // TODO
             exit(1);
         }
@@ -275,7 +247,7 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
         pthread_mutex_unlock(&MUTEX_EXECUTING);
 
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
-            if(pid != EXEC_CONTEXT.PID) {
+            if(pid != PID && tid != TID) {
                 pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
                 continue;
             }
@@ -294,6 +266,7 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
 
 t_list *mmu(t_PID pid, size_t logical_address, size_t bytes) {
 
+    /*
     size_t page_number = (size_t) floor((double) logical_address / (double) PAGE_SIZE);
     size_t offset = logical_address - page_number * PAGE_SIZE;
 
@@ -369,152 +342,36 @@ t_list *mmu(t_PID pid, size_t logical_address, size_t bytes) {
     }
     
     return list_physical_addresses;
+    */
+   return NULL;
 }
 
-int check_tlb(t_PID process_id, size_t page_number, size_t *destination_frame_number) {
-
-    t_TLB *tlb_entry = NULL;
-    for (int i = 0; i < list_size(TLB); i++) {
-
-        tlb_entry = (t_TLB *) list_get(TLB, i);
-        if (tlb_entry->PID == process_id && tlb_entry->page_number == page_number) {
-            *destination_frame_number = tlb_entry->frame_number;
-
-            if(TLB_ALGORITHM == LRU_TLB_ALGORITHM) {
-                tlb_entry->time = TIMESTAMP;
-                TIMESTAMP++;
-            }
-
-            return 0;
-        }
+void cpu_fetch_next_instruction(char **line) {
+    if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(1);
     }
-
-    return 1;
-}
-
-void add_to_tlb(t_PID pid , size_t page_number, size_t frame_number) {
-    t_TLB *tlb_entry = malloc(sizeof(t_TLB));
-    tlb_entry->PID = pid;
-    tlb_entry->page_number = page_number;
-    tlb_entry->frame_number = frame_number;
-    tlb_entry->time = TIMESTAMP;
-    TIMESTAMP++;
-    list_add(TLB, tlb_entry);
-}
-
-void delete_tlb_entry_by_pid_on_resizing(t_PID pid, int resize_number) {
-    t_TLB *tlb_entry;
-    int size = list_size(TLB);
-
-    if(size != 0){
-
-        for (size_t i = (size -1); i != -1; i--)
-        {
-            tlb_entry = list_get(TLB, i);
-            if((tlb_entry->PID == pid) && (tlb_entry->page_number >= (resize_number -1))){
-                list_remove(TLB, i);
-                free(tlb_entry);
-            }
-        }
+    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(1);
     }
 }
 
-void delete_tlb_entry_by_pid_deleted(t_PID pid) {
-    t_TLB *tlb_entry;
-    int size = list_size(TLB);
-
-    if(size != 0) {
-        for (size_t i = (size -1); i != -1; i--) {
-            tlb_entry = list_get(TLB, i);
-            if(tlb_entry->PID == pid) {
-                list_remove(TLB, i);
-                free(tlb_entry);
-            }
-        }
-    }
-}
-
-void replace_tlb_input(t_PID pid, size_t page_number, size_t frame_number) {
-    t_TLB *tlb_aux;
-
-    switch(TLB_ALGORITHM) {
-        case LRU_TLB_ALGORITHM:
-        {
-            tlb_aux = list_get(TLB, 0);
-            int replace_value = tlb_aux->time + 1;
-            int index_replace = 0;
-                for(int i = 0; i < list_size(TLB); i++){
-
-                    t_TLB *replaced_tlb = list_get(TLB, i);
-                    if(replaced_tlb->time < replace_value){
-                        replace_value = replaced_tlb->time;
-                        index_replace = i;
-                    } //guardo el d emenor tiempo
-                }
-
-            tlb_aux = list_get(TLB, index_replace);
-            tlb_aux->PID = pid;
-            tlb_aux->page_number = page_number;
-            tlb_aux->frame_number = frame_number;
-            tlb_aux->time = TIMESTAMP;
-            TIMESTAMP++;
-            break;
-        }
-        case FIFO_TLB_ALGORITHM:
-        {
-            tlb_aux = list_get(TLB, TLB_REPLACE_INDEX_FIFO);
-            tlb_aux->PID = pid;
-            tlb_aux->page_number = page_number;
-            tlb_aux->frame_number = frame_number;
-            tlb_aux->time = TIMESTAMP;
-            TIMESTAMP++;
-
-            TLB_REPLACE_INDEX_FIFO++;
-            if (TLB_REPLACE_INDEX_FIFO == list_size(TLB))
-                TLB_REPLACE_INDEX_FIFO = 0;
-            break;
-        }
-    }   
-}
-
+/*
 void request_frame_memory(t_PID pid, size_t page_number) {
-    t_Package *package = package_create_with_header(FRAME_REQUEST);
+    t_Package *package = package_create_with_header(FRAME_REQUEST_HEADER);
     size_serialize(&(package->payload), page_number);
     payload_add(&(package->payload), &pid, sizeof(pid));
     package_send(package, CONNECTION_MEMORY.fd_connection);
 }
+*/
 
-void cpu_fetch_next_instruction(char **line) {
-    if(send_instruction_request(EXEC_CONTEXT.PID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-    if(receive_text_with_expected_header(INSTRUCTION_REQUEST, line, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-}
-
-void ask_memory_page_size(void) {
-    if(send_header(PAGE_SIZE_REQUEST, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-
-    t_Package* package;
-    if(package_receive(&package, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-    size_deserialize(&(package->payload), &PAGE_SIZE);
-    package_destroy(package);
-}
-
+/*
 void attend_write(t_PID pid, t_list *list_physical_addresses, char* source, size_t bytes) {
 
     t_Package* package;
 
-    package = package_create_with_header(WRITE_REQUEST);
+    package = package_create_with_header(WRITE_REQUEST_HEADER);
     payload_add(&(package->payload), &pid, sizeof(pid));
     list_serialize(&(package->payload), *list_physical_addresses, size_serialize_element);
     size_serialize(&(package->payload), bytes);
@@ -522,7 +379,7 @@ void attend_write(t_PID pid, t_list *list_physical_addresses, char* source, size
     package_send(package, CONNECTION_MEMORY.fd_connection);
     package_destroy(package);
 
-    if(receive_expected_header(WRITE_REQUEST,CONNECTION_MEMORY.fd_connection)) {
+    if(receive_expected_header(WRITE_REQUEST_HEADER ,CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(1);
     }
@@ -533,7 +390,7 @@ void attend_read(t_PID pid, t_list *list_physical_addresses, void *destination, 
     if(list_physical_addresses == NULL || destination == NULL)
         return;
 
-    t_Package* package = package_create_with_header(READ_REQUEST);
+    t_Package* package = package_create_with_header(READ_REQUEST_HEADER);
     payload_add(&(package->payload), &(pid), sizeof(pid));
     list_serialize(&(package->payload), *list_physical_addresses, size_serialize_element);
     size_serialize(&(package->payload), bytes);          
@@ -558,7 +415,7 @@ void attend_copy(t_PID pid, t_list *list_physical_addresses_origin, t_list *list
     if(list_physical_addresses_origin == NULL || list_physical_addresses_destination == NULL)
         return;
 
-    t_Package* package = package_create_with_header(COPY_REQUEST);
+    t_Package* package = package_create_with_header(COPY_REQUEST_HEADER);
     payload_add(&(package->payload), &(pid), sizeof(pid));
     list_serialize(&(package->payload), *list_physical_addresses_origin, size_serialize_element);
     list_serialize(&(package->payload), *list_physical_addresses_destination, size_serialize_element);
@@ -567,32 +424,11 @@ void attend_copy(t_PID pid, t_list *list_physical_addresses_origin, t_list *list
     package_destroy(package);
 
     
-    if(receive_expected_header(COPY_REQUEST,CONNECTION_MEMORY.fd_connection)) {
+    if(receive_expected_header(COPY_REQUEST_HEADER ,CONNECTION_MEMORY.fd_connection)) {
         log_info(MODULE_LOGGER, "PID: %i - Accion: COPY FAIL!.", pid);
         exit(1);
     }
     log_info(MODULE_LOGGER, "PID: %i - Accion: COPY OK", pid);
 
 }
-
-size_t seek_quantity_pages_required(size_t logical_address, size_t bytes){
-    size_t page_quantity = 0;
-    
-    size_t offset = logical_address % PAGE_SIZE;
-
-    if (offset != 0) {
-        // Calcula los bytes restantes en la primera página
-        size_t bytes_in_first_page = PAGE_SIZE - offset;
-
-        if(bytes <= bytes_in_first_page)
-            return 1;
-        else {
-            bytes -= bytes_in_first_page;
-            page_quantity++;
-        }
-    }
-
-    page_quantity += (size_t) ceil((double) bytes / (double) PAGE_SIZE);
-    
-    return page_quantity;
-}
+*/

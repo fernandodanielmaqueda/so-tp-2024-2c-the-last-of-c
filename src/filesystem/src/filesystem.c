@@ -315,7 +315,7 @@ int io_stdin_read_io_operation(t_Payload *operation_arguments) {
 	log_info(MODULE_LOGGER, "[IO] Mensaje escrito: <%s>", text_to_send); // FALTA EL \0
 
 	//Creo paquete y argumentos necesarios para enviarle a memoria
-	t_Package *package = package_create_with_header(IO_STDIN_WRITE_MEMORY);
+	t_Package *package = package_create_with_header(IO_STDIN_WRITE_MEMORY_HEADER);
 	payload_add(&(package->payload), &PID, sizeof(PID));
 	list_serialize(&(package->payload), *physical_addresses, size_serialize_element);
 	size_serialize(&(package->payload), bytes);
@@ -324,7 +324,7 @@ int io_stdin_read_io_operation(t_Payload *operation_arguments) {
 	package_destroy(package);
 
 	//Recibo si salio bien la operacion
-	receive_return_value_with_expected_header(WRITE_REQUEST, 0, CONNECTION_MEMORY.fd_connection);
+	receive_return_value_with_expected_header(WRITE_REQUEST_HEADER, 0, CONNECTION_MEMORY.fd_connection);
 
 	// free(pointer_verifier);
 	
@@ -350,7 +350,7 @@ int io_stdout_write_io_operation(t_Payload *operation_arguments) {
 	t_Package* package;
 
 	//Creo header para memoria y el paquete con los argumentos
-	package = package_create_with_header(IO_STDOUT_READ_MEMORY);
+	package = package_create_with_header(IO_STDOUT_READ_MEMORY_HEADER);
 	payload_add(&(package->payload), &PID, sizeof(PID));
 	list_serialize(&(package->payload), *physical_addresses, size_serialize_element);
 	size_serialize(&(package->payload), bytes);
@@ -589,7 +589,7 @@ del valor del Registro Puntero Archivo.*/
 	uint32_t block_initial = file->initial_bloq;
 
 	//Envio paquete a memoria
-	t_Package* pack_request = package_create_with_header(IO_FS_WRITE_MEMORY);
+	t_Package* pack_request = package_create_with_header(IO_FS_WRITE_MEMORY_HEADER);
 	payload_add(&pack_request->payload, &PID, sizeof(PID));
     list_serialize(&pack_request->payload, *list_dfs, size_serialize_element);
 	size_serialize(&pack_request->payload, bytes);
@@ -660,7 +660,7 @@ indicada en el Registro Dirección*/
 */
 
 	//Se crea paquete y se envia a memoria
-	t_Package* pack_request = package_create_with_header(IO_FS_READ_MEMORY);
+	t_Package* pack_request = package_create_with_header(IO_FS_READ_MEMORY_HEADER);
 	payload_add(&pack_request->payload, &PID, sizeof(t_PID));
     list_serialize(&pack_request->payload, *list_dfs, size_serialize_element);
 	payload_add(&pack_request->payload, &bytes, sizeof(bytes));
@@ -673,7 +673,7 @@ indicada en el Registro Dirección*/
 	log_info(MINIMAL_LOGGER, "PID: <%d> - Leer Archivo: <%s> - Tamaño a Leer: <%d> - Puntero Archivo: <%d>",
 				 (int) PID, file_name, (int)bytes, (int)ptro);
 
-	if(receive_return_value_with_expected_header(WRITE_REQUEST,0,CONNECTION_MEMORY.fd_connection)){
+	if(receive_return_value_with_expected_header(WRITE_REQUEST_HEADER,0,CONNECTION_MEMORY.fd_connection)){
 		
         exit(1);
 	}

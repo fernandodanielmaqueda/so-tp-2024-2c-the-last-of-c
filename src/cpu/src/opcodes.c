@@ -122,7 +122,7 @@ int mov_in_cpu_operation(int argc, char **argv)
         return 1;
     }
 
-    attend_read(EXEC_CONTEXT.PID, list_physical_addresses, &source, bytes);
+    //attend_read(EXEC_CONTEXT.PID, list_physical_addresses, &source, bytes);
     memcpy(destination, source, bytes);
     free(source);
 
@@ -178,7 +178,7 @@ int mov_out_cpu_operation(int argc, char **argv)
         return 1;
     }
 
-    attend_write(EXEC_CONTEXT.PID, list_physical_addresses, text, bytes);
+    //attend_write(EXEC_CONTEXT.PID, list_physical_addresses, text, bytes);
 
     EXEC_CONTEXT.PC++;
 
@@ -325,14 +325,14 @@ int resize_cpu_operation(int argc, char **argv)
 
     log_trace(MODULE_LOGGER, "RESIZE %s", argv[1]);
 
-    t_Package *package = package_create_with_header(RESIZE_REQUEST);
+    t_Package *package = package_create_with_header(RESIZE_REQUEST_HEADER);
     payload_add(&(package->payload), &(EXEC_CONTEXT.PID), sizeof(EXEC_CONTEXT.PID));
 	payload_add(&(package->payload), &size, sizeof(size));
 	package_send(package, CONNECTION_MEMORY.fd_connection);
 	package_destroy(package);
 
     t_Return_Value return_value;
-    if(receive_return_value_with_expected_header(RESIZE_REQUEST, &return_value, CONNECTION_MEMORY.fd_connection)) {
+    if(receive_return_value_with_expected_header(RESIZE_REQUEST_HEADER, &return_value, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(1);
     }
@@ -407,7 +407,7 @@ int copy_string_cpu_operation(int argc, char **argv)
     free(source);
 */
   
-    attend_copy(EXEC_CONTEXT.PID, list_physical_addresses_si, list_physical_addresses_di, size);
+    //attend_copy(EXEC_CONTEXT.PID, list_physical_addresses_si, list_physical_addresses_di, size);
 
     EXEC_CONTEXT.PC++;
 
@@ -787,17 +787,6 @@ int exit_cpu_operation(int argc, char **argv)
     }
 
     log_trace(MODULE_LOGGER, "EXIT");
-
-    // Saco de la TLB
-    for (int i = list_size(TLB) - 1; i >= 0; i--)
-    {
-
-        t_TLB *delete_tlb_entry = list_get(TLB, i);
-        if (delete_tlb_entry->PID == EXEC_CONTEXT.PID)
-        {
-            list_remove(TLB, i);
-        }
-    }
 
     EXEC_CONTEXT.PC++;
     

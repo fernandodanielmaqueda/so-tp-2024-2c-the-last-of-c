@@ -48,36 +48,40 @@ int send_return_value_with_header(e_Header header, t_Return_Value return_value, 
 int receive_return_value_with_expected_header(e_Header expected_header, t_Return_Value *return_value, int fd_socket);
 
 
+int send_pid_and_tid_with_header(e_Header header, t_PID pid, t_TID tid, int fd_socket);
+
+
+int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pid, t_TID *tid, int fd_socket);
+
 // Kernel - Memoria
 
 
-int send_process_create(t_PID pid, char *instructions_path, t_Return_Value flag_relative_path, int fd_socket);
+int send_process_create(t_PID pid, int fd_socket);
 
 
 int send_process_destroy(t_PID pid, int fd_socket);
 
 
+int send_thread_create(t_PID pid, t_TID tid, char *instructions_path, int fd_socket);
+
+
+int send_thread_destroy(t_PID pid, t_TID tid, int fd_socket);
+
+
 // Kernel - CPU
 
-
-int send_process_dispatch(t_Exec_Context exec_context, int fd_socket); //INT HEADER TERCER PARAMETREO ENVIO PCB A CUALQUIEWR SOCKET
-
-
-int receive_process_dispatch(t_Exec_Context *exec_context, int fd_socket);
+int send_thread_eviction(e_Eviction_Reason eviction_reason, t_Payload syscall_instruction, int fd_socket);
 
 
-int send_process_eviction(t_Exec_Context exec_context, e_Eviction_Reason eviction_reason, t_Payload syscall_instruction, int fd_socket);
+int receive_thread_eviction(e_Eviction_Reason *eviction_reason, t_Payload *syscall_instruction, int fd_socket);
 
 
-int receive_process_eviction(t_Exec_Context *exec_context, e_Eviction_Reason *eviction_reason, t_Payload *syscall_instruction, int fd_socket);
+int send_kernel_interrupt(e_Kernel_Interrupt type, t_PID pid, t_TID tid, int fd_socket);
 
 
-int send_kernel_interrupt(e_Kernel_Interrupt type, t_PID pid, int fd_socket);
+int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t_TID *tid, int fd_socket);
 
-
-int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, int fd_socket);
-
-// Kernel - Entrada/Salida
+// Kernel - Filesystem
 
 int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket);
 
@@ -99,6 +103,15 @@ int receive_io_operation_finished(t_PID *pid, t_Return_Value *return_value, int 
 
 // CPU - Memoria
 
-int send_instruction_request(t_PID pid, t_PC pc, int fd_socket);
+int send_exec_context(t_Exec_Context exec_context, int fd_socket);
+
+
+int receive_exec_context(t_Exec_Context *exec_context, int fd_socket);
+
+
+int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket);
+
+
+int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, int fd_socket);
 
 #endif // UTILS_SEND_H
