@@ -180,8 +180,10 @@ void *short_term_scheduler(void *NULL_parameter) {
 		sem_wait(&SEM_SHORT_TERM_SCHEDULER);
 
 		wait_draining_requests(&SCHEDULING_SYNC);
+
 			tcb = NULL;
 			switch(SCHEDULING_ALGORITHM) {
+
 				case FIFO_SCHEDULING_ALGORITHM:
 
 					pthread_mutex_lock(&(ARRAY_LIST_READY[0]->mutex));
@@ -190,18 +192,28 @@ void *short_term_scheduler(void *NULL_parameter) {
 					pthread_mutex_unlock(&(ARRAY_LIST_READY[0]->mutex));
 
 					break;
+				
 				case PRIORITIES_SCHEDULING_ALGORITHM:
-					//pcb = priorities_scheduling_algorithm();
-					break;
 				case MLQ_SCHEDULING_ALGORITHM:
-					//pcb = mlq_scheduling_algorithm();
+					
+					for(register t_Priority priority = 0; priority < PRIORITY_COUNT; priority++) {
+						pthread_mutex_lock(&(ARRAY_LIST_READY[priority]->mutex));
+							if((ARRAY_LIST_READY[priority]->list)->head != NULL) {
+								tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[priority]->list), 0);
+								pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
+								break;
+							}
+						pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
+					}
+					
 					break;
-			}
 
+			}
 			if(tcb == NULL) {
 				signal_draining_requests(&SCHEDULING_SYNC);
 				continue;
 			}
+
 			switch_process_state(tcb, EXEC_STATE);
 
 			EXEC_TCB = 1;
