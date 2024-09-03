@@ -218,6 +218,7 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
 // Kernel - Filesystem
 
+/*
 int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket) {
 	t_Package *package = package_create_with_header(INTERFACE_DATA_REQUEST_HEADER);
 	text_serialize(&(package->payload), interface_name);
@@ -243,6 +244,7 @@ int receive_interface_data(char **interface_name, e_IO_Type *io_type, int fd_soc
   package_destroy(package);
   return 0;
 }
+*/
 
 int send_io_operation_dispatch(t_PID pid, t_Payload io_operation, int fd_socket) {
   t_Package *package = package_create_with_header(IO_OPERATION_DISPATCH_HEADER);

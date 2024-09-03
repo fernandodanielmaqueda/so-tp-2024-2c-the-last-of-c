@@ -83,10 +83,10 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
 // Kernel - Filesystem
 
-int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket);
+//int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket);
 
 
-int receive_interface_data(char **interface_name, e_IO_Type *io_type, int fd_socket);
+//int receive_interface_data(char **interface_name, e_IO_Type *io_type, int fd_socket);
 
 
 int send_io_operation_dispatch(t_PID pid, t_Payload io_operation, int fd_socket);

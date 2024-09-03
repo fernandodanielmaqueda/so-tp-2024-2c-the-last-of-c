@@ -58,30 +58,21 @@ extern size_t BLOCK_SIZE;
 extern size_t BLOCK_COUNT;
 extern int COMPRESSION_DELAY;
 
-extern t_IO_Type IO_TYPES[];
+//extern t_IO_Type IO_TYPES[];
 
-extern e_IO_Type IO_TYPE;
+//extern e_IO_Type IO_TYPE;
 
-extern t_IO_Operation IO_OPERATIONS[];
+//extern t_IO_Operation IO_OPERATIONS[];
 
 int module(int, char*[]);
 void read_module_config(t_config *module_config);
-int io_type_find(char *name, e_IO_Type *destination);
+//int io_type_find(char *name, e_IO_Type *destination);
 void initialize_sockets(void);
 void finish_sockets(void);
 void generic_interface_function(void);
 void stdin_interface_function(void);
 void stdout_interface_function(void);
 void dialfs_interface_function(void);
-int io_operation_execute(t_Payload *operation);
-int io_gen_sleep_io_operation(t_Payload *instruction);
-int io_stdin_read_io_operation(t_Payload *instruction);
-int io_stdout_write_io_operation(t_Payload *instruction);
-int io_fs_create_io_operation(t_Payload *instruction);
-int io_fs_delete_io_operation(t_Payload *instruction);
-int io_fs_truncate_io_operation(t_Payload *instruction);
-int io_fs_write_io_operation(t_Payload *instruction);
-int io_fs_read_io_operation(t_Payload *instruction);
 uint32_t seek_first_free_block();
 t_FS_File* seek_file(char* file_name);
 bool can_assign_block(size_t initial_position, size_t len, size_t final_len);

@@ -3,6 +3,7 @@
 
 #include "utils/serialize/io_type.h"
 
+/* 
 const char *IO_TYPE_NAMES[] = {
   [GENERIC_IO_TYPE] = "GENERIC_IO_TYPE",
   [STDIN_IO_TYPE] = "STDIN_IO_TYPE",
@@ -40,3 +41,5 @@ void io_type_log(e_IO_Type source) {
     , IO_TYPE_NAMES[source]
   );
 }
+
+*/

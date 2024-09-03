@@ -12,20 +12,13 @@ typedef enum e_CPU_Register {
 	BX_REGISTER,
 	CX_REGISTER,
 	DX_REGISTER,
-    EAX_REGISTER,
-    EBX_REGISTER,
-    ECX_REGISTER,
-    EDX_REGISTER,
-    RAX_REGISTER,
-    RBX_REGISTER,
-    RCX_REGISTER,
-    RDX_REGISTER,
-    SI_REGISTER,
-    DI_REGISTER
+    EX_REGISTER,
+    FX_REGISTER,
+    GX_REGISTER,
+    HX_REGISTER    
 } e_CPU_Register;
 
 typedef enum e_CPU_Register_DataType {
-    UINT8_DATATYPE,
     UINT32_DATATYPE
 } e_CPU_Register_DataType;
 

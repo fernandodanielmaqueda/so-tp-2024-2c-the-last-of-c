@@ -1,5 +1,5 @@
 #include "console.h"
-
+ /* 
 int kernel_command_start_process(int argc, char* argv[]) {
 
     char *filename;
@@ -37,10 +37,12 @@ int kernel_command_start_process(int argc, char* argv[]) {
 
     t_PCB *pcb = pcb_create();
 
+     
     if(send_process_create(pcb->exec_context.PID, filename, flag_relative_path, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(1);
     }
+  
 
     t_Return_Value return_value;
     if(receive_return_value_with_expected_header(PROCESS_CREATE_HEADER, &return_value, CONNECTION_MEMORY.fd_connection)) {
@@ -57,9 +59,11 @@ int kernel_command_start_process(int argc, char* argv[]) {
         list_add(SHARED_LIST_NEW.list, pcb);
     pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex));
 
-    log_info(MINIMAL_LOGGER, "Se crea el proceso <%d> en NEW", pcb->exec_context.PID);
+   // log_info(MINIMAL_LOGGER, "Se crea el proceso <%d> en NEW", pcb->exec_context.PID);
 
     sem_post(&SEM_LONG_TERM_SCHEDULER_NEW);
 
     return 0;
 }
+
+  */

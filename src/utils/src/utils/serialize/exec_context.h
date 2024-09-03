@@ -28,20 +28,15 @@ typedef uint32_t t_PC;
 typedef int64_t t_Quantum;
 
 typedef struct t_CPU_Registers {
-    uint8_t AX;
-    uint8_t BX;
-    uint8_t CX;
-    uint8_t DX;
-    uint32_t EAX;
-    uint32_t EBX;
-    uint32_t ECX;
-    uint32_t EDX;
-    uint32_t RAX;
-    uint32_t RBX;
-    uint32_t RCX;
-    uint32_t RDX;
-    uint32_t SI;
-    uint32_t DI;
+    uint32_t AX;
+    uint32_t BX;
+    uint32_t CX;
+    uint32_t DX;
+    uint32_t EX;
+    uint32_t FX;
+    uint32_t GX;
+    uint32_t HX;  
+  
 } t_CPU_Registers;
 
 typedef struct t_Exec_Context {

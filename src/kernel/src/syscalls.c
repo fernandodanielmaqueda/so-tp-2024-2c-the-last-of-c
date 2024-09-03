@@ -1,16 +1,9 @@
 #include "syscalls.h"
 
+
 t_Syscall SYSCALLS[] = {
-    [WAIT_CPU_OPCODE] = {.name = "WAIT" , .function = wait_kernel_syscall},
-    [SIGNAL_CPU_OPCODE] = {.name = "SIGNAL" , .function = signal_kernel_syscall},
-    [IO_GEN_SLEEP_CPU_OPCODE] = {.name = "IO_GEN_SLEEP" , .function = NULL},
-    [IO_STDIN_READ_CPU_OPCODE] = {.name = "IO_STDIN_READ" , .function = NULL},
-    [IO_STDOUT_WRITE_CPU_OPCODE] = {.name = "IO_STDOUT_WRITE" , .function = NULL},
-    [IO_FS_CREATE_CPU_OPCODE] = {.name = "IO_FS_CREATE" , .function = NULL},
-    [IO_FS_DELETE_CPU_OPCODE] = {.name = "IO_FS_DELETE" , .function = NULL},
-    [IO_FS_TRUNCATE_CPU_OPCODE] = {.name = "IO_FS_TRUNCATE" , .function = NULL},
-    [IO_FS_WRITE_CPU_OPCODE] = {.name = "IO_FS_WRITE" , .function = NULL},
-    [IO_FS_READ_CPU_OPCODE] = {.name = "IO_FS_READ" , .function = NULL},
+   // [WAIT_CPU_OPCODE] = {.name = "WAIT" , .function = wait_kernel_syscall},
+    //[SIGNAL_CPU_OPCODE] = {.name = "SIGNAL" , .function = signal_kernel_syscall},
     [EXIT_CPU_OPCODE] = {.name = "EXIT" , .function = exit_kernel_syscall}
 };
 
