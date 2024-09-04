@@ -327,7 +327,7 @@ int log_cpu_operation(int argc, char **argv)
     uint32_t value_cpu_register;
     get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register);
 
-    log_info(MODULE_LOGGER, "Registro %s: %d", argv[1], value_cpu_register);
+    log_info(MODULE_LOGGER, "Registro %s: %d", argv[1], (int) value_cpu_register);
 
     EXEC_CONTEXT.PC++;
 
@@ -339,7 +339,7 @@ int log_cpu_operation(int argc, char **argv)
 int process_create_cpu_operation(int argc, char **argv)
 {
 
-    if (argc != 2)
+    if (argc != 4)
     {
         log_error(MODULE_LOGGER, "Uso: PROCESS_CREATE <ARCHIVO DE INSTRUCCIONES> <TAMANIO> <PRIORIDAD DEL TID 0>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
@@ -351,9 +351,10 @@ int process_create_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
-    size_serialize(&SYSCALL_INSTRUCTION, (size_t) atoi(argv[2]));
-    
+    size_serialize(&SYSCALL_INSTRUCTION, str_to_size(argv[2]));
+    // priority_serialize(&SYSCALL_INSTRUCTION, str_to_priority(argv[3]));
 
     return 0;
 }
@@ -361,11 +362,19 @@ int process_create_cpu_operation(int argc, char **argv)
 int process_exit_cpu_operation(int argc, char **argv)
 {
 
+    if (argc != 1)
+    {
+        log_error(MODULE_LOGGER, "Uso: PROCESS_EXIT");
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return 1;
+    }
+
     log_trace(MODULE_LOGGER, "PROCESS_EXIT");
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_EXIT_CPU_OPCODE);
 
     return 0;
 }
@@ -373,18 +382,21 @@ int process_exit_cpu_operation(int argc, char **argv)
 int thread_create_cpu_operation(int argc, char **argv)
 {
 
-    if (argc != 2)
+    if (argc != 3)
     {
-        log_error(MODULE_LOGGER, "Uso: THREAD_CREATE <TID>");
+        log_error(MODULE_LOGGER, "Uso: THREAD_CREATE <ARCHIVO DE INSTRUCCIONES> <PRIORIDAD>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return 1;
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_CREATE %s", argv[1]);
+    log_trace(MODULE_LOGGER, "THREAD_CREATE %s %s", argv[1], argv[2]);
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE);
+    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    // priority_serialize(&SYSCALL_INSTRUCTION, str_to_priority(argv[2]));
 
     return 0;
 }
@@ -404,6 +416,8 @@ int thread_join_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE);
+    // tid_serialize(&SYSCALL_INSTRUCTION, str_to_tid(argv[1]));
 
     return 0;
 }
@@ -423,6 +437,8 @@ int thread_cancel_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE);
+    // tid_serialize(&SYSCALL_INSTRUCTION, str_to_tid(argv[1]));
 
     return 0;
 }
@@ -430,11 +446,19 @@ int thread_cancel_cpu_operation(int argc, char **argv)
 int thread_exit_cpu_operation(int argc, char **argv)
 {
 
+    if (argc != 1)
+    {
+        log_error(MODULE_LOGGER, "Uso: THREAD_EXIT");
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return 1;
+    }
+
     log_trace(MODULE_LOGGER, "THREAD_EXIT");
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_EXIT_CPU_OPCODE);
 
     return 0;
 }
@@ -444,7 +468,7 @@ int mutex_create_cpu_operation(int argc, char **argv)
 
     if (argc != 2)
     {
-        log_error(MODULE_LOGGER, "Uso: MUTEX_CREATE <MUTEX>");
+        log_error(MODULE_LOGGER, "Uso: MUTEX_CREATE <RECURSO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return 1;
     }
@@ -454,6 +478,8 @@ int mutex_create_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_CREATE_CPU_OPCODE);
+    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
     return 0;
 }
@@ -463,7 +489,7 @@ int mutex_lock_cpu_operation(int argc, char **argv)
 
     if (argc != 2)
     {
-        log_error(MODULE_LOGGER, "Uso: MUTEX_LOCK <MUTEX>");
+        log_error(MODULE_LOGGER, "Uso: MUTEX_LOCK <RECURSO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return 1;
     }
@@ -473,18 +499,28 @@ int mutex_lock_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_LOCK_CPU_OPCODE);
+    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
     return 0;
 }
 
 int mutex_unlock_cpu_operation(int argc, char **argv)
 {
+    if (argc != 2)
+    {
+        log_error(MODULE_LOGGER, "Uso: MUTEX_UNLOCK <RECURSO>");
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return 1;
+    }
 
     log_trace(MODULE_LOGGER, "MUTEX_UNLOCK");
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_UNLOCK_CPU_OPCODE);
+    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
     return 0;
 }
@@ -492,18 +528,19 @@ int mutex_unlock_cpu_operation(int argc, char **argv)
 int dump_memory_cpu_operation(int argc, char **argv)
 {
 
-    if (argc != 3)
+    if (argc != 1)
     {
-        log_error(MODULE_LOGGER, "Uso: DUMP_MEMORY <DIRECCION> <BYTES>");
+        log_error(MODULE_LOGGER, "Uso: DUMP_MEMORY");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return 1;
     }
 
-    log_trace(MODULE_LOGGER, "DUMP_MEMORY %s %s", argv[1], argv[2]);
+    log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, DUMP_MEMORY_CPU_OPCODE);
 
     return 0;
 }
@@ -513,7 +550,7 @@ int io_cpu_operation(int argc, char **argv)
 
     if (argc != 2)
     {
-        log_error(MODULE_LOGGER, "Uso: IO <DISPOSITIVO>");
+        log_error(MODULE_LOGGER, "Uso: IO <TIEMPO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return 1;
     }
@@ -523,6 +560,8 @@ int io_cpu_operation(int argc, char **argv)
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
+    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE);
+    // time_serialize(&SYSCALL_INSTRUCTION, str_to_time(argv[1]));
 
     return 0;
 }
