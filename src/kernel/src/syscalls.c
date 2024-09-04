@@ -37,7 +37,16 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_CREATE");
 
-    EXEC_TCB = 0;
+    char *instruction_file;
+    text_deserialize(syscall_arguments, &instruction_file);
+
+    size_t size;
+    size_deserialize(syscall_arguments, &size);
+
+    t_Priority priority;
+    // priority_deserialize(syscall_arguments, &priority);
+
+    EXEC_TCB = 1;
 
     return 0;
 }
@@ -55,7 +64,13 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_CREATE");
 
-    EXEC_TCB = 0;
+    char *instruction_file;
+    text_deserialize(syscall_arguments, &instruction_file);
+
+    t_Priority priority;
+    // priority_deserialize(syscall_arguments, &priority);
+
+    EXEC_TCB = 1;
 
     return 0;
 }
@@ -63,6 +78,9 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_JOIN");
+
+    t_TID tid;
+    // tid_deserialize(syscall_arguments, &tid);
 
     EXEC_TCB = 0;
 
@@ -73,7 +91,13 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_CANCEL");
 
+    t_TID tid;
+    // tid_deserialize(syscall_arguments, &tid);
+
+    // Si es suicida (se cancela a sí mismo)
     EXEC_TCB = 0;
+    // Si cancela a otros
+    EXEC_TCB = 1;
 
     return 0;
 }
@@ -89,9 +113,12 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
 int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace(MODULE_LOGGER, "MUTEX_CREATE");
+    char *resource_name;
+    text_deserialize(syscall_arguments, &resource_name);
 
-    EXEC_TCB = 0;
+    log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
+
+    EXEC_TCB = 1;
 
     return 0;
 }
@@ -194,7 +221,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
 int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace(MODULE_LOGGER, "MUTEX_CREATE");
+    log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
     EXEC_TCB = 0;
 
@@ -203,8 +230,11 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
 int io_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace(MODULE_LOGGER, "IO");
+    // t_Time time;
+    // time_deserialize(syscall_arguments, &time);  
 
+    log_trace(MODULE_LOGGER, "IO");
+v
     EXEC_TCB = 0;
 
     return 0;
