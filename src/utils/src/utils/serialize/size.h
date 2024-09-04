@@ -1,8 +1,8 @@
 /* En los archivos de cabecera (header files) (*.h) poner DECLARACIONES (evitar DEFINICIONES) de C, así como directivas de preprocesador */
 /* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
 
-#ifndef UTILS_SERIALIZE_MEMORY_H
-#define UTILS_SERIALIZE_MEMORY_H
+#ifndef UTILS_SERIALIZE_SIZE_H
+#define UTILS_SERIALIZE_SIZE_H
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -16,6 +16,13 @@
 
 #include "commons/log.h"
 #include "utils/module.h"
+
+
+int str_to_uint32(char *string, uint32_t *destination);
+
+
+int str_to_size(char *string, size_t *destination);
+
 
 void size_serialize_element(t_Payload *payload, void *source);
 
@@ -45,4 +52,4 @@ void size_deserialize(t_Payload *payload, size_t *destination);
  */
 void size_log(size_t source);
 
-#endif // UTILS_SERIALIZE_MEMORY_H
+#endif // UTILS_SERIALIZE_SIZE_H

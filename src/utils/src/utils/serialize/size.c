@@ -1,7 +1,31 @@
 /* En los archivos (*.c) se pueden poner tanto DECLARACIONES como DEFINICIONES de C, así como directivas de preprocesador */
 /* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
 
-#include "utils/serialize/memory.h"
+#include "utils/serialize/size.h"
+
+int str_to_uint32(char *string, uint32_t *destination)
+{
+    char *end;
+
+    *destination = (uint32_t) strtoul(string, &end, 10);
+
+    if(!*string || *end)
+        return 1;
+        
+    return 0;
+}
+
+int str_to_size(char *string, size_t *destination)
+{
+    char *end;
+
+    *destination = (size_t) strtoul(string, &end, 10);
+
+    if(!*string || *end)
+        return 1;
+        
+    return 0;
+}
 
 void size_serialize_element(t_Payload *payload, void *source) {
     if(payload == NULL || source == NULL)

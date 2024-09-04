@@ -216,87 +216,6 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
   return 0;
 }
 
-// Kernel - Filesystem
-
-/*
-int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket) {
-	t_Package *package = package_create_with_header(INTERFACE_DATA_REQUEST_HEADER);
-	text_serialize(&(package->payload), interface_name);
-	io_type_serialize(&(package->payload), io_type);
-  if(package_send(package, fd_socket))
-    return 1;
-	package_destroy(package);
-  return 0;
-}
-
-int receive_interface_data(char **interface_name, e_IO_Type *io_type, int fd_socket) {
-  t_Package *package;
-  if(package_receive(&package, fd_socket))
-    return 1;
-  if(package->header == INTERFACE_DATA_REQUEST_HEADER) {
-    text_deserialize(&(package->payload), interface_name);
-    io_type_deserialize(&(package->payload), io_type);
-  }
-  else {
-    log_error(MODULE_LOGGER, "Header invalido");
-    return 1;
-  }
-  package_destroy(package);
-  return 0;
-}
-*/
-
-int send_io_operation_dispatch(t_PID pid, t_Payload io_operation, int fd_socket) {
-  t_Package *package = package_create_with_header(IO_OPERATION_DISPATCH_HEADER);
-  payload_add(&(package->payload), &pid, sizeof(pid));
-  subpayload_serialize(&(package->payload), io_operation);
-  if(package_send(package, fd_socket))
-    return 1;
-  package_destroy(package);
-  return 0;
-}
-
-int receive_io_operation_dispatch(t_PID *pid, t_Payload *io_operation, int fd_socket) {
-  t_Package *package;
-  if(package_receive(&package, fd_socket))
-    return 1;
-  if(package->header == IO_OPERATION_DISPATCH_HEADER) {
-    payload_remove(&(package->payload), pid, sizeof(*pid));
-    subpayload_deserialize(&(package->payload), io_operation);
-  }
-  else {
-    log_error(MODULE_LOGGER, "Header invalido");
-    return 1;
-  }
-  package_destroy(package);
-  return 0;
-}
-
-int send_io_operation_finished(t_PID pid, t_Return_Value return_value, int fd_socket) {
-  t_Package *package = package_create_with_header(IO_OPERATION_FINISHED_HEADER);
-  payload_add(&(package->payload), &pid, sizeof(pid));
-  return_value_serialize(&(package->payload), return_value);
-  if(package_send(package, fd_socket))
-    return 1;
-  package_destroy(package);
-  return 0;
-}
-
-int receive_io_operation_finished(t_PID *pid, t_Return_Value *return_value, int fd_socket) {
-  t_Package *package;
-  if(package_receive(&package, fd_socket)) return 1;
-  if(package->header == IO_OPERATION_FINISHED_HEADER) {
-    payload_remove(&(package->payload), pid, sizeof(*pid));
-    return_value_deserialize(&(package->payload), return_value);
-  }
-  else {
-    log_error(MODULE_LOGGER, "Header invalido");
-    return 1;
-  }
-  package_destroy(package);
-  return 0;
-}
-
 // CPU - Memoria
 
 int send_exec_context(t_Exec_Context exec_context, int fd_socket) {
@@ -341,3 +260,5 @@ int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, 
   package_destroy(package);
   return 0;
 }
+
+// Memoria - Filesystem

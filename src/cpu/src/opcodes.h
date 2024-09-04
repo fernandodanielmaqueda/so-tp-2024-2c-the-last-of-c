@@ -33,6 +33,7 @@ typedef struct t_CPU_Operation {
 extern t_CPU_Operation CPU_OPERATIONS[];
 
 int decode_instruction(char *name, e_CPU_OpCode *cpu_opcode);
+
 int set_cpu_operation(int argc, char **argv);
 int read_mem_cpu_operation(int argc, char **argv);
 int write_mem_cpu_operation(int argc, char **argv);
@@ -40,9 +41,16 @@ int sum_cpu_operation(int argc, char **argv);
 int sub_cpu_operation(int argc, char **argv);
 int jnz_cpu_operation(int argc, char **argv);
 int log_cpu_operation(int argc, char **argv);
-int exit_cpu_operation(int argc, char **argv);
-int str_to_uint32(char *string, uint32_t *destination);
-int str_to_size(char *string, size_t *destination);
-int str_to_pc(char *string, t_PC *destination);
+int process_create_cpu_operation(int argc, char **argv);
+int process_exit_cpu_operation(int argc, char **argv);
+int thread_create_cpu_operation(int argc, char **argv);
+int thread_join_cpu_operation(int argc, char **argv);
+int thread_cancel_cpu_operation(int argc, char **argv);
+int thread_exit_cpu_operation(int argc, char **argv);
+int mutex_create_cpu_operation(int argc, char **argv);
+int mutex_lock_cpu_operation(int argc, char **argv);
+int mutex_unlock_cpu_operation(int argc, char **argv);
+int dump_memory_cpu_operation(int argc, char **argv);
+int io_cpu_operation(int argc, char **argv);
 
 #endif // CPU_OPCODES_H

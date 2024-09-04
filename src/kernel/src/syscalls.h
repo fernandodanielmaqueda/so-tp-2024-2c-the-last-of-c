@@ -33,8 +33,19 @@ extern t_Syscall SYSCALLS[];
 extern t_TCB *SYSCALL_TCB;
 
 int syscall_execute(t_Payload *syscall_instruction);
+
 int wait_kernel_syscall(t_Payload *syscall_arguments);
 int signal_kernel_syscall(t_Payload *syscall_arguments);
-int exit_kernel_syscall(t_Payload *syscall_arguments);
+int process_create_kernel_syscall(t_Payload *syscall_arguments);
+int process_exit_kernel_syscall(t_Payload *syscall_arguments);
+int thread_create_kernel_syscall(t_Payload *syscall_arguments);
+int thread_join_kernel_syscall(t_Payload *syscall_arguments);
+int thread_cancel_kernel_syscall(t_Payload *syscall_arguments);
+int thread_exit_kernel_syscall(t_Payload *syscall_arguments);
+int mutex_create_kernel_syscall(t_Payload *syscall_arguments);
+int mutex_lock_kernel_syscall(t_Payload *syscall_arguments);
+int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments);
+int dump_memory_kernel_syscall(t_Payload *syscall_arguments);
+int io_kernel_syscall(t_Payload *syscall_arguments);
 
 #endif // KERNEL_SYSCALLS_H

@@ -8,12 +8,11 @@
 #include "utils/serialize/cpu_opcode.h"
 #include "utils/serialize/eviction_reason.h"
 #include "utils/serialize/exec_context.h"
-#include "utils/serialize/io_type.h"
 #include "utils/serialize/kernel_interrupt.h"
 #include "utils/serialize/list.h"
-#include "utils/serialize/memory.h"
 #include "utils/serialize/port_type.h"
 #include "utils/serialize/return_value.h"
+#include "utils/serialize/size.h"
 #include "utils/serialize/subheader.h"
 #include "utils/serialize/subpayload.h"
 #include "utils/serialize/text.h"
@@ -81,25 +80,6 @@ int send_kernel_interrupt(e_Kernel_Interrupt type, t_PID pid, t_TID tid, int fd_
 
 int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t_TID *tid, int fd_socket);
 
-// Kernel - Filesystem
-
-//int send_interface_data(char *interface_name, e_IO_Type io_type, int fd_socket);
-
-
-//int receive_interface_data(char **interface_name, e_IO_Type *io_type, int fd_socket);
-
-
-int send_io_operation_dispatch(t_PID pid, t_Payload io_operation, int fd_socket);
-
-
-int receive_io_operation_dispatch(t_PID *pid, t_Payload *io_operation, int fd_socket);
-
-
-int send_io_operation_finished(t_PID pid, t_Return_Value return_value, int fd_socket);
-
-
-int receive_io_operation_finished(t_PID *pid, t_Return_Value *return_value, int fd_socket);
-
 
 // CPU - Memoria
 
@@ -113,5 +93,9 @@ int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket);
 
 
 int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, int fd_socket);
+
+
+// Memoria - Filesystem
+
 
 #endif // UTILS_SEND_H

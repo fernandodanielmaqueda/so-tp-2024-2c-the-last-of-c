@@ -175,7 +175,7 @@ void instruction_cycle(void)
             }
 
             // Check Interrupts
-            if(cpu_opcode == EXIT_CPU_OPCODE) {
+            if((cpu_opcode == PROCESS_EXIT_CPU_OPCODE) || (cpu_opcode == THREAD_EXIT_CPU_OPCODE)) {
                 EVICTION_REASON = EXIT_EVICTION_REASON;
                 break;
             }

@@ -1,10 +1,17 @@
 #include "syscalls.h"
 
-
 t_Syscall SYSCALLS[] = {
-   // [WAIT_CPU_OPCODE] = {.name = "WAIT" , .function = wait_kernel_syscall},
-    //[SIGNAL_CPU_OPCODE] = {.name = "SIGNAL" , .function = signal_kernel_syscall},
-    [EXIT_CPU_OPCODE] = {.name = "EXIT" , .function = exit_kernel_syscall}
+    [PROCESS_CREATE_CPU_OPCODE] = {.name = "PROCESS_CREATE" , .function = process_create_kernel_syscall},
+    [PROCESS_EXIT_CPU_OPCODE] = {.name = "PROCESS_EXIT" , .function = process_exit_kernel_syscall},
+    [THREAD_CREATE_CPU_OPCODE] = {.name = "THREAD_CREATE" , .function = thread_create_kernel_syscall},
+    [THREAD_JOIN_CPU_OPCODE] = {.name = "THREAD_JOIN" , .function = thread_join_kernel_syscall},
+    [THREAD_CANCEL_CPU_OPCODE] = {.name = "THREAD_CANCEL" , .function = thread_cancel_kernel_syscall},
+    [THREAD_EXIT_CPU_OPCODE] = {.name = "THREAD_EXIT" , .function = thread_exit_kernel_syscall},
+    [MUTEX_CREATE_CPU_OPCODE] = {.name = "MUTEX_CREATE" , .function = mutex_create_kernel_syscall},
+    [MUTEX_LOCK_CPU_OPCODE] = {.name = "MUTEX_LOCK" , .function = mutex_lock_kernel_syscall},
+    [MUTEX_UNLOCK_CPU_OPCODE] = {.name = "MUTEX_UNLOCK" , .function = mutex_unlock_kernel_syscall},
+    [DUMP_MEMORY_CPU_OPCODE] = {.name = "DUMP_MEMORY" , .function = dump_memory_kernel_syscall},
+    [IO_CPU_OPCODE] = {.name = "IO" , .function = io_kernel_syscall}
 };
 
 t_TCB *SYSCALL_TCB;
@@ -26,12 +33,75 @@ int syscall_execute(t_Payload *syscall_instruction) {
     return exit_status;
 }
 
-int wait_kernel_syscall(t_Payload *syscall_arguments) {
+int process_create_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "PROCESS_CREATE");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "PROCESS_EXIT");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "THREAD_CREATE");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "THREAD_JOIN");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "THREAD_CANCEL");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "THREAD_EXIT");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "MUTEX_CREATE");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *resource_name;
     text_deserialize(syscall_arguments, &resource_name);
 
-    log_trace(MODULE_LOGGER, "WAIT %s", resource_name);
+    log_trace(MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
 
     /*
     t_Resource *resource = resource_find(resource_name);
@@ -71,12 +141,12 @@ int wait_kernel_syscall(t_Payload *syscall_arguments) {
     return 0;
 }
 
-int signal_kernel_syscall(t_Payload *syscall_arguments) {
+int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *resource_name;
     text_deserialize(syscall_arguments, &resource_name);
 
-    log_trace(MODULE_LOGGER, "SIGNAL %s", resource_name);
+    log_trace(MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
 
     /*
     t_Resource *resource = resource_find(resource_name);
@@ -122,9 +192,18 @@ int signal_kernel_syscall(t_Payload *syscall_arguments) {
     return 0;
 }
 
-int exit_kernel_syscall(t_Payload *syscall_arguments) {
+int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace(MODULE_LOGGER, "EXIT");
+    log_trace(MODULE_LOGGER, "MUTEX_CREATE");
+
+    EXEC_TCB = 0;
+
+    return 0;
+}
+
+int io_kernel_syscall(t_Payload *syscall_arguments) {
+
+    log_trace(MODULE_LOGGER, "IO");
 
     EXEC_TCB = 0;
 

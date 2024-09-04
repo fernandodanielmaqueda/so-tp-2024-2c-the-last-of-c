@@ -3,6 +3,30 @@
 
 #include "utils/serialize/exec_context.h"
 
+int str_to_pc(char *string, t_PC *destination)
+{
+    char *end;
+
+    *destination = (t_PC) strtoul(string, &end, 10);
+
+    if(!*string || *end)
+        return 1;
+
+    return 0;
+}
+
+int str_to_priority(char *string, t_Priority *destination)
+{
+    char *end;
+
+    *destination = (t_Priority) strtoul(string, &end, 10);
+
+    if(!*string || *end)
+        return 1;
+
+    return 0;
+}
+
 void exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
   if(payload == NULL)
     return;

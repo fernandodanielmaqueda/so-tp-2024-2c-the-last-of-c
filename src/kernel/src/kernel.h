@@ -51,8 +51,6 @@ typedef enum e_Process_State {
 	EXIT_STATE
 } e_Process_State;
 
-typedef unsigned int t_Priority;
-
 typedef struct t_PCB {
     t_PID PID;
     t_ID_Manager thread_manager;
