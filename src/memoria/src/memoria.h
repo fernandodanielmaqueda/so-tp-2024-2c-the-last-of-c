@@ -37,18 +37,14 @@ typedef struct t_Memory_Register {
     uint32_t HX;
 } t_Memory_Register;
 typedef struct t_Process {
-    t_PID PID;
-    t_list *pages_table;
+    t_PID PID; //Puede ser duplicado
+    t_PID TID; //Unico
+    t_list *instructions_list;
+    t_Memory_Register registers;
     uint32_t base;
     uint32_t limit;
     t_list *tid_list;
 } t_Process;
-
-typedef struct t_TID_Process {
-    t_PID TID;
-    t_list *instructions_list;
-    t_Memory_Register registers;
-} t_TID_Process;
 
 typedef struct t_Page {
     size_t page_number;

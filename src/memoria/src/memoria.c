@@ -16,7 +16,6 @@ t_config *MODULE_CONFIG;
 void *MAIN_MEMORY;
 
 t_list *LIST_PROCESSES;
-t_list *LIST_TID_PROCESSES;
 t_list *LIST_PARTITIONS;
 t_list *LIST_FRAMES;
 t_list *LIST_FREE_FRAMES;
@@ -41,7 +40,7 @@ int module(int argc, char* argv[]) {
     MAIN_MEMORY = (void *) malloc(MEMORY_SIZE);
     memset(MAIN_MEMORY, 0, MEMORY_SIZE); //Llena de 0's el espacio de memoria
     LIST_PROCESSES = list_create();
-    LIST_TID_PROCESSES = list_create();
+    LIST_PARTITIONS = list_create();
     create_frames();
 
     initialize_sockets();
@@ -158,7 +157,7 @@ void create_process(t_Payload *payload) {
     }
 
     new_process->instructions_list = list_create();
-    new_process->pages_table = list_create();
+    //new_process->pages_table = list_create();
 
     char *argument_path;
     t_Return_Value flag_relative_path;
@@ -540,7 +539,7 @@ void free_frames(void) {
     }
 
 }
-
+/*
 void respond_frame_request(t_Payload *payload) {
 //Recibir parametros
     size_t page_number;
@@ -585,7 +584,8 @@ size_t *seek_frame_number_by_page_number(t_list *page_table, size_t page_number)
 
     return NULL;
 }
-
+*/
+/**/
 void io_read_memory(t_Payload *payload, int socket) {
     t_PID pid;
     t_list *list_physical_addresses = list_create();
@@ -942,7 +942,7 @@ void update_page(size_t frame_number){
     t_Page *current_page = frame->assigned_page;
     current_page->last_use = time(NULL);
 }
-
+/*
 //En caso de varias paginas
 int get_next_dir_fis(size_t frame_number, t_PID pid){
     t_Frame *frame = (t_Frame *) list_get(LIST_FRAMES, frame_number);
@@ -955,8 +955,8 @@ int get_next_dir_fis(size_t frame_number, t_PID pid){
     size_t next_dir_fis = next_frame_number * PAGE_SIZE + offset;
 
     return next_dir_fis;
-}
-
+}*/
+/*
 void resize_process(t_Payload *payload){
     t_PID pid;
     size_t new_size;
@@ -1057,7 +1057,7 @@ void resize_process(t_Payload *payload){
         exit(EXIT_FAILURE);
     }
 }
-
+*/
 int seek_oldest_page_updated(t_list* page_list){
 
     int size = list_size(page_list);
@@ -1085,7 +1085,7 @@ void free_memory(void){
     free_frames();
     free(MAIN_MEMORY);
 }
-
+/*
 void free_all_process(void){
     
     int size = list_size(LIST_PROCESSES);
@@ -1108,4 +1108,4 @@ void free_all_process(void){
     
     log_debug(MODULE_LOGGER, "Se ha liberado todos los procesos y paginas.");
     
-}
+}*/
