@@ -234,7 +234,7 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
     // time_deserialize(syscall_arguments, &time);  
 
     log_trace(MODULE_LOGGER, "IO");
-v
+
     EXEC_TCB = 0;
 
     return 0;

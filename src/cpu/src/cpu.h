@@ -32,7 +32,11 @@ extern t_log *MODULE_LOGGER;
 extern t_log *SOCKET_LOGGER;
 extern t_config *MODULE_CONFIG;
 
+extern t_PID PID;
+extern t_TID TID;
 extern t_Exec_Context EXEC_CONTEXT;
+extern size_t BASE;
+extern size_t LIMIT;
 extern pthread_mutex_t MUTEX_EXEC_CONTEXT;
 
 extern int EXECUTING;

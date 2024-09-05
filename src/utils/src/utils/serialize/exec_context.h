@@ -41,7 +41,6 @@ typedef struct t_CPU_Registers {
 } t_CPU_Registers;
 
 typedef struct t_Exec_Context {
-    t_PID PID;
     t_PC PC;
     t_CPU_Registers cpu_registers;
 } t_Exec_Context;

@@ -218,21 +218,25 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
 // CPU - Memoria
 
-int send_exec_context(t_Exec_Context exec_context, int fd_socket) {
+int send_exec_context(t_Exec_Context exec_context, size_t base, size_t limit, int fd_socket) {
   t_Package *package = package_create_with_header(EXEC_CONTEXT_REQUEST_HEADER);
   exec_context_serialize(&(package->payload), exec_context);
+  size_serialize(&(package->payload), base);
+  size_serialize(&(package->payload), limit);
   if(package_send(package, fd_socket))
     return 1;
   package_destroy(package);
   return 0;
 }
 
-int receive_exec_context(t_Exec_Context *exec_context, int fd_socket) {
+int receive_exec_context(t_Exec_Context *exec_context, size_t *base, size_t *limit, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return 1;
   if(package->header == EXEC_CONTEXT_REQUEST_HEADER) {
     exec_context_deserialize(&(package->payload), exec_context);
+    size_deserialize(&(package->payload), base);
+    size_deserialize(&(package->payload), limit);
   } else {
     log_error(SERIALIZE_LOGGER, "Header invalido");
     return 1;

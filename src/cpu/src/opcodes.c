@@ -104,7 +104,7 @@ int read_mem_cpu_operation(int argc, char **argv)
 
     size_t bytes = get_register_size(register_data);
 
-    t_list *list_physical_addresses = mmu(EXEC_CONTEXT.PID, (size_t) logical_address, bytes);
+    t_list *list_physical_addresses = mmu(PID, (size_t) logical_address, bytes);
     if(list_physical_addresses == NULL || list_size(list_physical_addresses) == 0) {
         log_error(MODULE_LOGGER, "mmu: No se pudo obtener la lista de direcciones fisicas");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
@@ -170,7 +170,7 @@ int write_mem_cpu_operation(int argc, char **argv)
     memcpy(text, source, bytes);
     text[bytes] = '\0';
 
-    t_list *list_physical_addresses = mmu(EXEC_CONTEXT.PID, (size_t) logical_address, bytes);
+    t_list *list_physical_addresses = mmu(PID, (size_t) logical_address, bytes);
     if(list_physical_addresses == NULL || list_size(list_physical_addresses) == 0) {
         log_error(MODULE_LOGGER, "mmu: No se pudo obtener la lista de direcciones fisicas");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
@@ -353,7 +353,9 @@ int process_create_cpu_operation(int argc, char **argv)
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
-    size_serialize(&SYSCALL_INSTRUCTION, str_to_size(argv[2]));
+        size_t size;
+        str_to_size(argv[2], &size);
+    size_serialize(&SYSCALL_INSTRUCTION, size);
     // priority_serialize(&SYSCALL_INSTRUCTION, str_to_priority(argv[3]));
 
     return 0;

@@ -14,6 +14,8 @@ t_config *MODULE_CONFIG;
 t_PID PID;
 t_TID TID;
 t_Exec_Context EXEC_CONTEXT;
+size_t BASE;
+size_t LIMIT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
 
 int EXECUTING = 0;
@@ -111,7 +113,8 @@ void instruction_cycle(void)
                 exit(1);
             }
 
-            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
+            // TODO: NECESITO QUE ME PASE ADEMÁS: BASE, DESPLAZAMIENTO, TAMAÑO DEL PROCESO, Y/O LÍMITE
+            if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(1);
             }
@@ -121,12 +124,12 @@ void instruction_cycle(void)
             EXECUTING = 1;
         pthread_mutex_unlock(&MUTEX_EXECUTING);
 
-        log_trace(MODULE_LOGGER, "Contexto de ejecucion recibido del proceso : %i - Ciclo de instruccion ejecutando", EXEC_CONTEXT.PID);
+        log_trace(MODULE_LOGGER, "<%d:%d> Contexto de ejecucion recibido del proceso - Ciclo de instruccion ejecutando", PID, TID);
 
         while(1) {
 
             // Fetch
-            log_info(MINIMAL_LOGGER,"PID: %" PRIu16 " - FETCH - Program Counter: %" PRIu32, EXEC_CONTEXT.PID, EXEC_CONTEXT.PC);
+            log_info(MINIMAL_LOGGER,"PID: %" PRIu16 " - FETCH - Program Counter: %" PRIu32, PID, EXEC_CONTEXT.PC);
             cpu_fetch_next_instruction(&IR);
             if(IR == NULL) {
                 log_error(MODULE_LOGGER, "Error al fetchear la instruccion");

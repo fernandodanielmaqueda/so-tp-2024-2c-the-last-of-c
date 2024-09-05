@@ -83,10 +83,10 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
 // CPU - Memoria
 
-int send_exec_context(t_Exec_Context exec_context, int fd_socket);
+int send_exec_context(t_Exec_Context exec_context, size_t base, size_t limit, int fd_socket);
 
 
-int receive_exec_context(t_Exec_Context *exec_context, int fd_socket);
+int receive_exec_context(t_Exec_Context *exec_context, size_t *base, size_t *limit, int fd_socket);
 
 
 int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket);

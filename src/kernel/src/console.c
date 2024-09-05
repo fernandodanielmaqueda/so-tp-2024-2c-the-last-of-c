@@ -1,5 +1,6 @@
 #include "console.h"
- /* 
+
+/*
 int kernel_command_start_process(int argc, char* argv[]) {
 
     char *filename;
@@ -65,5 +66,4 @@ int kernel_command_start_process(int argc, char* argv[]) {
 
     return 0;
 }
-
-  */
+*/
