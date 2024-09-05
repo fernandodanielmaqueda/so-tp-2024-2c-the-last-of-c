@@ -24,10 +24,26 @@
 #include "utils/socket.h"
 #include "socket.h"
 
+
+typedef struct t_Memory_Register {
+    uint32_t PC;
+    uint32_t AX;
+    uint32_t BX;
+    uint32_t CX;
+    uint32_t DX;
+    uint32_t EX;
+    uint32_t FX; 
+    uint32_t GX; 
+    uint32_t HX;
+} t_Memory_Register;
 typedef struct t_Process {
-    t_PID PID;
+    t_PID PID; //Puede ser duplicado
+    t_PID TID; //Unico
     t_list *instructions_list;
-    t_list *pages_table;
+    t_Memory_Register registers;
+    uint32_t base;
+    uint32_t limit;
+    t_list *tid_list;
 } t_Process;
 
 typedef struct t_Page {
@@ -44,6 +60,7 @@ typedef struct t_Frame {
     t_PID PID;
     t_Page *assigned_page;
 } t_Frame;
+
 
 int module(int, char*[]);
 void initialize_mutexes(void);
