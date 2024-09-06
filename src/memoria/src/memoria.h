@@ -24,28 +24,24 @@
 #include "utils/socket.h"
 #include "socket.h"
 
-
-typedef struct t_Memory_Register {
-    uint32_t PC;
-    uint32_t AX;
-    uint32_t BX;
-    uint32_t CX;
-    uint32_t DX;
-    uint32_t EX;
-    uint32_t FX; 
-    uint32_t GX; 
-    uint32_t HX;
-} t_Memory_Register;
 typedef struct t_Process {
     t_PID PID; //Puede ser duplicado
     t_PID TID; //Unico
     t_list *instructions_list;
-    t_Memory_Register registers;
-    uint32_t base;
-    uint32_t limit;
+    t_Exec_Context registers;
+    size_t size;
+    t_list* partition_assigned;
     t_list *tid_list;
 } t_Process;
 
+typedef struct t_Partition {
+    size_t PARTID;
+    t_PID PID;
+    t_PID TID;
+    size_t base;
+    size_t limit;
+    t_Process* process_assigned;
+} t_Partition;
 typedef struct t_Page {
     size_t page_number;
     size_t assigned_frame_number;

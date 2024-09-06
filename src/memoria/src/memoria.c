@@ -24,9 +24,14 @@ pthread_mutex_t MUTEX_MAIN_MEMORY;
 pthread_mutex_t MUTEX_LIST_FREE_FRAMES;
 
 size_t MEMORY_SIZE;
-size_t PAGE_SIZE;
+t_Connection CONNECTION_FILESYSTEM;
+char* IP_FILESYSTEM;
 char *INSTRUCTIONS_PATH;
 int RESPONSE_DELAY;
+char* PARTITION_TYPE;
+char* SEEK_ALGORITHM;
+char** PARTITION_LIST;
+
 
 int module(int argc, char* argv[]) {
 
@@ -82,8 +87,8 @@ void finish_semaphores(void) {
 
 void read_module_config(t_config* MODULE_CONFIG) {
     SERVER_MEMORY = (t_Server) {.server_type = MEMORY_PORT_TYPE, .clients_type = TO_BE_IDENTIFIED_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
+    CONNECTION_FILESYSTEM = (t_Connection){.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
     MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
-    PAGE_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_PAGINA");
 
     INSTRUCTIONS_PATH = config_get_string_value(MODULE_CONFIG, "PATH_INSTRUCCIONES");
         if(INSTRUCTIONS_PATH[0]) {
@@ -103,6 +108,9 @@ void read_module_config(t_config* MODULE_CONFIG) {
         }
 
     RESPONSE_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_RESPUESTA");
+    PARTITION_TYPE = config_get_string_value(MODULE_CONFIG, "ESQUEMA");
+    SEEK_ALGORITHM = config_get_string_value(MODULE_CONFIG, "ALGORITMO_BUSQUEDA");
+    PARTITION_LIST = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
@@ -386,7 +394,7 @@ void listen_cpu(void) {
                 package_destroy(package);
 
                 package = package_create_with_header(PAGE_SIZE_REQUEST_HEADER);
-                size_serialize(&(package->payload), PAGE_SIZE);
+                //size_serialize(&(package->payload), PAGE_SIZE);
                 package_send(package, CLIENT_CPU->fd_client);
                 package_destroy(package);
 
@@ -514,6 +522,7 @@ void create_frames(void) {
     LIST_FRAMES = list_create();
     LIST_FREE_FRAMES = list_create();
 
+    /*
     size_t frame_quantity = MEMORY_SIZE / PAGE_SIZE;
 
     size_t offset = MEMORY_SIZE % PAGE_SIZE;
@@ -526,7 +535,7 @@ void create_frames(void) {
         new_frame->assigned_page = NULL;
         list_add(LIST_FRAMES, new_frame);
         list_add(LIST_FREE_FRAMES, new_frame);
-    }
+    }*/
 }
 
 void free_frames(void) {
@@ -585,7 +594,7 @@ size_t *seek_frame_number_by_page_number(t_list *page_table, size_t page_number)
     return NULL;
 }
 */
-/**/
+/*
 void io_read_memory(t_Payload *payload, int socket) {
     t_PID pid;
     t_list *list_physical_addresses = list_create();
@@ -607,7 +616,7 @@ void io_read_memory(t_Payload *payload, int socket) {
     int size = list_size(list_physical_addresses);
     for (int i = 0; i < size; i++) {
         physical_address = *((size_t *) list_get(list_physical_addresses, i));
-        size_t current_frame = physical_address / PAGE_SIZE;
+        //size_t current_frame = physical_address / PAGE_SIZE;
         void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
         size_t bytes_to_copy;
@@ -639,8 +648,8 @@ void io_read_memory(t_Payload *payload, int socket) {
     package_send(package, socket);
     package_destroy(package);
     list_destroy(list_physical_addresses);
-}
-
+}*/
+/*
 void copy_memory(t_Payload *payload, int socket) {
     t_PID pid;
     t_list *list_physical_addresses_origin = list_create();
@@ -795,8 +804,8 @@ void io_write_memory(t_Payload *payload, int socket) {
         // TODO
         exit(1);
     }
-}
-
+}*/
+/*
 void read_memory(t_Payload *payload, int socket) {
     t_PID pid;
     t_list *list_physical_addresses = list_create();
@@ -935,7 +944,7 @@ void write_memory(t_Payload *payload, int socket) {
         exit(1);
     }
 }
-
+*/
 //Actualizar page y TDP
 void update_page(size_t frame_number){
     t_Frame *frame = list_get(LIST_FRAMES, (int) frame_number);
