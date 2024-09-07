@@ -27,42 +27,29 @@
 #include "utils/socket.h"
 #include "utils/package.h"
 
-
-typedef struct t_IO_Type {
-    char *name;
-    void (*function) (void);
-} t_IO_Type;
-
-typedef struct t_IO_Operation {
-    char *name;
-    int (*function) (t_Payload *);
-} t_IO_Operation;
-
 typedef struct t_FS_File {
     char *name;
-//    t_PID process_pid;
+
     uint32_t initial_bloq;
     uint32_t len;
     uint32_t size;
 } t_FS_File;
 
-extern char *INTERFACE_NAME;
+extern t_Server SERVER_FILESYSTEM;
 
-extern int WORK_UNIT_TIME;
-
-extern t_Connection CONNECTION_KERNEL;
-extern t_Connection CONNECTION_MEMORY;
-
-extern char *PATH_BASE_DIALFS;
+extern char *MOUNT_DIR;
 extern size_t BLOCK_SIZE;
 extern size_t BLOCK_COUNT;
-extern int COMPRESSION_DELAY;
+extern int BLOCK_ACCESS_DELAY;
 
-//extern t_IO_Type IO_TYPES[];
+extern FILE *FILE_BLOCKS;
+extern FILE *FILE_METADATA;
+extern char *PTRO_BITMAP;
+extern size_t BITMAP_SIZE;
 
-//extern e_IO_Type IO_TYPE;
-
-//extern t_IO_Operation IO_OPERATIONS[];
+extern t_bitarray *BITMAP;
+extern char *PTRO_BLOCKS;
+extern size_t BLOCKS_TOTAL_SIZE;
 
 int module(int, char*[]);
 void read_module_config(t_config *module_config);

@@ -3,69 +3,33 @@
 
 #include "filesystem.h"
 
-char *INTERFACE_NAME;
-
 char *MODULE_NAME = "filesystem";
-char *MODULE_LOG_PATHNAME = "filesystem.log";
 
 t_log *MODULE_LOGGER;
+char *MODULE_LOG_PATHNAME = "filesystem.log";
+
 t_config *MODULE_CONFIG;
+char *MODULE_CONFIG_PATHNAME = "filesystem.config";
 
-t_Connection CONNECTION_KERNEL;
-t_Connection CONNECTION_MEMORY;
+t_Server SERVER_FILESYSTEM;
 
-int WORK_UNIT_TIME;
-
-char *PATH_BASE_DIALFS;
+char *MOUNT_DIR;
 size_t BLOCK_SIZE;
 size_t BLOCK_COUNT;
-int COMPRESSION_DELAY;
-FILE* FILE_BLOCKS;
-FILE* FILE_METADATA;
-FILE* FILE_BITMAP;
-char* PTRO_BITMAP;
+int BLOCK_ACCESS_DELAY;
+
+FILE *FILE_BLOCKS;
+FILE *FILE_METADATA;
+char *PTRO_BITMAP;
 size_t BITMAP_SIZE;
 
-t_list *LIST_FILES;
 t_bitarray *BITMAP;
-char* PTRO_BLOCKS;
+char *PTRO_BLOCKS;
 size_t BLOCKS_TOTAL_SIZE;
-
-/* 
-t_IO_Type IO_TYPES[] = {
-    [GENERIC_IO_TYPE] = {.name = "GENERICA", .function = generic_interface_function },
-    [STDIN_IO_TYPE] = {.name = "STDIN", .function = stdin_interface_function },
-    [STDOUT_IO_TYPE] = {.name = "STDOUT", .function = stdout_interface_function },
-    [DIALFS_IO_TYPE] = {.name = "DIALFS", .function = dialfs_interface_function}
-};
-*/
-/* 
-enum e_IO_Type IO_TYPE;
-
-t_IO_Operation IO_OPERATIONS[] = {
-    [IO_GEN_SLEEP_CPU_OPCODE] = {.name = "IO_GEN_SLEEP" , .function = io_gen_sleep_io_operation},
-    [IO_STDIN_READ_CPU_OPCODE] = {.name = "IO_STDIN_READ" , .function = io_stdin_read_io_operation},
-    [IO_STDOUT_WRITE_CPU_OPCODE] = {.name = "IO_STDOUT_WRITE" , .function = io_stdout_write_io_operation},
-    [IO_FS_CREATE_CPU_OPCODE] = {.name = "IO_FS_CREATE" , .function = io_fs_create_io_operation},
-    [IO_FS_DELETE_CPU_OPCODE] = {.name = "IO_FS_DELETE" , .function = io_fs_delete_io_operation},
-    [IO_FS_TRUNCATE_CPU_OPCODE] = {.name = "IO_FS_TRUNCATE" , .function = io_fs_truncate_io_operation},
-    [IO_FS_WRITE_CPU_OPCODE] = {.name = "IO_FS_WRITE" , .function = io_fs_write_io_operation},
-    [IO_FS_READ_CPU_OPCODE] = {.name = "IO_FS_READ" , .function = io_fs_read_io_operation},
-};
-*/
-
-t_PID PID;
 
 int module(int argc, char *argv[]) {
 
-	if(argc != 3) {
-		fprintf(stderr, "Uso: %s <NOMBRE_INTERFAZ> <ARCHIVO_DE_CONFIGURACION>\n", argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	INTERFACE_NAME = argv[1];
-
-	initialize_configs(argv[2]);
+	initialize_configs(MODULE_CONFIG_PATHNAME);
 	initialize_loggers();
 
 	initialize_sockets();
@@ -120,59 +84,21 @@ int module(int argc, char *argv[]) {
 }
 
 void read_module_config(t_config* MODULE_CONFIG) {
-    //char *io_type_name = config_get_string_value(MODULE_CONFIG, "TIPO_INTERFAZ");
-	/* 
-	if(io_type_find(io_type_name, &IO_TYPE)) {
-		log_error(MODULE_LOGGER, "%s: No se reconoce el TIPO_INTERFAZ", io_type_name);
-		exit(EXIT_FAILURE);
-	}
-	*/
 
-	CONNECTION_KERNEL = (t_Connection) {.client_type = IO_PORT_TYPE, .server_type = KERNEL_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_KERNEL"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_KERNEL")};
-
-/* 
-	switch(IO_TYPE) {
-		case GENERIC_IO_TYPE:
-		    WORK_UNIT_TIME = config_get_int_value(MODULE_CONFIG, "TIEMPO_UNIDAD_TRABAJO");
-			break;
-		case STDIN_IO_TYPE:
-		case STDOUT_IO_TYPE:
-			CONNECTION_MEMORY = (t_Connection) {.client_type = IO_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
-			break;
-		case DIALFS_IO_TYPE:
-			WORK_UNIT_TIME = config_get_int_value(MODULE_CONFIG, "TIEMPO_UNIDAD_TRABAJO");
-			CONNECTION_MEMORY = (t_Connection) {.client_type = IO_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
-			PATH_BASE_DIALFS = config_get_string_value(MODULE_CONFIG, "PATH_BASE_DIALFS");
-			BLOCK_SIZE = config_get_int_value(MODULE_CONFIG, "BLOCK_SIZE");
-			BLOCK_COUNT = config_get_int_value(MODULE_CONFIG, "BLOCK_COUNT");
-			COMPRESSION_DELAY = config_get_int_value(MODULE_CONFIG, "RETRASO_COMPACTACION");
-			break;
-	}
-*/
+	SERVER_FILESYSTEM = (t_Server) {.server_type = FILESYSTEM_PORT_TYPE, .clients_type = MEMORY_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
+	MOUNT_DIR = config_get_string_value(MODULE_CONFIG, "MOUNT_DIR");
+	BLOCK_SIZE = config_get_int_value(MODULE_CONFIG, "BLOCK_SIZE");
+	BLOCK_COUNT = config_get_int_value(MODULE_CONFIG, "BLOCK_COUNT");
+	BLOCK_ACCESS_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_ACCESO_BLOQUE");
 	LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
-/* 
-int io_type_find(char *name, e_IO_Type *destination) {
-    if(name == NULL || destination == NULL)
-        return 1;
-    
-    size_t io_types_number = sizeof(IO_TYPES) / sizeof(IO_TYPES[0]);
-    for (register e_IO_Type io_type = 0; io_type < io_types_number; io_type++)
-        if (strcmp(IO_TYPES[io_type].name, name) == 0) {
-            *destination = io_type;
-            return 0;
-        }
 
-    return 1;
-}
-*/
 void initialize_sockets(void) {
-	
 
 	// [Client] Entrada/Salida -> [Server] Kernel
+	/* 
 	pthread_t thread_io_connect_to_kernel;
 	pthread_create(&thread_io_connect_to_kernel, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_KERNEL);
-	/* 
 	switch(IO_TYPE) {
 		case GENERIC_IO_TYPE:
 			break;
@@ -186,32 +112,21 @@ void initialize_sockets(void) {
 			pthread_join(thread_io_connect_to_memory, NULL);
 			break;
 		}
-	}
-	*/
-	
+	}	
 	pthread_join(thread_io_connect_to_kernel, NULL);
+	*/
 }
 
 void finish_sockets(void) {
-	close(CONNECTION_KERNEL.fd_connection);
-	close(CONNECTION_MEMORY.fd_connection);
-}
-
-void generic_interface_function(void) {
-	
-}
-
-void stdin_interface_function(void) {
-
-}
-
-void stdout_interface_function(void) {
-
+	//close(CONNECTION_KERNEL.fd_connection);
+	//close(CONNECTION_MEMORY.fd_connection);
 }
 
 void dialfs_interface_function(void) {
 	initialize_blocks();
 	initialize_bitmap();
+	
+	/*
 	LIST_FILES = list_create();
 	struct dirent* entrada;
 	DIR *dir = opendir(PATH_BASE_DIALFS); 
@@ -239,12 +154,13 @@ void dialfs_interface_function(void) {
 					}
 					
 					//new_entry->process_pid = 0; 
-					list_add(LIST_FILES, new_entry);
+					//list_add(LIST_FILES, new_entry);
 				}
 			} 
 		}
 	}
 	closedir(dir);
+	*/
 
 	//int list_len = list_size(LIST_FILES);
 }
@@ -254,7 +170,7 @@ void initialize_blocks() {
     BLOCKS_TOTAL_SIZE = BLOCK_SIZE * BLOCK_COUNT;
     //size_t path_len_bloqs = strlen(PATH_BASE_DIALFS) + 1 +strlen("bitmap.dat"); //1 por la '/'
 	char* path_file_blocks = string_new();
-	strcpy (path_file_blocks, PATH_BASE_DIALFS);
+	//strcpy(path_file_blocks, PATH_BASE_DIALFS);
 	string_append(&path_file_blocks, "/");
 	string_append(&path_file_blocks, "bloques.dat");
 
@@ -298,7 +214,7 @@ void initialize_bitmap() {
 	
     //size_t path_len_bloqs = strlen(PATH_BASE_DIALFS) + 1 +strlen("bitmap.dat"); //1 por la '/'
 	char* path_file_bitmap = string_new();
-	strcpy (path_file_bitmap, PATH_BASE_DIALFS);
+	//strcpy(path_file_bitmap, PATH_BASE_DIALFS);
 	string_append(&path_file_bitmap, "/");
 	string_append(&path_file_bitmap, "bitmap.dat");
 
@@ -316,12 +232,14 @@ void initialize_bitmap() {
         exit(EXIT_FAILURE);
     }
 
+	/*
     PTRO_BITMAP = mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (PTRO_BITMAP == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
         close(fd);
         exit(EXIT_FAILURE);
     }
+	*/
 
     BITMAP = bitarray_create_with_mode((char *)PTRO_BITMAP, BITMAP_SIZE,LSB_FIRST);
     if (BITMAP == NULL) {
@@ -356,6 +274,7 @@ uint32_t seek_first_free_block(){
 	return magic;
 }
 
+/*
 t_FS_File* seek_file(char* file_name){
 
     t_FS_File* found_file = NULL;
@@ -371,7 +290,7 @@ t_FS_File* seek_file(char* file_name){
     
     return found_file;
 }
-
+*/
 
 bool can_assign_block(size_t initial_position, size_t len, size_t final_len){
 	size_t addition = final_len - len;
@@ -451,7 +370,7 @@ void create_blocks(){
 void create_file(char* file_name, size_t initial_block){
     //size_t path_len = strlen(PATH_BASE_DIALFS) + 1 +strlen(file_name); //1 por la '/'
 	char* path_file = string_new();
-	strcpy (path_file, PATH_BASE_DIALFS);
+	//strcpy(path_file, PATH_BASE_DIALFS);
 	string_append(&path_file, "/");
 	string_append(&path_file, file_name);
 
@@ -476,7 +395,7 @@ void create_file(char* file_name, size_t initial_block){
 
 void update_file(char* file_name, size_t size, size_t location){
 	char* path_file = string_new();
-	strcpy (path_file, PATH_BASE_DIALFS);
+	//strcpy(path_file, PATH_BASE_DIALFS);
 	string_append(&path_file, "/");
 	string_append(&path_file, file_name);
 
@@ -494,17 +413,19 @@ t_FS_File* seek_file_by_header_index(size_t position){
 
 	t_FS_File* magic = NULL;
 
+	/*
 	for (size_t i = 0; i < list_size(LIST_FILES); i++)
 	{
 		magic = list_get(LIST_FILES,i);
 		if (magic->initial_bloq == position) return magic;
 	}
+	*/
 
 	return magic;
 }
 
 void compact_blocks(t_FS_File* file, size_t nuevoLen, size_t nuevoSize){
-	usleep(COMPRESSION_DELAY * 1000);
+	//usleep(COMPRESSION_DELAY * 1000);
 	int total_free_spaces = 0;
 	int len = 0;
 	void* aux_memory = malloc(file->len * BLOCK_SIZE);
