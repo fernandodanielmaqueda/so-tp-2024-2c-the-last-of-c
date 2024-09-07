@@ -12,14 +12,37 @@ char *MODULE_LOG_PATHNAME = "memoria.log";
 t_config *MODULE_CONFIG;
 char *MODULE_CONFIG_PATHNAME = "memoria.config";
 
-void *MAIN_MEMORY;
-// pthread_mutex_t MUTEX_MAIN_MEMORY;
-
 size_t MEMORY_SIZE;
 char *INSTRUCTIONS_PATH;
 int RESPONSE_DELAY;
 
+t_Memory_Management_Scheme MEMORY_MANAGEMENT_SCHEMES[] = {
+    [FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME] = {.name = "FIJAS", .function = NULL },
+    [DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME] = {.name = "DINAMICAS", .function = NULL }
+};
+
+e_Memory_Management_Scheme MEMORY_MANAGEMENT_SCHEME;
+
+t_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHMS[] = {
+    [FIRST_FIT_MEMORY_ALLOCATION_ALGORITHM] = {.name = "FIRST", .function = NULL },
+    [BEST_FIT_MEMORY_ALLOCATION_ALGORITHM] = {.name = "BEST", .function = NULL },
+    [WORST_FIT_MEMORY_ALLOCATION_ALGORITHM] = {.name = "WORST", .function = NULL }
+};
+
+e_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHM;
+
+void *MAIN_MEMORY;
+
+t_list *PARTITION_TABLE;
+pthread_mutex_t MUTEX_PARTITION_TABLE;
+
+t_PID PID_COUNT;
+t_Memory_Process **ARRAY_PROCESS_MEMORY;
+pthread_mutex_t MUTEX_ARRAY_PROCESS_MEMORY;
+
 int module(int argc, char* argv[]) {
+
+    PARTITION_TABLE = list_create();
 
 	initialize_configs(MODULE_CONFIG_PATHNAME);
     initialize_loggers();
@@ -58,9 +81,91 @@ void finish_global_variables(void) {
 }
 
 void read_module_config(t_config* MODULE_CONFIG) {
+    char *string;
+
+    string = config_get_string_value(MODULE_CONFIG, "ESQUEMA");
+	if(memory_management_scheme_find(string, &MEMORY_MANAGEMENT_SCHEME)) {
+		log_error(MODULE_LOGGER, "%s: No se reconoce el ESQUEMA", string);
+		exit(EXIT_FAILURE);
+	}
+
+    string = config_get_string_value(MODULE_CONFIG, "ALGORITMO_BUSQUEDA");
+	if(memory_allocation_algorithm_find(string, &MEMORY_ALLOCATION_ALGORITHM)) {
+		log_error(MODULE_LOGGER, "%s: No se reconoce el ALGORITMO_BUSQUEDA", string);
+		exit(EXIT_FAILURE);
+	}
+
+    MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
+
+    switch(MEMORY_MANAGEMENT_SCHEME) {
+
+        case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
+        { 
+            char **fixed_partitions = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
+            if(fixed_partitions == NULL) {
+                log_error(MODULE_LOGGER, "No se pudo obtener el valor de PARTICIONES");
+                // string_array_destroy(fixed_partitions); TODO: Ver si acepta que fixed_partitions sea NULL
+                exit(EXIT_FAILURE);
+            }
+
+            char *end;
+            size_t base = 0;
+            t_Partition *new_partition;
+            for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
+                new_partition = malloc(sizeof(t_Partition));
+                if(new_partition == NULL) {
+                    log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para una particion");
+                    // TODO: Liberar la lista de particiones
+                    string_array_destroy(fixed_partitions);
+                    exit(EXIT_FAILURE);
+                }
+
+                new_partition->size = strtoul(fixed_partitions[i], &end, 10);
+                if(!*(fixed_partitions[i]) || *end) {
+                    log_error(MODULE_LOGGER, "El tamaño de la partición %d no es un número entero válido: %s", i, fixed_partitions[i]);
+                    // TODO: Liberar la lista de particiones
+                    string_array_destroy(fixed_partitions);
+                    exit(EXIT_FAILURE);
+                }
+
+                new_partition->base = base;
+                new_partition->occupied = false;
+
+                list_add(PARTITION_TABLE, new_partition);
+
+                base += new_partition->size;
+            }
+
+            if(list_size(PARTITION_TABLE) == 0) {
+                log_error(MODULE_LOGGER, "No se encontraron particiones fijas");
+                string_array_destroy(fixed_partitions);
+                exit(EXIT_FAILURE);
+            }
+
+            string_array_destroy(fixed_partitions);
+            break;
+        }
+
+        case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
+        {
+            t_Partition *new_partition = malloc(sizeof(t_Partition));
+            if(new_partition == NULL) {
+                log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para una particion");
+                exit(EXIT_FAILURE);
+            }
+
+            new_partition->size = MEMORY_SIZE;
+            new_partition->base = 0;
+            new_partition->occupied = false;
+
+            list_add(PARTITION_TABLE, new_partition);
+            break;
+        }
+
+    }
+
     SERVER_MEMORY = (t_Server) {.server_type = MEMORY_PORT_TYPE, .clients_type = TO_BE_IDENTIFIED_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
     //CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_FILESYSTEM"), .port = config_get_string_value(module_config, "PUERTO_FILESYSTEM")};
-    MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
 
     INSTRUCTIONS_PATH = config_get_string_value(MODULE_CONFIG, "PATH_INSTRUCCIONES");
         if(INSTRUCTIONS_PATH[0]) {
@@ -80,7 +185,36 @@ void read_module_config(t_config* MODULE_CONFIG) {
         }
 
     RESPONSE_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_RESPUESTA");
+
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
+}
+
+int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination) {
+    if(name == NULL || destination == NULL)
+        return 1;
+    
+    size_t memory_management_schemes_number = sizeof(MEMORY_MANAGEMENT_SCHEMES) / sizeof(MEMORY_MANAGEMENT_SCHEMES[0]);
+    for (register e_Memory_Management_Scheme memory_management_scheme = 0; memory_management_scheme < memory_management_schemes_number; memory_management_scheme++)
+        if (strcmp(MEMORY_MANAGEMENT_SCHEMES[memory_management_scheme].name, name) == 0) {
+            *destination = memory_management_scheme;
+            return 0;
+        }
+
+    return 1;
+}
+
+int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *destination) {
+    if(name == NULL || destination == NULL)
+        return 1;
+    
+    size_t memory_allocation_algorithms_number = sizeof(MEMORY_ALLOCATION_ALGORITHMS) / sizeof(MEMORY_ALLOCATION_ALGORITHMS[0]);
+    for (register e_Memory_Allocation_Algorithm memory_allocation_algorithm = 0; memory_allocation_algorithm < memory_allocation_algorithms_number; memory_allocation_algorithm++)
+        if (strcmp(MEMORY_ALLOCATION_ALGORITHMS[memory_allocation_algorithm].name, name) == 0) {
+            *destination = memory_allocation_algorithm;
+            return 0;
+        }
+
+    return 1;
 }
 
 void listen_kernel(void) {
