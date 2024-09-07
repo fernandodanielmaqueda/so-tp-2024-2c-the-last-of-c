@@ -270,7 +270,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 						EXEC_TCB = 0;
 						break;
 
-					case OUT_OF_MEMORY_EVICTION_REASON:
+					case SEGMENTATION_FAULT_EVICTION_REASON:
 						switch_process_state(tcb, EXIT_STATE);
 						EXEC_TCB = 0;
 						break;
