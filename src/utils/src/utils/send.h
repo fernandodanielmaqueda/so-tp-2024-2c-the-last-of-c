@@ -103,9 +103,9 @@ int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, 
 
 // Memoria - Filesystem
 
-int send_memory_dump(char *filename, void *source, size_t bytes);
+int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket);
 
 
-int receive_memory_dump(char *filename, void **destination, size_t *bytes);
+int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_socket);
 
 #endif // UTILS_SEND_H

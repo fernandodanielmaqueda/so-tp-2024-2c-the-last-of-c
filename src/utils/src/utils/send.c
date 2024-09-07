@@ -321,6 +321,8 @@ int send_read_request(t_PID pid, t_TID tid, size_t physical_address, size_t byte
 
 int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, int fd_socket) {
   t_Package *package = package_create_with_header(EXEC_CONTEXT_UPDATE_HEADER);
+  payload_add(&(package->payload), &pid, sizeof(pid));
+  payload_add(&(package->payload), &tid, sizeof(tid));
   exec_context_serialize(&(package->payload), exec_context);
   if(package_send(package, fd_socket)) {
     package_destroy(package);
@@ -332,13 +334,33 @@ int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, 
 
 // Memoria - Filesystem
 
-int send_memory_dump(char *filename, void *source, size_t bytes) {
-
+int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket) {
+  t_Package *package = package_create_with_header(MEMORY_DUMP_HEADER);
+  text_serialize(&(package->payload), filename);
+  size_serialize(&(package->payload), bytes);
+  payload_add(&(package->payload), dump, bytes);
+  if(package_send(package, fd_socket)) {
+    package_destroy(package);
+    return 1;
+  }
+  package_destroy(package);
   return 0;
 }
 
 
-int receive_memory_dump(char *filename, void **destination, size_t *bytes) {
-
+int receive_memory_dump(char **filename, void **destination, size_t *bytes, int fd_socket) {
+  t_Package *package;
+  if(package_receive(&package, fd_socket))
+    return 1;
+  if(package->header == MEMORY_DUMP_HEADER) {
+    text_deserialize(&(package->payload), filename);
+    size_deserialize(&(package->payload), bytes);
+    payload_remove(&(package->payload), destination, *bytes);
+  } else {
+    log_error(SERIALIZE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+    package_destroy(package);
+    return 1;
+  }
+  package_destroy(package);
   return 0;
 }
