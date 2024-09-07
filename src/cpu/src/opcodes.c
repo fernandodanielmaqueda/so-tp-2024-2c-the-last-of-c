@@ -104,11 +104,9 @@ int read_mem_cpu_operation(int argc, char **argv)
 
     size_t bytes = get_register_size(register_data);
 
-    t_list *list_physical_addresses = mmu(PID, (size_t) logical_address, bytes);
-    if(list_physical_addresses == NULL || list_size(list_physical_addresses) == 0) {
-        log_error(MODULE_LOGGER, "mmu: No se pudo obtener la lista de direcciones fisicas");
-        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
-        // free_list_physical_addresses(list_physical_addresses);
+    size_t physical_address;
+    if(mmu((size_t) logical_address, bytes, &physical_address)) {
+        EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
         return 1;
     }
 
@@ -121,11 +119,9 @@ int read_mem_cpu_operation(int argc, char **argv)
         return 1;
     }
 
-    //attend_read(EXEC_CONTEXT.PID, list_physical_addresses, &source, bytes);
+    read_memory(physical_address, &source, bytes);
     memcpy(destination, source, bytes);
     free(source);
-
-    // free_list_physical_addresses(list_physical_addresses);
 
     EXEC_CONTEXT.PC++;
 
@@ -166,18 +162,13 @@ int write_mem_cpu_operation(int argc, char **argv)
     uint32_t logical_address;
     get_register_value(EXEC_CONTEXT, register_address, &logical_address);
 
-    char text[bytes+1];
-    memcpy(text, source, bytes);
-    text[bytes] = '\0';
-
-    t_list *list_physical_addresses = mmu(PID, (size_t) logical_address, bytes);
-    if(list_physical_addresses == NULL || list_size(list_physical_addresses) == 0) {
-        log_error(MODULE_LOGGER, "mmu: No se pudo obtener la lista de direcciones fisicas");
-        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+    size_t physical_address;
+    if(mmu((size_t) logical_address, bytes, &physical_address)) {
+        EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
         return 1;
     }
 
-    //attend_write(EXEC_CONTEXT.PID, list_physical_addresses, text, bytes);
+    write_memory(physical_address, source, bytes);
 
     EXEC_CONTEXT.PC++;
 

@@ -28,9 +28,13 @@
 #include "opcodes.h"
 #include "registers.h"
 
+extern char *MODULE_NAME;
+
 extern t_log *MODULE_LOGGER;
-extern t_log *SOCKET_LOGGER;
+extern char *MINIMAL_LOG_PATHNAME;
+
 extern t_config *MODULE_CONFIG;
+extern char *MODULE_CONFIG_PATHNAME;
 
 extern t_PID PID;
 extern t_TID TID;
@@ -64,13 +68,9 @@ void *cpu_dispatch_start_server_for_kernel(void *server_parameter);
 void *cpu_interrupt_start_server_for_kernel(void *server_parameter);
 void instruction_cycle(void);
 void *kernel_cpu_interrupt_handler(void *NULL_parameter);
-t_list* mmu(t_PID pid, size_t logical_address, size_t bytes_contenido);
+int mmu(size_t logical_address, size_t bytes, size_t *destination);
 void cpu_fetch_next_instruction(char **line);
-/*
-void request_frame_memory(t_PID pid, size_t page_number);
-void attend_write(t_PID pid, t_list *list_physical_addresses, char *source, size_t bytes);
-void attend_read(t_PID pid, t_list *list_physical_addresses, void *destination, size_t bytes);
-void attend_copy(t_PID pid, t_list *list_physical_addresses_origin, t_list *list_physical_addresses_destination, size_t bytes);
-*/
+void write_memory(size_t physical_address, void *source, size_t bytes);
+void read_memory(size_t physical_address, void **destination, size_t bytes);
 
 #endif // CPU_H

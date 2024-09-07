@@ -8,8 +8,8 @@ char *MODULE_NAME = "cpu";
 t_log *MODULE_LOGGER;
 char *MODULE_LOG_PATHNAME = "cpu.log";
 
-char *MODULE_CONFIG_PATHNAME = "cpu.config";
 t_config *MODULE_CONFIG;
+char *MODULE_CONFIG_PATHNAME = "cpu.config";
 
 t_PID PID;
 t_TID TID;
@@ -108,12 +108,13 @@ void instruction_cycle(void)
                 exit(1);
             }
 
+            // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
             if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(1);
             }
 
-            // TODO: NECESITO QUE ME PASE ADEMÁS: BASE, DESPLAZAMIENTO, TAMAÑO DEL PROCESO, Y/O LÍMITE
+            // Recibo la respuesta de memoria con el contexto de ejecución
             if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(1);
@@ -267,10 +268,9 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
     return NULL;
 }
 
-t_list *mmu(t_PID pid, size_t logical_address, size_t bytes) {
+int mmu(size_t logical_address, size_t bytes, size_t *destination) {
 
-   
-   return NULL;
+   return 0;
 }
 
 void cpu_fetch_next_instruction(char **line) {
@@ -284,78 +284,40 @@ void cpu_fetch_next_instruction(char **line) {
     }
 }
 
-/*
-void request_frame_memory(t_PID pid, size_t page_number) {
-    t_Package *package = package_create_with_header(FRAME_REQUEST_HEADER);
-    size_serialize(&(package->payload), page_number);
-    payload_add(&(package->payload), &pid, sizeof(pid));
-    package_send(package, CONNECTION_MEMORY.fd_connection);
-}
-*/
 
-/*
-void attend_write(t_PID pid, t_list *list_physical_addresses, char* source, size_t bytes) {
+void write_memory(size_t physical_address, void *source, size_t bytes) {
+    if(source == NULL)
+        return;
 
-    t_Package* package;
-
-    package = package_create_with_header(WRITE_REQUEST_HEADER);
-    payload_add(&(package->payload), &pid, sizeof(pid));
-    list_serialize(&(package->payload), *list_physical_addresses, size_serialize_element);
-    size_serialize(&(package->payload), bytes);
-    payload_add(&(package->payload), source, (size_t) bytes);
-    package_send(package, CONNECTION_MEMORY.fd_connection);
-    package_destroy(package);
-
-    if(receive_expected_header(WRITE_REQUEST_HEADER ,CONNECTION_MEMORY.fd_connection)) {
+    if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(1);
     }
-    log_info(MODULE_LOGGER, "PID: %i - Accion: ESCRIBIR OK", pid);
+
+    if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(1);
+    }
+    
+    log_info(MODULE_LOGGER, "(%d:%d): Accion: ESCRIBIR OK", PID, TID);
 }
 
-void attend_read(t_PID pid, t_list *list_physical_addresses, void *destination, size_t bytes) {
-    if(list_physical_addresses == NULL || destination == NULL)
+void read_memory(size_t physical_address, void **destination, size_t bytes) {
+    if(destination == NULL)
         return;
-
-    t_Package* package = package_create_with_header(READ_REQUEST_HEADER);
-    payload_add(&(package->payload), &(pid), sizeof(pid));
-    list_serialize(&(package->payload), *list_physical_addresses, size_serialize_element);
-    size_serialize(&(package->payload), bytes);          
-    package_send(package, CONNECTION_MEMORY.fd_connection);
-    package_destroy(package);
-
     
+    t_Package* package;
+
+    if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(1);
+    }
 
     if(package_receive(&package, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(1);
     }
-
-    log_info(MODULE_LOGGER, "DENTRO DE CPU FAIL 1");
     payload_remove(&(package->payload), &destination, bytes);
-    log_info(MODULE_LOGGER, "DENTRO DE CPU FAIL 2222");
-    package_destroy(package);
-    log_info(MODULE_LOGGER, "DENTRO DE CPU FAIL 33333");
-}
-
-void attend_copy(t_PID pid, t_list *list_physical_addresses_origin, t_list *list_physical_addresses_destination, size_t bytes) {
-    if(list_physical_addresses_origin == NULL || list_physical_addresses_destination == NULL)
-        return;
-
-    t_Package* package = package_create_with_header(COPY_REQUEST_HEADER);
-    payload_add(&(package->payload), &(pid), sizeof(pid));
-    list_serialize(&(package->payload), *list_physical_addresses_origin, size_serialize_element);
-    list_serialize(&(package->payload), *list_physical_addresses_destination, size_serialize_element);
-    size_serialize(&(package->payload), bytes);          
-    package_send(package, CONNECTION_MEMORY.fd_connection);
     package_destroy(package);
 
-    
-    if(receive_expected_header(COPY_REQUEST_HEADER ,CONNECTION_MEMORY.fd_connection)) {
-        log_info(MODULE_LOGGER, "PID: %i - Accion: COPY FAIL!.", pid);
-        exit(1);
-    }
-    log_info(MODULE_LOGGER, "PID: %i - Accion: COPY OK", pid);
-
 }
-*/
