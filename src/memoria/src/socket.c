@@ -6,20 +6,14 @@
 
 t_Server SERVER_MEMORY;
 
-t_Client *CLIENT_KERNEL = NULL;
-pthread_mutex_t MUTEX_CLIENT_KERNEL;
-pthread_cond_t COND_CLIENT_KERNEL;
-
 t_Client *CLIENT_CPU = NULL;
 pthread_mutex_t MUTEX_CLIENT_CPU;
 pthread_cond_t COND_CLIENT_CPU;
 
-t_Shared_List SHARED_LIST_CLIENTS_IO;
+t_Shared_List SHARED_LIST_CLIENTS_KERNEL;
+t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM;
 
 void initialize_sockets(void) {
-
-    pthread_mutex_init(&MUTEX_CLIENT_KERNEL, NULL);
-    pthread_cond_init(&COND_CLIENT_KERNEL, NULL);
 
     pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL);
     pthread_cond_init(&COND_CLIENT_CPU, NULL);
@@ -28,12 +22,6 @@ void initialize_sockets(void) {
 	pthread_create(&SERVER_MEMORY.thread_server, NULL, (void *(*)(void *)) memory_start_server, (void *) &SERVER_MEMORY);
 
 	// Se bloquea hasta que se realicen todas las conexiones
-    pthread_mutex_lock(&MUTEX_CLIENT_KERNEL);
-		while(CLIENT_KERNEL == NULL)
-            pthread_cond_wait(&COND_CLIENT_KERNEL, &MUTEX_CLIENT_KERNEL);
-    pthread_mutex_unlock(&MUTEX_CLIENT_KERNEL);
-    pthread_cond_destroy(&COND_CLIENT_KERNEL);
-
     pthread_mutex_lock(&MUTEX_CLIENT_CPU);
 		while(CLIENT_CPU == NULL)
             pthread_cond_wait(&COND_CLIENT_CPU, &MUTEX_CLIENT_CPU);
@@ -100,6 +88,7 @@ void *memory_client_handler(t_Client *new_client) {
         case KERNEL_PORT_TYPE:
             new_client->client_type = KERNEL_PORT_TYPE;
 
+            /*
             pthread_mutex_lock(&MUTEX_CLIENT_KERNEL);
 
                 if(CLIENT_KERNEL != NULL) {
@@ -130,6 +119,7 @@ void *memory_client_handler(t_Client *new_client) {
             pthread_mutex_unlock(&MUTEX_CLIENT_KERNEL);
 
             pthread_cond_signal(&COND_CLIENT_KERNEL);
+            */
 
             return NULL;
         case CPU_PORT_TYPE:
@@ -169,6 +159,7 @@ void *memory_client_handler(t_Client *new_client) {
             listen_cpu();
 
             return NULL;
+        /*
         case IO_PORT_TYPE:
             new_client->client_type = IO_PORT_TYPE;
 
@@ -190,6 +181,7 @@ void *memory_client_handler(t_Client *new_client) {
             listen_io(new_client);
 
             return NULL;
+        */
         default:
             log_warning(SOCKET_LOGGER, "No reconocido Handshake de [Cliente]");
             send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client);

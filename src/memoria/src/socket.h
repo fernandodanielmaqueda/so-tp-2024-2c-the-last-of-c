@@ -23,15 +23,12 @@
 
 extern t_Server SERVER_MEMORY;
 
-extern t_Client *CLIENT_KERNEL;
-extern pthread_mutex_t MUTEX_CLIENT_KERNEL;
-extern pthread_cond_t COND_CLIENT_KERNEL;
-
 extern t_Client *CLIENT_CPU;
 extern pthread_mutex_t MUTEX_CLIENT_CPU;
 extern pthread_cond_t COND_CLIENT_CPU;
 
-extern t_Shared_List SHARED_LIST_CLIENTS_IO;
+extern t_Shared_List SHARED_LIST_CLIENTS_KERNEL;
+extern t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM;
 
 void initialize_sockets(void);
 void finish_sockets(void);

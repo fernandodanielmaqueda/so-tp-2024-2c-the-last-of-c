@@ -24,45 +24,39 @@
 #include "utils/socket.h"
 #include "socket.h"
 
-typedef struct t_Process {
-    t_PID PID; //Puede ser duplicado
-    t_PID TID; //Unico
-    t_list *instructions_list;
-    t_Exec_Context registers;
-    size_t size;
-    t_list* partition_assigned;
-    t_list *tid_list;
-} t_Process;
+typedef struct t_Partition_Data {
+    bool occupied;
 
-typedef struct t_Partition {
-    size_t PARTID;
-    t_PID PID;
-    t_PID TID;
-    size_t base;
-    size_t limit;
-    t_Process* process_assigned;
-} t_Partition;
-typedef struct t_Page {
-    size_t page_number;
-    size_t assigned_frame_number;
-    bool bit_uso;
-    bool bit_modificado;
-    bool bit_presencia;
-    time_t last_use;
-} t_Page;
+    // Opcional: Gasto un poco de memoria para hacer más efeciente la búsqueda de qué proceso está ocupando una partición en particular
+    t_PID pid;
+    // Capaz está al pedo si la consigna no lo pide :))
 
-typedef struct t_Frame {
-    size_t frame_number;
-    t_PID PID;
-    t_Page *assigned_page;
-} t_Frame;
+    size_t base; // Offset/Desplazamiento
+    size_t limit; // Esto es por la fragmentación interna: que el tamaño de un proceso puede ser menor que el tamaño de la partición
+    size_t size; // Tamaño de la partición
+} t_Partition_Data;
 
+typedef struct t_Memory_Thread {
+    t_Exec_Context exec_context;
+
+    t_PC instructions_count;
+    char **array_instructions;
+} t_Memory_Thread;
+
+typedef struct t_Memory_Process {
+    t_Partition_Data partition;
+
+    t_TID tid_count;
+    t_Memory_Thread **array_memory_threads;
+    pthread_mutex_t mutex_array_memory_threads;
+} t_Memory_Process;
 
 int module(int, char*[]);
-void initialize_mutexes(void);
-void finish_mutexes(void);
-void initialize_semaphores(void);
-void finish_semaphores(void);
+
+void initialize_global_variables(void);
+
+void finish_global_variables(void);
+
 void read_module_config(t_config *module_config);
 
 /**
@@ -77,16 +71,12 @@ void create_process(t_Payload *payload);
  */
 void kill_process (t_Payload *payload);
 
-void listen_io(t_Client *client);
-
 /**
  * @brief Busca la lista de instruccion y devuelve la instruccion buscada
  * @param pid Program counter requerido.
  * @param pc Program counter requerido.
  */
 void seek_instruccion(t_Payload *socketRecibido);
-
-
 
 /**
  * @brief Crea la lista de instrucciones asociada al archivo pasado por parametro
@@ -95,7 +85,6 @@ void seek_instruccion(t_Payload *socketRecibido);
  */
 void create_instruction(FILE *file, t_list *list_instruction);
 
-
 /**
  * @brief Busca un archivo, lo lee y crea una lista de instrucciones
  * @param path Path donde se encuentra el archivo.
@@ -103,22 +92,11 @@ void create_instruction(FILE *file, t_list *list_instruction);
  */
 int parse_pseudocode_file(char *path, t_list *list_instruction);
 
-
-/**
- * @brief
- * @param process
- * @param pid
- */
-bool process_matches_pid(t_Process *process, t_PID *pid);
-
-
-
 /**
  * @brief Funcion que encapsula al hilo escucha cpu
  * @param socket Socket escuchado
  */
 void listen_cpu(void);
-
 
 /**
  * @brief Funcion que encapsula al hilo escucha kernel
@@ -126,41 +104,10 @@ void listen_cpu(void);
  */
 void listen_kernel(void);
 
-/**
- * @brief Crea los marcos e inicializa la lista de los mismos
- */
-void create_frames(void);
+void attend_write(t_Payload *socketRecibido, int socket);
 
-/**
- * @brief Libera el espacio reservado para los marcos
- */
-void free_frames(void);
+void attend_read(t_Payload *socketRecibido, int socket);
 
-
-/**
- * @brief Recibe el pedido de busqueda de marco y responde el mismo
- * @param socketRecibido Socket escuchado
- */
-void respond_frame_request(t_Payload *socketRecibido);
-
-/**
- * @brief Busca el marco asociado a una pagina en especial de una tabla de paginas.
- * @param tablaPaginas Tanla de paginas del proceso donde buscar la pagina.
- * @param pagina Pagina buscada.
- */
-size_t *seek_frame_number_by_page_number(t_list *tablaPaginas, size_t page_number);
-
-void resize_process(t_Payload *payload);
-void write_memory(t_Payload *socketRecibido, int socket);
-void read_memory(t_Payload *socketRecibido, int socket);
-void update_page(size_t frame_number);
-int get_next_dir_fis(size_t frame_number, t_PID pid);
-int seek_oldest_page_updated(t_list *page_list);
 void free_memory();
-void free_all_process();
 
-void io_write_memory(t_Payload *payload, int socket);
-void io_read_memory(t_Payload *payload, int socket);
-void copy_memory(t_Payload *payload, int socket);
-
-#endif /* MEMORIA_H */
+#endif // MEMORIA_H
