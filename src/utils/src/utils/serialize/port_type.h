@@ -23,7 +23,6 @@ typedef enum e_Port_Type {
     CPU_INTERRUPT_PORT_TYPE,
     MEMORY_PORT_TYPE,
     FILESYSTEM_PORT_TYPE,
-    IO_PORT_TYPE,
     TO_BE_IDENTIFIED_PORT_TYPE
 } e_Port_Type;
 

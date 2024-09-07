@@ -9,7 +9,7 @@ const char *PORT_NAMES[] = {
   [CPU_DISPATCH_PORT_TYPE] = "CPU (Dispatch)",
   [CPU_INTERRUPT_PORT_TYPE] = "CPU (Interrupt)",
   [MEMORY_PORT_TYPE] = "Memoria",
-  [IO_PORT_TYPE] = "Entrada/Salida",
+  [FILESYSTEM_PORT_TYPE] = "Filesystem",
   [TO_BE_IDENTIFIED_PORT_TYPE] = "A identificar"
 };
 
