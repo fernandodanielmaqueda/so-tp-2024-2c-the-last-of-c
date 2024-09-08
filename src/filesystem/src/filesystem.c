@@ -87,6 +87,14 @@ int module(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+void initialize_global_variables(void) {
+
+}
+
+void finish_global_variables(void) {
+
+}
+
 void read_module_config(t_config* MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "MOUNT_DIR", "BLOCK_SIZE", "BLOCK_COUNT", "RETARDO_ACCESO_BLOQUE", "LOG_LEVEL", NULL)) {
