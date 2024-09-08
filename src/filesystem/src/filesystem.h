@@ -52,6 +52,8 @@ extern char *PTRO_BLOCKS;
 extern size_t BLOCKS_TOTAL_SIZE;
 
 int module(int, char*[]);
+void initialize_global_variables(void);
+void finish_global_variables(void);
 void read_module_config(t_config *module_config);
 //int io_type_find(char *name, e_IO_Type *destination);
 void initialize_sockets(void);

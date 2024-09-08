@@ -4,6 +4,7 @@
 #ifndef UTILS_MODULE_H
 #define UTILS_MODULE_H
 
+#include <stdarg.h>
 #include <stdlib.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -46,7 +47,8 @@ void initialize_loggers(void);
 void finish_loggers(void);
 void initialize_configs(char *pathname);
 void finish_configs(void);
-void read_module_config(t_config*);
+int config_has_properties(t_config *config, ...);
+extern void read_module_config(t_config*);
 
 void init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
 void destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);

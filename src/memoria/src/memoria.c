@@ -81,17 +81,23 @@ void finish_global_variables(void) {
 }
 
 void read_module_config(t_config* MODULE_CONFIG) {
+
+    if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
+        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
+        exit(EXIT_FAILURE);
+    }
+
     char *string;
 
     string = config_get_string_value(MODULE_CONFIG, "ESQUEMA");
 	if(memory_management_scheme_find(string, &MEMORY_MANAGEMENT_SCHEME)) {
-		log_error(MODULE_LOGGER, "%s: No se reconoce el ESQUEMA", string);
+		fprintf(stderr, "%s: No se reconoce el ESQUEMA", string);
 		exit(EXIT_FAILURE);
 	}
 
     string = config_get_string_value(MODULE_CONFIG, "ALGORITMO_BUSQUEDA");
 	if(memory_allocation_algorithm_find(string, &MEMORY_ALLOCATION_ALGORITHM)) {
-		log_error(MODULE_LOGGER, "%s: No se reconoce el ALGORITMO_BUSQUEDA", string);
+		fprintf(stderr, "%s: No se reconoce el ALGORITMO_BUSQUEDA", string);
 		exit(EXIT_FAILURE);
 	}
 
@@ -103,7 +109,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
         { 
             char **fixed_partitions = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
             if(fixed_partitions == NULL) {
-                log_error(MODULE_LOGGER, "No se pudo obtener el valor de PARTICIONES");
+                fprintf(stderr, "No se pudo obtener el valor de PARTICIONES");
                 // string_array_destroy(fixed_partitions); TODO: Ver si acepta que fixed_partitions sea NULL
                 exit(EXIT_FAILURE);
             }
@@ -114,7 +120,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
             for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
                 new_partition = malloc(sizeof(t_Partition));
                 if(new_partition == NULL) {
-                    log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para una particion");
+                    fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
                     exit(EXIT_FAILURE);
@@ -122,7 +128,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
 
                 new_partition->size = strtoul(fixed_partitions[i], &end, 10);
                 if(!*(fixed_partitions[i]) || *end) {
-                    log_error(MODULE_LOGGER, "El tamaño de la partición %d no es un número entero válido: %s", i, fixed_partitions[i]);
+                    fprintf(stderr, "El tamaño de la partición %d no es un número entero válido: %s", i, fixed_partitions[i]);
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
                     exit(EXIT_FAILURE);
@@ -137,7 +143,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
             }
 
             if(list_size(PARTITION_TABLE) == 0) {
-                log_error(MODULE_LOGGER, "No se encontraron particiones fijas");
+                fprintf(stderr, "No se encontraron particiones fijas");
                 string_array_destroy(fixed_partitions);
                 exit(EXIT_FAILURE);
             }
@@ -150,7 +156,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
         {
             t_Partition *new_partition = malloc(sizeof(t_Partition));
             if(new_partition == NULL) {
-                log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para una particion");
+                fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
                 exit(EXIT_FAILURE);
             }
 
@@ -177,7 +183,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
 
             DIR *dir = opendir(INSTRUCTIONS_PATH);
             if(dir == NULL) {
-                log_error(MODULE_LOGGER, "No se pudo abrir el directorio de instrucciones.");
+                fprintf(stderr, "No se pudo abrir el directorio de instrucciones.");
                 // TODO
                 exit(EXIT_FAILURE);
             }

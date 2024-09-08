@@ -13,24 +13,23 @@ void resources_read_module_config(t_config *module_config) {
 	for(RESOURCE_QUANTITY = 0; (resource_names[RESOURCE_QUANTITY] != NULL) && (resource_instances[RESOURCE_QUANTITY] != NULL); RESOURCE_QUANTITY++);
 	
 	if((resource_names[RESOURCE_QUANTITY] != NULL) || (resource_instances[RESOURCE_QUANTITY] != NULL)) {
-		log_error(MODULE_LOGGER, "La cantidad de recursos y de instancias de recursos no coinciden");
+		fprintf(stderr, "La cantidad de recursos y de instancias de recursos no coinciden");
 		exit(EXIT_FAILURE);
 	}
 
 	if(RESOURCE_QUANTITY > 0) {
 		RESOURCES = malloc(sizeof(t_Resource) * RESOURCE_QUANTITY);
 		if(RESOURCES == NULL) {
-			log_error(MODULE_LOGGER, "No se pudo reservar memoria para los recursos");
+			fprintf(stderr, "No se pudo reservar memoria para los recursos");
 			exit(EXIT_FAILURE);
 		}
 	}
 
 	char *end;
-
 	for(register int i = 0; i < RESOURCE_QUANTITY; i++) {
 		RESOURCES[i].instances = strtol(resource_instances[i], &end, 10);
 		if(!*(resource_instances[i]) || *end) {
-			log_error(MODULE_LOGGER, "La cantidad de instancias del recurso %s no es un número válido: %s", resource_names[i], resource_instances[i]);
+			fprintf(stderr, "La cantidad de instancias del recurso %s no es un número válido: %s", resource_names[i], resource_instances[i]);
 			exit(EXIT_FAILURE);
 		}
 

@@ -13,6 +13,8 @@ char *MODULE_CONFIG_PATHNAME = "filesystem.config";
 
 t_Server SERVER_FILESYSTEM;
 
+t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
+
 char *MOUNT_DIR;
 size_t BLOCK_SIZE;
 size_t BLOCK_COUNT;
@@ -31,6 +33,7 @@ int module(int argc, char *argv[]) {
 
 	initialize_configs(MODULE_CONFIG_PATHNAME);
 	initialize_loggers();
+	initialize_global_variables();
 
 	initialize_sockets();
 
@@ -79,11 +82,17 @@ int module(int argc, char *argv[]) {
 	finish_sockets();
 	//finish_configs();
 	finish_loggers();
+	finish_global_variables();
    
     return EXIT_SUCCESS;
 }
 
 void read_module_config(t_config* MODULE_CONFIG) {
+
+    if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "MOUNT_DIR", "BLOCK_SIZE", "BLOCK_COUNT", "RETARDO_ACCESO_BLOQUE", "LOG_LEVEL", NULL)) {
+        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
+        exit(EXIT_FAILURE);
+    }
 
 	SERVER_FILESYSTEM = (t_Server) {.server_type = FILESYSTEM_PORT_TYPE, .clients_type = MEMORY_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
 	MOUNT_DIR = config_get_string_value(MODULE_CONFIG, "MOUNT_DIR");

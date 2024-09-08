@@ -32,7 +32,7 @@ void initialize_configs(char *pathname) {
 	MODULE_CONFIG = config_create(pathname);
 
 	if(MODULE_CONFIG == NULL) {
-		log_error(MODULE_LOGGER, "%s: No se pudo abrir el archivo de configuracion", pathname);
+		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion", pathname);
         exit(EXIT_FAILURE);
 	}
 
@@ -41,6 +41,23 @@ void initialize_configs(char *pathname) {
 
 void finish_configs(void) {
 	config_destroy(MODULE_CONFIG);
+}
+
+int config_has_properties(t_config *config, ...) {
+    va_list args;
+    va_start(args, config);
+    
+    char *property;
+    while((property = va_arg(args, char *)) != NULL) {
+        if (!config_has_property(config, property)) {
+            fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", config->path, property);
+            va_end(args);
+            return 1;
+        }
+    }
+
+    va_end(args);
+    return 0;
 }
 
 void init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {

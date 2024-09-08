@@ -57,10 +57,8 @@ extern t_Payload SYSCALL_INSTRUCTION;
 #define MAX_CPU_INSTRUCTION_ARGUMENTS 1 + 5
 
 int module(int, char*[]);
-void initialize_mutexes(void);
-void finish_mutexes(void);
-void initialize_semaphores(void);
-void finish_semaphores(void);
+void initialize_global_variables(void);
+void finish_global_variables(void);
 void read_module_config(t_config *module_config);
 void initialize_sockets(void);
 void finish_sockets(void);

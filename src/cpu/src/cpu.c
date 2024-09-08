@@ -34,8 +34,7 @@ int module(int argc, char *argv[])
 
     initialize_configs(MODULE_CONFIG_PATHNAME);
     initialize_loggers();
-    initialize_mutexes();
-	initialize_semaphores();
+    initialize_global_variables();
     initialize_sockets();
 
     pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL);
@@ -47,34 +46,30 @@ int module(int argc, char *argv[])
     finish_sockets();
     // finish_configs();
     finish_loggers();
-	finish_semaphores();
-	finish_mutexes();
+	finish_global_variables();
 
     return EXIT_SUCCESS;
 }
 
-void initialize_mutexes(void) {
+void initialize_global_variables(void) {
     pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL);
     pthread_mutex_init(&MUTEX_EXECUTING, NULL);
     pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);
 }
 
-void finish_mutexes(void) {
+void finish_global_variables(void) {
     pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT);
     pthread_mutex_destroy(&MUTEX_EXECUTING);
     pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);
 }
 
-void initialize_semaphores(void) {
+void read_module_config(t_config *MODULE_CONFIG) {
     
-}
-
-void finish_semaphores(void) {
+    if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "PUERTO_ESCUCHA_DISPATCH", "PUERTO_ESCUCHA_INTERRUPT", "LOG_LEVEL", NULL)) {
+        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
+        exit(EXIT_FAILURE);
+    }
     
-}
-
-void read_module_config(t_config *MODULE_CONFIG)
-{
     CONNECTION_MEMORY = (t_Connection){.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
     
     SERVER_CPU_DISPATCH = (t_Server){.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
