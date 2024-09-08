@@ -153,7 +153,7 @@ void listen_cpu(void);
  * @brief Funcion que encapsula al hilo escucha kernel
  * @param socket Socket escuchado
  */
-void listen_kernel(void);
+void *listen_kernel(t_Client *new_client);
 
 void attend_write(t_Payload *socketRecibido, int socket);
 

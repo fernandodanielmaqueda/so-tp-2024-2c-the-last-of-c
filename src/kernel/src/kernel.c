@@ -37,6 +37,10 @@ int module(int argc, char *argv[]) {
 	SHARED_LIST_EXEC.list = list_create();
 	SHARED_LIST_EXIT.list = list_create();
 
+	// TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
+    pthread_t thread_connection_memory;
+    pthread_create(&thread_connection_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_MEMORY);
+
 	initialize_sockets();
 	initialize_scheduling();
 
@@ -85,7 +89,8 @@ void read_module_config(t_config *module_config) {
         exit(EXIT_FAILURE);
     }
 
-	//CONNECTION_MEMORY = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_MEMORIA"), .port = config_get_string_value(module_config, "PUERTO_MEMORIA")};
+	TEMPORAL_CONNECTION_MEMORY = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_MEMORIA"), .port = config_get_string_value(module_config, "PUERTO_MEMORIA")};
+	
 	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
 	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
 	

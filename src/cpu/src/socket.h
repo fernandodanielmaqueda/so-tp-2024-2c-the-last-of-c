@@ -37,4 +37,4 @@ void initialize_sockets(void);
 void finish_sockets(void);
 void *cpu_start_server_for_kernel(t_Client *new_client);
 
-#endif /* CPU_SOCKET_H */
+#endif // CPU_SOCKET_H

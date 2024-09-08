@@ -54,6 +54,11 @@ int module(int argc, char* argv[]) {
     MAIN_MEMORY = (void *) malloc(MEMORY_SIZE);
     memset(MAIN_MEMORY, 0, MEMORY_SIZE); //Llena de 0's el espacio de memoria
 
+    // TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
+    pthread_t thread_connection_filesystem;
+    pthread_create(&thread_connection_filesystem, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_FILESYSTEM);
+
+
     initialize_sockets();
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
@@ -171,7 +176,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
     }
 
     SERVER_MEMORY = (t_Server) {.server_type = MEMORY_PORT_TYPE, .clients_type = TO_BE_IDENTIFIED_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
-    //CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_FILESYSTEM"), .port = config_get_string_value(module_config, "PUERTO_FILESYSTEM")};
+    TEMPORAL_CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
     INSTRUCTIONS_PATH = config_get_string_value(MODULE_CONFIG, "PATH_INSTRUCCIONES");
         if(INSTRUCTIONS_PATH[0]) {
@@ -223,7 +228,18 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
     return 1;
 }
 
-void listen_kernel(void) {
+void *listen_kernel(t_Client *new_client) {
+
+	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] iniciado", new_client->fd_client);
+
+	// Borrar este while(1) (ciclo incluido) y reemplazarlo por la lógica necesaria para atender al cliente
+	while(1) {
+		getchar();
+	}
+
+	close(new_client->fd_client);
+
+	return NULL;
 
     /*
     t_Package* package;

@@ -3,6 +3,8 @@
 
 #include "socket.h"
 
+t_Connection TEMPORAL_CONNECTION_MEMORY;
+
 t_list *LIST_CONNECTIONS_MEMORY;
 
 t_Connection CONNECTION_CPU_DISPATCH;

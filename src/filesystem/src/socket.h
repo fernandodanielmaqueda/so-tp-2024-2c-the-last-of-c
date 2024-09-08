@@ -34,5 +34,6 @@ extern t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
 
 void initialize_sockets(void);
 void finish_sockets(void);
+void *filesystem_start_server(t_Server *server);
 
 #endif // FILESYSTEM_SOCKET_H
