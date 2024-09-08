@@ -11,10 +11,6 @@ char *MODULE_LOG_PATHNAME = "filesystem.log";
 t_config *MODULE_CONFIG;
 char *MODULE_CONFIG_PATHNAME = "filesystem.config";
 
-t_Server SERVER_FILESYSTEM;
-
-t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
-
 char *MOUNT_DIR;
 size_t BLOCK_SIZE;
 size_t BLOCK_COUNT;
@@ -35,9 +31,9 @@ int module(int argc, char *argv[]) {
 	initialize_loggers();
 	initialize_global_variables();
 
-	initialize_sockets();
-
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
+
+	initialize_sockets();
 
 	//t_Return_Value return_value;
 	/* 
@@ -110,33 +106,18 @@ void read_module_config(t_config* MODULE_CONFIG) {
 	LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
-void initialize_sockets(void) {
+void *filesystem_client_handler_for_memory(t_Client *new_client) {
 
-	// [Client] Entrada/Salida -> [Server] Kernel
-	/* 
-	pthread_t thread_io_connect_to_kernel;
-	pthread_create(&thread_io_connect_to_kernel, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_KERNEL);
-	switch(IO_TYPE) {
-		case GENERIC_IO_TYPE:
-			break;
-		case STDIN_IO_TYPE:
-		case STDOUT_IO_TYPE:
-		case DIALFS_IO_TYPE:
-		{
-			// [Client] Entrada/Salida -> [Server] Memoria
-			pthread_t thread_io_connect_to_memory;
-			pthread_create(&thread_io_connect_to_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_MEMORY);
-			pthread_join(thread_io_connect_to_memory, NULL);
-			break;
-		}
-	}	
-	pthread_join(thread_io_connect_to_kernel, NULL);
-	*/
-}
+	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Memoria [%d] iniciado", new_client->fd_client);
 
-void finish_sockets(void) {
-	//close(CONNECTION_KERNEL.fd_connection);
-	//close(CONNECTION_MEMORY.fd_connection);
+	// Borrar este while(1) (ciclo incluido) y reemplazarlo por la lógica necesaria para atender al cliente
+	while(1) {
+		getchar();
+	}
+
+	close(new_client->fd_client);
+
+	return NULL;
 }
 
 void dialfs_interface_function(void) {
@@ -353,7 +334,7 @@ size_t seek_quantity_blocks_required(size_t puntero, size_t bytes){
 
 
 void free_bitmap_blocks(void){
-	
+	/*
     if (munmap(PTRO_BLOCKS, (BLOCK_SIZE * BLOCK_COUNT)) == -1) {
         log_error(MODULE_LOGGER, "Error al desmapear el archivo bloques.dat de la memoria: %s", strerror(errno));
     }
@@ -362,7 +343,7 @@ void free_bitmap_blocks(void){
     }
 
 	free(BITMAP);
-
+	*/
 }
 /*
 void create_blocks(){

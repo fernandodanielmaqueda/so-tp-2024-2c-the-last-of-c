@@ -26,6 +26,7 @@
 #include "utils/send.h"
 #include "utils/socket.h"
 #include "utils/package.h"
+#include "socket.h"
 
 typedef struct t_FS_File {
     char *name;
@@ -58,9 +59,7 @@ void read_module_config(t_config *module_config);
 //int io_type_find(char *name, e_IO_Type *destination);
 void initialize_sockets(void);
 void finish_sockets(void);
-void generic_interface_function(void);
-void stdin_interface_function(void);
-void stdout_interface_function(void);
+void *filesystem_client_handler_for_memory(t_Client *new_client);
 void dialfs_interface_function(void);
 uint32_t seek_first_free_block();
 t_FS_File* seek_file(char* file_name);

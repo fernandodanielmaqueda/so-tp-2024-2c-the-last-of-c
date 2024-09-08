@@ -47,7 +47,7 @@ void initialize_loggers(void);
 void finish_loggers(void);
 void initialize_configs(char *pathname);
 void finish_configs(void);
-int config_has_properties(t_config *config, ...);
+bool config_has_properties(t_config *config, ...);
 extern void read_module_config(t_config*);
 
 void init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
