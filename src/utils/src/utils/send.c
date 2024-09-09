@@ -290,13 +290,12 @@ int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket) {
   return 0;
 }
 
-int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *source, size_t bytes, int fd_socket) {
+int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *data, size_t bytes, int fd_socket) {
   t_Package *package = package_create_with_header(WRITE_REQUEST_HEADER);
   payload_add(&(package->payload), &pid, sizeof(pid));
   payload_add(&(package->payload), &tid, sizeof(tid));
   size_serialize(&(package->payload), physical_address);
-  size_serialize(&(package->payload), bytes);
-  payload_add(&(package->payload), source, bytes);
+  data_serialize(&(package->payload), data, bytes);
   if(package_send(package, fd_socket)) {
     package_destroy(package);
     return 1;
@@ -337,8 +336,7 @@ int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, 
 int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket) {
   t_Package *package = package_create_with_header(MEMORY_DUMP_HEADER);
   text_serialize(&(package->payload), filename);
-  size_serialize(&(package->payload), bytes);
-  payload_add(&(package->payload), dump, bytes);
+  data_serialize(&(package->payload), dump, bytes);
   if(package_send(package, fd_socket)) {
     package_destroy(package);
     return 1;
@@ -348,14 +346,13 @@ int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket) {
 }
 
 
-int receive_memory_dump(char **filename, void **destination, size_t *bytes, int fd_socket) {
+int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return 1;
   if(package->header == MEMORY_DUMP_HEADER) {
     text_deserialize(&(package->payload), filename);
-    size_deserialize(&(package->payload), bytes);
-    payload_remove(&(package->payload), destination, *bytes);
+    data_deserialize(&(package->payload), *dump, bytes);
   } else {
     log_error(SERIALIZE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
     package_destroy(package);

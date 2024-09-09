@@ -50,11 +50,9 @@ void size_deserialize_element(t_Payload *payload, void **destination) {
 void size_serialize(t_Payload *payload, size_t source) {
   if(payload == NULL)
     return;
-
-  t_Size aux;
   
-    aux = (t_Size) source;
-  payload_add(payload, &aux, sizeof(aux));
+    t_Size size_serialized = (t_Size) source;
+  payload_add(payload, &size_serialized, sizeof(size_serialized));
 
   size_log(source);
 }
@@ -63,17 +61,16 @@ void size_deserialize(t_Payload *payload, size_t *destination) {
   if(payload == NULL || destination == NULL)
     return;
 
-  t_Size aux;
-
-  payload_remove(payload, &aux, sizeof(aux));
-    *destination = (size_t) aux;
+    t_Size size_serialized;
+  payload_remove(payload, &size_serialized, sizeof(size_serialized));
+    *destination = (size_t) size_serialized;
 
   size_log(*destination);
 }
 
 void size_log(size_t source) {
   log_info(SERIALIZE_LOGGER,
-    "size_t: %zd"
+    "size_t: %zu"
     , source
   );
 }
