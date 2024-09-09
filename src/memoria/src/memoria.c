@@ -52,7 +52,7 @@ int module(int argc, char* argv[]) {
     SHARED_LIST_CONNECTIONS_FILESYSTEM.list = list_create();
 
     MAIN_MEMORY = (void *) malloc(MEMORY_SIZE);
-    memset(MAIN_MEMORY, 0, MEMORY_SIZE); //Llena de 0's el espacio de memoria
+    memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
     // TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
     pthread_t thread_connection_filesystem;
@@ -107,7 +107,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
 
     MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
 
-    switch(MEMORY_MANAGEMENT_SCHEME) {
+    switch(MEMORY_MANAGEMENT_SCHEME) { ///CREACION DE PARTICIONES INICIAL
 
         case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
         { 
@@ -227,18 +227,55 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
     return 1;
 }
 
-void *listen_kernel(t_Client *new_client) {
+void *listen_kernel(t_Client* new_client) {
 
-	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] iniciado", new_client->fd_client);
+	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] iniciado.", new_client->fd_client);
 
-	// Borrar este while(1) (ciclo incluido) y reemplazarlo por la lógica necesaria para atender al cliente
-	while(1) {
-		getchar();
-	}
+    t_Package* package;
+    bool petition_arrived = true;
+
+	while (petition_arrived){
+
+        if(package_receive(&package, new_client->fd_client)) {
+            petition_arrived = false;
+            
+            switch(package->header) {
+                
+                case PROCESS_CREATE_HEADER:
+                    log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
+                    create_process(&(package->payload));
+                    break;
+                /*
+                case PROCESS_DESTROY_HEADER:
+                    log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
+                    kill_process(&(package->payload));
+                    break;
+                
+                case THREAD_CREATE_HEADER:
+                    log_info(MODULE_LOGGER, "KERNEL: Creacion hilo nuevo recibido.");
+                    create_thread(&(package->payload));
+                    break;
+                
+                case THREAD_DESTROY_HEADER:
+                    log_info(MODULE_LOGGER, "KERNEL: Finalizar hilo recibido.");
+                    kill_thread(&(package->payload));
+                    break;
+*/
+                default:
+                    log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+                    break;
+
+            }
+
+            package_destroy(package);
+        }
+    }
 
 	close(new_client->fd_client);
+	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] finalizado.", new_client->fd_client);
 
 	return NULL;
+}
 
     /*
     t_Package* package;
@@ -278,19 +315,24 @@ void *listen_kernel(t_Client *new_client) {
         }
         package_destroy(package);
     }
-    */
 }
 
+    */
 void create_process(t_Payload *payload) {
 
-    /*
-    t_Process *new_process = malloc(sizeof(t_Process));
+    t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
         // TODO
         log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para el nuevo proceso.");
         return;
     }
 
+    payload_remove(payload, &(new_process->pid), sizeof(new_process->pid));
+    payload_remove(payload, &(new_process->size), sizeof(new_process->size));
+
+    //ASIGNAR PARTICION
+
+    /*
     new_process->instructions_list = list_create();
     //new_process->pages_table = list_create();
 
@@ -518,13 +560,13 @@ void listen_cpu(void) {
                 
             case READ_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de lectura recibido.");
-                attend_read(&(package->payload), CLIENT_CPU->fd_client);
+                read_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
             case WRITE_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de escritura recibido.");
-                attend_write(&(package->payload), CLIENT_CPU->fd_client);
+                write_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
             
@@ -574,7 +616,7 @@ void seek_instruccion(t_Payload *payload) {
     */
 }
 
-void attend_read(t_Payload *payload, int socket) {
+void read_memory(t_Payload *payload, int socket) {
     /*
     t_PID pid;
     t_list *list_physical_addresses = list_create();
@@ -644,7 +686,7 @@ void attend_read(t_Payload *payload, int socket) {
     */
 }
 
-void attend_write(t_Payload *payload, int socket) {
+void write_memory(t_Payload *payload, int socket) {
     /*
     t_PID pid;
     t_list *list_physical_addresses = list_create();

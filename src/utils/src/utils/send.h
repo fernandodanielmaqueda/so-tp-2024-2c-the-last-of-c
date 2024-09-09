@@ -56,7 +56,7 @@ int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pi
 // Kernel - Memoria
 
 
-int send_process_create(t_PID pid, int fd_socket);
+int send_process_create(t_PID pid, size_t size, int fd_socket);
 
 
 int send_process_destroy(t_PID pid, int fd_socket);

@@ -138,9 +138,10 @@ int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pi
 
 // Kernel - Memoria
 
-int send_process_create(t_PID pid, int fd_socket) {
+int send_process_create(t_PID pid, size_t size, int fd_socket) {
   t_Package *package = package_create_with_header(PROCESS_CREATE_HEADER);
   payload_add(&(package->payload), &pid, sizeof(pid));
+  payload_add(&(package->payload), &size, sizeof(size_t));
   if(package_send(package, fd_socket)) {
     package_destroy(package);
     return 1;

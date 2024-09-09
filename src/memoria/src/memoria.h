@@ -48,24 +48,24 @@ typedef struct t_Memory_Allocation_Algorithm {
 // typedef uint32_t t_Partition_Number;
 
 typedef struct t_Partition {
-    size_t size; // Tamaño de la partición
-    size_t base; // Offset/Desplazamiento respecto del inicio de la memoria
-
+    t_PID pid;
+    size_t base;
+    size_t size; // AKA:: LIMIT --> Tamaño de la partición
     bool occupied;
-    t_PID pid; // Opcional: Gasto un poco de memoria para hacer más efeciente la búsqueda de qué proceso está ocupando una partición en particular. Capaz está al pedo si la consigna no lo pide :))    
-    size_t limit; // Esto es por la fragmentación interna: que el tamaño de un proceso puede ser menor que el tamaño de la partición
 } t_Partition;
 
 typedef struct t_Memory_Thread {
-    t_Exec_Context exec_context;
-
+    t_TID tid;
+    t_Exec_Context registers;
     t_PC instructions_count;
     char **array_instructions;
 } t_Memory_Thread;
 
 typedef struct t_Memory_Process {
-    t_Partition *partition;
-
+    t_PID pid;
+    size_t size;
+   // t_Partition_Number partition_number;
+    t_Partition partition;
     t_TID tid_count;
     t_Memory_Thread **array_memory_threads;
     pthread_mutex_t mutex_array_memory_threads;
@@ -155,9 +155,9 @@ void listen_cpu(void);
  */
 void *listen_kernel(t_Client *new_client);
 
-void attend_write(t_Payload *socketRecibido, int socket);
+void write_memory(t_Payload *socketRecibido, int socket);
 
-void attend_read(t_Payload *socketRecibido, int socket);
+void read_memory(t_Payload *socketRecibido, int socket);
 
 void free_memory();
 
