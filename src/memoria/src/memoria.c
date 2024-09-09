@@ -58,7 +58,6 @@ int module(int argc, char* argv[]) {
     pthread_t thread_connection_filesystem;
     pthread_create(&thread_connection_filesystem, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_FILESYSTEM);
 
-
     initialize_sockets();
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
@@ -246,7 +245,7 @@ void *listen_kernel(t_Client* new_client) {
                     log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
                     create_process(&(package->payload));
                     break;
-                
+                /*
                 case PROCESS_DESTROY_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
                     kill_process(&(package->payload));
@@ -261,7 +260,7 @@ void *listen_kernel(t_Client* new_client) {
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar hilo recibido.");
                     kill_thread(&(package->payload));
                     break;
-
+*/
                 default:
                     log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
                     break;

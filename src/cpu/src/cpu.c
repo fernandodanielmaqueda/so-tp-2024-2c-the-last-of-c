@@ -297,7 +297,7 @@ void write_memory(size_t physical_address, void *source, size_t bytes) {
     log_info(MODULE_LOGGER, "(%d:%d): Accion: ESCRIBIR OK", PID, TID);
 }
 
-void read_memory(size_t physical_address, void **destination, size_t bytes) {
+void read_memory(size_t physical_address, void *destination, size_t bytes) {
     if(destination == NULL)
         return;
     
@@ -312,7 +312,7 @@ void read_memory(size_t physical_address, void **destination, size_t bytes) {
         // TODO
         exit(1);
     }
-    payload_remove(&(package->payload), &destination, bytes);
+    payload_remove(&(package->payload), destination, bytes);
     package_destroy(package);
 
 }

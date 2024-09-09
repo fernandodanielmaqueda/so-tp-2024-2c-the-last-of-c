@@ -65,11 +65,11 @@ int package_send(t_Package *package, int fd_socket) {
 
   t_Size aux_size;
   aux_size = (t_Size) package->payload.size;
-  
+
   payload_add(&(package->payload), &(aux_header), sizeof(aux_header));
   payload_add(&(package->payload), &(aux_size), sizeof(aux_size));
 
-  
+  size_t bufferSize = package->payload.size;
 
   ssize_t bytes = send(fd_socket, package->payload.stream, package->payload.size, 0);
 
@@ -84,8 +84,8 @@ int package_send(t_Package *package, int fd_socket) {
       log_warning(SOCKET_LOGGER, "send: %s\n", strerror(errno));
       return 1;
   }
-  if (bytes != package->payload.size) {
-      log_warning(SOCKET_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", package->payload.size, bytes);
+  if (bytes != bufferSize) {
+      log_warning(SOCKET_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", bufferSize, bytes);
       return 1;
   }
 

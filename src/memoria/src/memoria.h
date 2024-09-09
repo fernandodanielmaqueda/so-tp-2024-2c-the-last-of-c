@@ -45,7 +45,7 @@ typedef struct t_Memory_Allocation_Algorithm {
     void (*function)(void);
 } t_Memory_Allocation_Algorithm;
 
-typedef uint32_t t_Partition_Number;
+// typedef uint32_t t_Partition_Number;
 
 typedef struct t_Partition {
     t_PID pid;
@@ -64,7 +64,7 @@ typedef struct t_Memory_Thread {
 typedef struct t_Memory_Process {
     t_PID pid;
     size_t size;
-    t_Partition_Number partition_number;
+   // t_Partition_Number partition_number;
     t_Partition partition;
     t_TID tid_count;
     t_Memory_Thread **array_memory_threads;

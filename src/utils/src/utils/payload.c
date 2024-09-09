@@ -3,7 +3,6 @@
 
 #include "payload.h"
 
-// Crea un payload vacío de tamaño size y offset 0
 void payload_init(t_Payload *payload) {
   if(payload == NULL)
     return;
@@ -25,7 +24,7 @@ void payload_destroy(t_Payload *payload) {
 }
 
 int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
-  if (payload == NULL || source == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
+  if (payload == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
     errno = EINVAL;
     return -1;
   }
@@ -41,15 +40,18 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
   if(payload->offset < payload->size)
     memmove((void *) (((uint8_t *) payload->stream) + payload->offset + sourceSize), (void *) (((uint8_t *) payload->stream) + payload->offset), payload->size - payload->offset);
 
-  memcpy((void *) (((uint8_t *) payload->stream) + payload->offset), source, sourceSize);
+  if(source != NULL)
+    memcpy((void *) (((uint8_t *) payload->stream) + payload->offset), source, sourceSize);
+  
   payload->offset += sourceSize;
 
   payload->size += sourceSize;
+
   return 0;
 }
 
 int payload_remove(t_Payload *payload, void *destination, size_t destinationSize) {
-  if (payload == NULL || payload->stream == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset) ) {
+  if(payload == NULL || payload->stream == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset) ) {
     errno = EINVAL;
     return -1;
   }
@@ -79,6 +81,51 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
   else {
     payload_destroy(payload);
   }
+
+  return 0;
+}
+
+int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
+  if (payload == NULL || sourceSize == 0) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  if(sourceSize > (payload->size - payload->offset)) {
+
+    if(sourceSize > (SIZE_MAX - payload->offset)) {
+      errno = EINVAL;
+      return -1;
+    }
+
+    void *newStream = realloc(payload->stream, payload->offset + sourceSize);
+    if(newStream == NULL) {
+      log_error(SERIALIZE_LOGGER, "realloc: No se pudo agregar el stream al payload");
+      errno = ENOMEM;
+      return -1;
+    }
+
+    payload->stream = newStream;
+    payload->size = payload->offset + sourceSize;
+  }
+
+  if(source != NULL)
+    memcpy((void *) (((uint8_t *) payload->stream) + payload->offset), source, sourceSize);
+  
+  payload->offset += sourceSize;
+
+  return 0;
+}
+
+int payload_read(t_Payload *payload, void *destination, size_t destinationSize) {
+  if (payload == NULL || payload->stream == NULL || destination == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset)) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  memcpy(destination, (void *) (((uint8_t *) payload->stream) + payload->offset), destinationSize);
+
+  payload->offset += destinationSize;
 
   return 0;
 }

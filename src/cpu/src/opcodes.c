@@ -111,6 +111,8 @@ int read_mem_cpu_operation(int argc, char **argv)
     }
 
     void *destination = get_register_pointer(&EXEC_CONTEXT, register_data);
+    read_memory(physical_address, destination, bytes);
+    /*
     void *source = malloc((size_t) bytes);
     if(source == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zd bytes", (size_t) bytes);
@@ -119,9 +121,10 @@ int read_mem_cpu_operation(int argc, char **argv)
         return 1;
     }
 
-    read_memory(physical_address, &source, bytes);
+    read_memory(physical_address, source, bytes);
     memcpy(destination, source, bytes);
     free(source);
+    */
 
     EXEC_CONTEXT.PC++;
 

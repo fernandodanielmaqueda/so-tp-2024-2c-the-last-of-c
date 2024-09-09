@@ -21,12 +21,20 @@ typedef struct t_Payload {
 
 extern t_log *SERIALIZE_LOGGER;
 
+/**
+ * Inicializa el payload.
+ * @param payload Puntero al payload.
+ */
 void payload_init(t_Payload *payload);
-void payload_destroy(t_Payload *payload);
-
 
 /**
- * Agrega datos al final del payload.
+ * Destruye el payload.
+ * @param payload Puntero al payload.
+ */
+void payload_destroy(t_Payload *payload);
+
+/**
+ * Agrega datos al payload.
  * @param payload Puntero al payload.
  * @param source Puntero a los datos fuente.
  * @param sourceSize Tamaño en bytes de los datos fuente.
@@ -42,7 +50,28 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize);
  */
 int payload_remove(t_Payload *payload, void *destination, size_t destinationSize);
 
+/**
+ * Escribe datos en el payload.
+ * @param payload Puntero al payload.
+ * @param source Puntero a los datos fuente.
+ * @param sourceSize Tamaño en bytes de los datos fuente.
+ */
+int payload_write(t_Payload *payload, void *source, size_t sourceSize);
 
+/**
+ * Lee datos del payload.
+ * @param payload Puntero al payload.
+ * @param destination Puntero al buffer de destino.
+ * @param destinationSize Tamaño en bytes del buffer de destino.
+ */
+int payload_read(t_Payload *payload, void *destination, size_t destinationSize);
+
+/**
+ * Mueve el offset del payload.
+ * @param payload Puntero al payload.
+ * @param offset Offset a mover.
+ * @param whence Punto de referencia (SEEK_SET, SEEK_CUR, SEEK_END).
+ */
 int payload_seek(t_Payload *payload, long offset, int whence);
 
 #endif // UTILS_PAYLOAD_H

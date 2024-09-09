@@ -6,6 +6,7 @@
 
 #include "utils/package.h"
 #include "utils/serialize/cpu_opcode.h"
+#include "utils/serialize/data.h"
 #include "utils/serialize/eviction_reason.h"
 #include "utils/serialize/exec_context.h"
 #include "utils/serialize/kernel_interrupt.h"
@@ -55,7 +56,7 @@ int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pi
 // Kernel - Memoria
 
 
-int send_process_create(t_PID pid, int fd_socket);
+int send_process_create(t_PID pid, size_t size, int fd_socket);
 
 
 int send_process_destroy(t_PID pid, int fd_socket);
@@ -92,7 +93,7 @@ int receive_exec_context(t_Exec_Context *exec_context, size_t *base, size_t *lim
 int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket);
 
 
-int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *source, size_t bytes, int fd_socket);
+int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *data, size_t bytes, int fd_socket);
 
 
 int send_read_request(t_PID pid, t_TID tid, size_t physical_address, size_t bytes, int fd_socket);
