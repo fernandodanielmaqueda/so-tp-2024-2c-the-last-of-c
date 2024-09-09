@@ -69,6 +69,6 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter);
 int mmu(size_t logical_address, size_t bytes, size_t *destination);
 void cpu_fetch_next_instruction(char **line);
 void write_memory(size_t physical_address, void *source, size_t bytes);
-void read_memory(size_t physical_address, void **destination, size_t bytes);
+void read_memory(size_t physical_address, void *destination, size_t bytes);
 
 #endif // CPU_H
