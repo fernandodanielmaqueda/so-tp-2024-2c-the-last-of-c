@@ -30,7 +30,7 @@ int module(int argc, char *argv[]) {
 
 	initialize_configs(MODULE_CONFIG_PATHNAME);
 	initialize_loggers();
-	
+
 	initialize_global_variables();
 
 	SHARED_LIST_NEW.list = list_create();

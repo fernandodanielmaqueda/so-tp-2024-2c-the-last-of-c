@@ -66,8 +66,7 @@ void initialize_long_term_scheduler(void) {
 }
 
 void initialize_short_term_scheduler(void) { //ESTADO RUNNIG - MULTIPROCESAMIENTO
-	pthread_create(&THREAD_SHORT_TERM_SCHEDULER, NULL, (void *(*)(void *)) short_term_scheduler, NULL);
-	pthread_detach(THREAD_SHORT_TERM_SCHEDULER);
+	short_term_scheduler(NULL);
 }
 
 void *long_term_scheduler_new(void *NULL_parameter) {
