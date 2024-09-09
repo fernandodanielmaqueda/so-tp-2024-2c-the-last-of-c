@@ -62,10 +62,11 @@ int package_send(t_Package *package, int fd_socket) {
 
   t_EnumValue aux_header;
   aux_header = (t_EnumValue) package->header;
-  payload_add(&(package->payload), &(aux_header), sizeof(aux_header));
 
   t_Size aux_size;
   aux_size = (t_Size) package->payload.size;
+
+  payload_add(&(package->payload), &(aux_header), sizeof(aux_header));
   payload_add(&(package->payload), &(aux_size), sizeof(aux_size));
 
   size_t bufferSize = package->payload.size;
