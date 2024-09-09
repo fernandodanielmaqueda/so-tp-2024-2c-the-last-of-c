@@ -58,7 +58,6 @@ int module(int argc, char* argv[]) {
     pthread_t thread_connection_filesystem;
     pthread_create(&thread_connection_filesystem, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_FILESYSTEM);
 
-
     initialize_sockets();
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
