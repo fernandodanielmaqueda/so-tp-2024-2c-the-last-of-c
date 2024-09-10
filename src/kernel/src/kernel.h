@@ -55,6 +55,7 @@ typedef struct t_PCB {
     t_PID PID;
     t_ID_Manager thread_manager;
     t_list *list_mutexes;
+    size_t size;
 } t_PCB;
 
 typedef struct t_TCB {
@@ -66,6 +67,7 @@ typedef struct t_TCB {
     t_Shared_List *shared_list_state;
 
     t_Priority priority;
+    char *pseudocode_pathname;
 
     t_Quantum quantum;
 

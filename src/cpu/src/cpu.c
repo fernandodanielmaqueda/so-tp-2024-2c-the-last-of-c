@@ -64,17 +64,17 @@ void finish_global_variables(void) {
 }
 
 void read_module_config(t_config *MODULE_CONFIG) {
-    
+
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "PUERTO_ESCUCHA_DISPATCH", "PUERTO_ESCUCHA_INTERRUPT", "LOG_LEVEL", NULL)) {
         //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
         exit(EXIT_FAILURE);
     }
-    
+
     CONNECTION_MEMORY = (t_Connection){.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
-    
+
     SERVER_CPU_DISPATCH = (t_Server){.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
     CLIENT_KERNEL_CPU_DISPATCH = (t_Client){.client_type = KERNEL_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
-    
+
     SERVER_CPU_INTERRUPT = (t_Server){.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
     CLIENT_KERNEL_CPU_INTERRUPT = (t_Client){.client_type = KERNEL_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 

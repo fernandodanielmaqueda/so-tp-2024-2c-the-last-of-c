@@ -33,18 +33,11 @@ int module(int argc, char *argv[]) {
 
 	initialize_global_variables();
 
-	SHARED_LIST_NEW.list = list_create();
-	SHARED_LIST_EXEC.list = list_create();
-	SHARED_LIST_EXIT.list = list_create();
-
-	// TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
-    pthread_t thread_connection_memory;
-    pthread_create(&thread_connection_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_MEMORY);
-
 	initialize_sockets();
-	initialize_scheduling();
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
+
+	initialize_scheduling();
 
 	finish_scheduling();
 	//finish_threads();
@@ -57,9 +50,16 @@ int module(int argc, char *argv[]) {
 }
 
 void initialize_global_variables(void) {
+
+	SHARED_LIST_NEW.list = list_create();
 	pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL);
+
 	init_resource_sync(&READY_SYNC);
+
+	SHARED_LIST_EXEC.list = list_create();
 	pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL);
+
+	SHARED_LIST_EXIT.list = list_create();
 	pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL);
 
 	sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0);
@@ -70,9 +70,15 @@ void initialize_global_variables(void) {
 }
 
 void finish_global_variables(void) {
+	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
 	pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex));
+	
 	destroy_resource_sync(&READY_SYNC);
+
+	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
 	pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex));
+
+	list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
 	pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex));
 
 	sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW);
@@ -88,8 +94,6 @@ void read_module_config(t_config *module_config) {
         //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
         exit(EXIT_FAILURE);
     }
-
-	TEMPORAL_CONNECTION_MEMORY = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_MEMORIA"), .port = config_get_string_value(module_config, "PUERTO_MEMORIA")};
 	
 	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
 	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};

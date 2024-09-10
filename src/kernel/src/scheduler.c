@@ -11,9 +11,12 @@ t_Shared_List SHARED_LIST_EXIT;
 
 pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
 sem_t SEM_LONG_TERM_SCHEDULER_NEW;
+
 pthread_t THREAD_LONG_TERM_SCHEDULER_EXIT;
 sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
-pthread_t THREAD_SHORT_TERM_SCHEDULER;
+
+pthread_t THREAD_CPU_INTERRUPTER;
+
 sem_t SEM_SHORT_TERM_SCHEDULER;
 
 int EXEC_TCB;
@@ -65,7 +68,10 @@ void initialize_long_term_scheduler(void) {
 	pthread_detach(THREAD_LONG_TERM_SCHEDULER_EXIT);
 }
 
-void initialize_short_term_scheduler(void) { //ESTADO RUNNIG - MULTIPROCESAMIENTO
+void initialize_short_term_scheduler(void) {
+	pthread_create(&THREAD_CPU_INTERRUPTER, NULL, (void *(*)(void *)) cpu_interrupter, NULL);
+	pthread_detach(THREAD_CPU_INTERRUPTER);
+
 	short_term_scheduler(NULL);
 }
 
@@ -73,6 +79,7 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
 
+	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 	t_PCB *pcb;
 
 	while(1) {
@@ -90,6 +97,38 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 				pcb = (t_PCB *) (SHARED_LIST_NEW.list)->head->data;
 
 			pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex));
+
+			client_thread_connect_to_server(&connection_memory);
+
+				if(send_process_create(pcb->PID, pcb->size, connection_memory.fd_connection)) {
+					// TODO
+				}
+
+				t_Return_Value return_value;
+				if(receive_return_value_with_expected_header(PROCESS_CREATE_HEADER, &return_value, connection_memory.fd_connection)) {
+					// TODO
+				}
+
+				if(return_value) {
+					// TODO: Algo malió sal
+				}
+
+				// TODO: Sacar de la lista de NEW
+
+			close(connection_memory.fd_connection);
+
+			client_thread_connect_to_server(&connection_memory);
+
+				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.cb_array))[0]->pseudocode_pathname, connection_memory.fd_connection)) {
+					// TODO
+				}
+
+				if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
+					// TODO
+				}
+
+				// TODO: Poner el hilo en READY
+			close(connection_memory.fd_connection);
 
 			//switch_process_state(pcb, READY_STATE);
 		signal_draining_requests(&SCHEDULING_SYNC);
@@ -161,6 +200,42 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 
 		tid_release(&(tcb->pcb->thread_manager), tcb->TID);
 		tcb_destroy(tcb);
+	}
+
+	return NULL;
+}
+
+void *cpu_interrupter(void *NULL_parameter) {
+
+	log_trace(MODULE_LOGGER, "Hilo de interrupciones de CPU iniciado");
+
+	e_Kernel_Interrupt kernel_interrupt;
+	t_PID pid;
+	t_TID tid;
+
+	while(1) {
+		if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CONNECTION_CPU_INTERRUPT.fd_connection)) {
+			// TODO
+			exit(1);
+		}
+
+		switch(kernel_interrupt) {
+
+			case KILL_KERNEL_INTERRUPT:
+				/*
+				pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);
+					KILL_EXEC_PROCESS = 1;
+				pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+				*/
+				break;
+
+			case QUANTUM_KERNEL_INTERRUPT:
+				// TODO
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	return NULL;

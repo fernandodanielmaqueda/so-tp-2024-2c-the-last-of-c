@@ -45,9 +45,12 @@ extern t_Shared_List SHARED_LIST_EXIT;
 
 extern pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
 extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
+
 extern pthread_t THREAD_LONG_TERM_SCHEDULER_EXIT;
 extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
-extern pthread_t THREAD_SHORT_TERM_SCHEDULER;
+
+extern pthread_t THREAD_CPU_INTERRUPTER;
+
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 
 extern int EXEC_TCB;
@@ -70,6 +73,7 @@ void initialize_long_term_scheduler(void);
 void initialize_short_term_scheduler(void);
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
+void *cpu_interrupter(void *NULL_parameter);
 void *short_term_scheduler(void *NULL_parameter);
 void* start_quantum(t_TCB *tcb);
 void switch_process_state(t_TCB *tcb, e_Process_State new_state);

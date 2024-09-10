@@ -51,7 +51,7 @@ void size_serialize(t_Payload *payload, size_t source) {
   if(payload == NULL)
     return;
   
-    t_Size size_serialized = (t_Size) source;
+  t_Size size_serialized = (t_Size) source;
   payload_add(payload, &size_serialized, sizeof(size_serialized));
 
   size_log(source);
@@ -61,7 +61,7 @@ void size_deserialize(t_Payload *payload, size_t *destination) {
   if(payload == NULL || destination == NULL)
     return;
 
-    t_Size size_serialized;
+  t_Size size_serialized;
   payload_remove(payload, &size_serialized, sizeof(size_serialized));
     *destination = (size_t) size_serialized;
 

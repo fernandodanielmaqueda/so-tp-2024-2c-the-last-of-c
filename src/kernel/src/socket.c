@@ -3,16 +3,17 @@
 
 #include "socket.h"
 
-t_Connection TEMPORAL_CONNECTION_MEMORY;
+//t_Connection TEMPORAL_CONNECTION_MEMORY;
 
-t_list *LIST_CONNECTIONS_MEMORY;
+t_Shared_List SHARED_LIST_CONNECTIONS_MEMORY;
 
 t_Connection CONNECTION_CPU_DISPATCH;
 t_Connection CONNECTION_CPU_INTERRUPT;
 
 void initialize_sockets(void) {
 
-	LIST_CONNECTIONS_MEMORY = list_create();
+	SHARED_LIST_CONNECTIONS_MEMORY.list = list_create();
+	pthread_mutex_init(&(SHARED_LIST_CONNECTIONS_MEMORY.mutex), NULL);
 
 	pthread_t thread_kernel_connect_to_cpu_dispatch;
 	pthread_t thread_kernel_connect_to_cpu_interrupt;

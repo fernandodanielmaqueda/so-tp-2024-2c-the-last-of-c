@@ -26,7 +26,7 @@
 #include "utils/socket.h"
 #include "kernel.h"
 
-extern t_Connection TEMPORAL_CONNECTION_MEMORY;
+//extern t_Connection TEMPORAL_CONNECTION_MEMORY;
 
 extern t_log *SOCKET_LOGGER;
 
