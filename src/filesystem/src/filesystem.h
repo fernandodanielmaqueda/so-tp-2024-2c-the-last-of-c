@@ -60,7 +60,6 @@ void read_module_config(t_config *module_config);
 void initialize_sockets(void);
 void finish_sockets(void);
 void *filesystem_client_handler_for_memory(t_Client *new_client);
-void dialfs_interface_function(void);
 uint32_t seek_first_free_block();
 t_FS_File* seek_file(char* file_name);
 bool can_assign_block(size_t initial_position, size_t len, size_t final_len);

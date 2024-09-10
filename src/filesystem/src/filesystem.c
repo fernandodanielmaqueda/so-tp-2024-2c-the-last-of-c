@@ -33,6 +33,9 @@ int module(int argc, char *argv[]) {
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
+    initialize_bitmap(); //crea o abre si el archivo bitmap.dat
+	//inicializar al bitmap en 0 (todo:hacer la funcion.. revsiar en las commons si hay de utlidad)
+
 	initialize_sockets();
 
 	//t_Return_Value return_value;
@@ -111,56 +114,40 @@ void *filesystem_client_handler_for_memory(t_Client *new_client) {
 	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Memoria [%d] iniciado", new_client->fd_client);
 
 	// Borrar este while(1) (ciclo incluido) y reemplazarlo por la lógica necesaria para atender al cliente
+
+	/*
+		1-Validar si existe el archivo bitmap.dat (considerar la concurrencia) si no esta crearlo -->initialize_bitmap
+		----------------------------------------------------------------------------
+		2-Todos los bloques se inicialzian en 0.. reocrro el bitmap y le pongo 0 a todos los bloques
+		
+		TODO:CORREGIR ESTO******************
+	for (int i = 0; i < bitarray_get_max_bit(bitarray); i++) {
+        
+		//aplico el  bitarray_set_bit(t_bitarray*, off_t bit_index);
+			bitarray_set_bit(bitarray, i); //  El bit está limpio (0)
+		
+
+    }
+		---------------------------------------------------------------------------------
+		3-Uso semaforo para sincronziar el puntero de bitmap y proteger la zona critica 
+		4-Recorro el array del bitmap y busco si tengo posiciones libres (en 0) .. 
+				ejemplo---> tengo un bloque de 4 bloques libres (0,1,2,3) y entonces reservo un bloque mas para el de indices.. total = 5 bloques
+		 
+		
+	*/
+
+
+
+
 	while(1) {
-		getchar();
-	}
+
+	
+
+		}
 
 	close(new_client->fd_client);
 
 	return NULL;
-}
-
-void dialfs_interface_function(void) {
-	initialize_blocks();
-	initialize_bitmap();
-	
-	/*
-	LIST_FILES = list_create();
-	struct dirent* entrada;
-	DIR *dir = opendir(PATH_BASE_DIALFS); 
-	if (dir != NULL) {
-		while((entrada = readdir(dir)) != NULL) {
-			if (entrada->d_type == DT_REG) {
-				const char *ext = strrchr(entrada->d_name, '.');
-				if(ext != NULL && strcmp(ext, ".txt") == 0){
-					log_info(MODULE_LOGGER, "%s/%s\n", PATH_BASE_DIALFS, entrada->d_name);
-					t_FS_File* new_entry = malloc(sizeof(t_FS_File));
-					new_entry->name = malloc(sizeof(entrada->d_name));
-					strcpy(new_entry->name , entrada->d_name);	
-					char* file_to_get = malloc(strlen(PATH_BASE_DIALFS)+ 1 + strlen(entrada->d_name));
-					strcpy(file_to_get,PATH_BASE_DIALFS);
-					strcat(file_to_get,"/");
-					strcat(file_to_get,entrada->d_name);
-
-					t_config* data = config_create(file_to_get);
-					new_entry->initial_bloq = config_get_int_value(data, "BLOQUE_INICIAL");
-					new_entry->size = config_get_int_value(data, "TAMAÑO_ARCHIVO");
-					if(new_entry->size == 0){
-						new_entry->len = 1;
-					}else{
-						new_entry->len = ceil((double)new_entry->size / (double)BLOCK_SIZE);
-					}
-					
-					//new_entry->process_pid = 0; 
-					//list_add(LIST_FILES, new_entry);
-				}
-			} 
-		}
-	}
-	closedir(dir);
-	*/
-
-	//int list_len = list_size(LIST_FILES);
 }
 
 
@@ -210,9 +197,7 @@ void initialize_blocks() {
 void initialize_bitmap() {
 	BITMAP_SIZE = (size_t) ceil((double) BLOCK_COUNT / 8);
 	
-    //size_t path_len_bloqs = strlen(PATH_BASE_DIALFS) + 1 +strlen("bitmap.dat"); //1 por la '/'
 	char* path_file_bitmap = string_new();
-	//strcpy(path_file_bitmap, PATH_BASE_DIALFS);
 	string_append(&path_file_bitmap, "/");
 	string_append(&path_file_bitmap, "bitmap.dat");
 
@@ -230,14 +215,14 @@ void initialize_bitmap() {
         exit(EXIT_FAILURE);
     }
 
-	/*
+	
     PTRO_BITMAP = mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (PTRO_BITMAP == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
         close(fd);
         exit(EXIT_FAILURE);
     }
-	*/
+	
 
     BITMAP = bitarray_create_with_mode((char *)PTRO_BITMAP, BITMAP_SIZE,LSB_FIRST);
     if (BITMAP == NULL) {
@@ -256,6 +241,49 @@ void initialize_bitmap() {
     }
 */
     log_info(MODULE_LOGGER, "Bitmap creado y mapeado correctamente.");
+}
+
+void *reserve_blocks(){
+
+	t_list* list_aux_blocks = list_create();
+	size_t block_count_total = BLOCK_COUNT +1; //sumo 1 del bloque indexado
+	
+
+
+	for (int i = 0; i < bitarray_get_max_bit(BITMAP); i++) {
+        if (!bitarray_test_bit(BITMAP, i)) { 
+          //  El bit está limpio (0)
+
+    }
+	
+	}
+/* 
+  // t_list pointer_array_size = (BLOCK_COUNT+1) * sizeof(void*);
+  // void** pointer_array = (void**) malloc(pointer_array_size);
+    if (pointer_array == NULL) {
+        log_error(MODULE_LOGGER, "Error al crear el array auxiliar de punteros");
+        munmap(PTRO_BITMAP, BITMAP_SIZE);
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+
+    // Inicializar los punteros en el array auxiliar a NULL
+    for (size_t i = 0; i < BLOCK_COUNT; i++) {
+        pointer_array[i] = NULL;
+    }
+
+    log_info(MODULE_LOGGER, "Bitmap creado y mapeado correctamente.");
+    log_info(MODULE_LOGGER, "Array auxiliar de punteros creado e inicializado correctamente.");
+
+	  free(pointer_array);
+
+
+
+
+
+*/
+
+
 }
 
 uint32_t seek_first_free_block(){
