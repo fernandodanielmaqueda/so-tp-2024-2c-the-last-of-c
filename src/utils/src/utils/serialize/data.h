@@ -24,7 +24,7 @@
  * @param data Datos a serializar.
  * @param bytes Cantidad de bytes a serializar.
  */
-void data_serialize(t_Payload *payload, void *data, size_t bytes);
+int data_serialize(t_Payload *payload, void *data, size_t bytes);
 
 
 /**
@@ -33,7 +33,7 @@ void data_serialize(t_Payload *payload, void *data, size_t bytes);
  * @param data Datos deserializados.
  * @param bytes Cantidad de bytes a deserializar.
  */
-void data_deserialize(t_Payload *payload, void **data, size_t *bytes);
+int data_deserialize(t_Payload *payload, void **data, size_t *bytes);
 
 
 /**

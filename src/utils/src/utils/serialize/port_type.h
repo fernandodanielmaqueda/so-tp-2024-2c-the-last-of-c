@@ -33,7 +33,7 @@ extern const char *PORT_NAMES[];
  * @param payload Payload a encolar.
  * @param source e_Port_Type fuente a serializar
  */
-void port_type_serialize(t_Payload *payload, e_Port_Type port_type);
+int port_type_serialize(t_Payload *payload, e_Port_Type port_type);
 
 
 /**
@@ -41,7 +41,7 @@ void port_type_serialize(t_Payload *payload, e_Port_Type port_type);
  * @param payload Payload a desencolar.
  * @param destination Destino del e_Port_Type deserializado
  */
-void port_type_deserialize(t_Payload *payload, e_Port_Type *port_type);
+int port_type_deserialize(t_Payload *payload, e_Port_Type *port_type);
 
 
 /**

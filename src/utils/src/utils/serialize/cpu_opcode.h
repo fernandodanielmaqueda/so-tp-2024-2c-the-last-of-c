@@ -47,7 +47,7 @@ extern const char *CPU_OPCODE_NAMES[];
  * @param payload Payload a encolar.
  * @param source e_CPU_OpCode fuente a serializar
  */
-void cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode cpu_opcode);
+int cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode cpu_opcode);
 
 
 /**
@@ -55,7 +55,7 @@ void cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode cpu_opcode);
  * @param payload Payload a desencolar.
  * @param destination Destino del e_CPU_OpCode deserializado
  */
-void cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *cpu_opcode);
+int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *cpu_opcode);
 
 
 /**

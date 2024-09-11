@@ -25,28 +25,38 @@ const char *CPU_OPCODE_NAMES[] = {
     NULL
 };
 
-void cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode source) {
-  if(payload == NULL)
-    return;
+int cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
+  aux = (t_EnumValue) source;
   
-    aux = (t_EnumValue) source;
-  payload_add(payload, &aux, sizeof(aux));
+  if(payload_add(payload, &aux, sizeof(aux))) {
+    return 1;
+  }
 
   cpu_opcode_log(source);
+  return 0;
 }
 
-void cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
-  
-  payload_remove(payload, &aux, sizeof(aux));
-    *destination = (e_CPU_OpCode) aux;
+
+  if(payload_remove(payload, &aux, sizeof(aux)))
+    return 1;
+
+  *destination = (e_CPU_OpCode) aux;
 
   cpu_opcode_log(*destination);
+  return 0;
 }
 
 void cpu_opcode_log(e_CPU_OpCode cpu_opcode) {

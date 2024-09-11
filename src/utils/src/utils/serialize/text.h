@@ -23,7 +23,7 @@
  * @param payload Payload a encolar.
  * @param source Texto fuente a serializar
  */
-void text_serialize(t_Payload *payload, char *source);
+int text_serialize(t_Payload *payload, char *source);
 
 
 /**
@@ -31,7 +31,7 @@ void text_serialize(t_Payload *payload, char *source);
  * @param payload Payload a desencolar.
  * @param destination Destino del texto deserializado
  */
-void text_deserialize(t_Payload *payload, char **destination);
+int text_deserialize(t_Payload *payload, char **destination);
 
 
 /**

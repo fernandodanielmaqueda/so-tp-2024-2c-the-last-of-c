@@ -7,6 +7,7 @@ t_Shared_List **ARRAY_LIST_READY = NULL;
 t_Drain_Ongoing_Resource_Sync READY_SYNC;
 
 t_Shared_List SHARED_LIST_EXEC;
+
 t_Shared_List SHARED_LIST_EXIT;
 
 pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
@@ -18,6 +19,10 @@ sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 pthread_t THREAD_CPU_INTERRUPTER;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
+
+int FREE_MEMORY;
+pthread_mutex_t MUTEX_FREE_MEMORY;
+pthread_cond_t COND_FREE_MEMORY;
 
 int EXEC_TCB;
 
@@ -83,8 +88,8 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 	t_PCB *pcb;
 
 	while(1) {
+		wait_free_memory();
 		sem_wait(&SEM_LONG_TERM_SCHEDULER_NEW);
-		//wait_multiprogramming_level();
 
 		wait_draining_requests(&SCHEDULING_SYNC);
 			pthread_mutex_lock(&(SHARED_LIST_NEW.mutex));
@@ -135,6 +140,21 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 	}
 
 	return NULL;
+}
+
+void wait_free_memory(void) {
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		while(!FREE_MEMORY) {
+			pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY);
+		}
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
+}
+
+void signal_free_memory(void) {
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		FREE_MEMORY = 1;
+		pthread_cond_signal(&COND_FREE_MEMORY);
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
 }
 
 void *long_term_scheduler_exit(void *NULL_parameter) {

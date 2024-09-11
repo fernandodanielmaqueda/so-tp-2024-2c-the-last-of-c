@@ -24,9 +24,7 @@ t_CPU_Operation CPU_OPERATIONS[] = {
     [IO_CPU_OPCODE] = {.function = io_cpu_operation}
 };
 
-int decode_instruction(char *name, e_CPU_OpCode *destination)
-{
-    
+int decode_instruction(char *name, e_CPU_OpCode *destination) {
     if(name == NULL || destination == NULL)
         return 1;
 

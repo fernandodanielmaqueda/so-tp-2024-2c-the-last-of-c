@@ -3,31 +3,29 @@
 
 #include "utils/serialize/subpayload.h"
 
-void subpayload_serialize(t_Payload *payload, t_Payload source) {
-  if(payload == NULL)
-    return;
+int subpayload_serialize(t_Payload *payload, t_Payload source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-  payload_add(payload, (void *) &(source.size), sizeof(source.size));
-  payload_add(payload, (void *) source.stream, (size_t) source.size);
+  if(data_serialize(payload, source.stream, source.size))
+    return 1;
 
   subpayload_log(source);
 }
 
-void subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
-
-  payload_remove(payload, (void *) &(destination->size), sizeof(destination->size));
-
-  destination->stream = malloc((size_t) destination->size);
-  if(destination->stream == NULL) {
-    log_error(SERIALIZE_LOGGER, "No se pudo reservar memoria para el stream de destino");
-    exit(EXIT_FAILURE);
+int subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
   }
 
-  payload_remove(payload, (void *) destination->stream, (size_t) destination->size);
-
+  if(data_deserialize(payload, &(destination->stream), &(destination->size)))
+    return 1;
+    
   subpayload_log(*destination);
+  return 0;
 }
 
 void subpayload_log(t_Payload source) {

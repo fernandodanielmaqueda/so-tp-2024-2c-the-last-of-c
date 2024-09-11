@@ -24,7 +24,7 @@
  * @param source t_list fuente a serializar
  * @param element_serializer Funcion que serializa un elemento de la lista.
  */
-void list_serialize(t_Payload *payload, t_list source, void (*element_serializer)(t_Payload *, void *));
+int list_serialize(t_Payload *payload, t_list source, int (*element_serializer)(t_Payload *, void *));
 
 
 /**
@@ -33,7 +33,7 @@ void list_serialize(t_Payload *payload, t_list source, void (*element_serializer
  * @param destination Destino del t_list deserializado
  * @param element_deserializer Funcion que deserializa un elemento de la lista.
  */
-void list_deserialize(t_Payload *payload, t_list *destination, void (*element_deserializer)(t_Payload *, void **));
+int list_deserialize(t_Payload *payload, t_list *destination, int (*element_deserializer)(t_Payload *, void **));
 
 
 /**

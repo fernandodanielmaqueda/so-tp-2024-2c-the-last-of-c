@@ -5,67 +5,100 @@
 
 int str_to_uint32(char *string, uint32_t *destination)
 {
-    char *end;
+  if(string == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-    *destination = (uint32_t) strtoul(string, &end, 10);
+  char *end;
 
-    if(!*string || *end)
-        return 1;
-        
-    return 0;
+  *destination = (uint32_t) strtoul(string, &end, 10);
+
+  if(!*string || *end)
+    return 1;
+      
+  return 0;
 }
 
 int str_to_size(char *string, size_t *destination)
 {
-    char *end;
+  if(string == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-    *destination = (size_t) strtoul(string, &end, 10);
+  char *end;
 
-    if(!*string || *end)
-        return 1;
-        
-    return 0;
+  *destination = (size_t) strtoul(string, &end, 10);
+
+  if(!*string || *end)
+    return 1;
+      
+  return 0;
 }
 
-void size_serialize_element(t_Payload *payload, void *source) {
-    if(payload == NULL || source == NULL)
-        return;
+int size_serialize_element(t_Payload *payload, size_t *source) {
+  if(payload == NULL || source == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-    size_serialize(payload, *(size_t *) source);
+  if(size_serialize(payload, *source))
+    return 1;
+
+  return 0;
 }
 
-void size_deserialize_element(t_Payload *payload, void **destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int size_deserialize_element(t_Payload *payload, size_t **destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   *destination = malloc(sizeof(size_t));
   if(*destination == NULL) {
-    log_error(SERIALIZE_LOGGER, "malloc: No se pudo reservar memoria para size_t");
-    exit(EXIT_FAILURE);
+    errno = ENOMEM;
+    return 1;
   }
 
-  size_deserialize(payload, (size_t *) *destination);
+  if(size_deserialize(payload, *destination)) {
+    free(*destination);
+    return 1;
+  }
+
+  return 0;
 }
 
-void size_serialize(t_Payload *payload, size_t source) {
-  if(payload == NULL)
-    return;
+int size_serialize(t_Payload *payload, size_t source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
   
   t_Size size_serialized = (t_Size) source;
-  payload_add(payload, &size_serialized, sizeof(size_serialized));
+
+  if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
+    return 1;
 
   size_log(source);
+  return 0;
 }
 
-void size_deserialize(t_Payload *payload, size_t *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int size_deserialize(t_Payload *payload, size_t *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_Size size_serialized;
-  payload_remove(payload, &size_serialized, sizeof(size_serialized));
-    *destination = (size_t) size_serialized;
+
+  if(payload_remove(payload, &size_serialized, sizeof(size_serialized)))
+    return 1;
+  
+  *destination = (size_t) size_serialized;
 
   size_log(*destination);
+  return 0;
 }
 
 void size_log(size_t source) {

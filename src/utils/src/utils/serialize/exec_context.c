@@ -5,120 +5,116 @@
 
 int str_to_pc(char *string, t_PC *destination)
 {
-    char *end;
+  if(string == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
+  
+  char *end;
 
-    *destination = (t_PC) strtoul(string, &end, 10);
+  *destination = (t_PC) strtoul(string, &end, 10);
 
-    if(!*string || *end)
-        return 1;
+  if(!*string || *end)
+    return 1;
 
-    return 0;
+  return 0;
 }
 
 int str_to_priority(char *string, t_Priority *destination)
 {
-    char *end;
+  if(string == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-    *destination = (t_Priority) strtoul(string, &end, 10);
+  char *end;
 
-    if(!*string || *end)
-        return 1;
+  *destination = (t_Priority) strtoul(string, &end, 10);
 
-    return 0;
+  if(!*string || *end)
+    return 1;
+
+  return 0;
 }
 
-void exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
-  if(payload == NULL)
-    return;
+int exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-  /*
-
-  payload_add(payload, &(source.PC), sizeof(source.PC));
-  payload_add(payload, &(source.quantum), sizeof(source.quantum));
-  payload_add(payload, &(source.cpu_registers.AX), sizeof(source.cpu_registers.AX));
-  payload_add(payload, &(source.cpu_registers.BX), sizeof(source.cpu_registers.BX));
-  payload_add(payload, &(source.cpu_registers.CX), sizeof(source.cpu_registers.CX));
-  payload_add(payload, &(source.cpu_registers.DX), sizeof(source.cpu_registers.DX));
-  payload_add(payload, &(source.cpu_registers.EAX), sizeof(source.cpu_registers.EAX));
-  payload_add(payload, &(source.cpu_registers.EBX), sizeof(source.cpu_registers.EBX));
-  payload_add(payload, &(source.cpu_registers.ECX), sizeof(source.cpu_registers.ECX));
-  payload_add(payload, &(source.cpu_registers.EDX), sizeof(source.cpu_registers.EDX));
-  payload_add(payload, &(source.cpu_registers.RAX), sizeof(source.cpu_registers.RAX));
-  payload_add(payload, &(source.cpu_registers.RBX), sizeof(source.cpu_registers.RBX));
-  payload_add(payload, &(source.cpu_registers.RCX), sizeof(source.cpu_registers.RCX));
-  payload_add(payload, &(source.cpu_registers.RDX), sizeof(source.cpu_registers.RDX));
-  payload_add(payload, &(source.cpu_registers.SI), sizeof(source.cpu_registers.SI));
-  payload_add(payload, &(source.cpu_registers.DI), sizeof(source.cpu_registers.DI));
-  */
+  if(payload_add(payload, &(source.PC), sizeof(((t_Exec_Context *)0)->PC)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.AX), sizeof(((t_Exec_Context *)0)->cpu_registers.AX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.BX), sizeof(((t_Exec_Context *)0)->cpu_registers.BX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.CX), sizeof(((t_Exec_Context *)0)->cpu_registers.CX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.DX), sizeof(((t_Exec_Context *)0)->cpu_registers.DX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.EX), sizeof(((t_Exec_Context *)0)->cpu_registers.EX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.FX), sizeof(((t_Exec_Context *)0)->cpu_registers.FX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.GX), sizeof(((t_Exec_Context *)0)->cpu_registers.GX)))
+    return 1;
+  if(payload_add(payload, &(source.cpu_registers.HX), sizeof(((t_Exec_Context *)0)->cpu_registers.HX)))
+    return 1;
 
   exec_context_log(source);
+  return 0;
 }
 
-void exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
-  /*
-  
-  payload_remove(payload, &(destination->PC), sizeof(destination->PC));
-  payload_remove(payload, &(destination->quantum), sizeof(destination->quantum));
-  payload_remove(payload, &(destination->cpu_registers.AX), sizeof(destination->cpu_registers.AX));
-  payload_remove(payload, &(destination->cpu_registers.BX), sizeof(destination->cpu_registers.BX));
-  payload_remove(payload, &(destination->cpu_registers.CX), sizeof(destination->cpu_registers.CX));
-  payload_remove(payload, &(destination->cpu_registers.DX), sizeof(destination->cpu_registers.DX));
-  payload_remove(payload, &(destination->cpu_registers.EAX), sizeof(destination->cpu_registers.EAX));
-  payload_remove(payload, &(destination->cpu_registers.EBX), sizeof(destination->cpu_registers.EBX));
-  payload_remove(payload, &(destination->cpu_registers.ECX), sizeof(destination->cpu_registers.ECX));
-  payload_remove(payload, &(destination->cpu_registers.EDX), sizeof(destination->cpu_registers.EDX));
-  payload_remove(payload, &(destination->cpu_registers.RAX), sizeof(destination->cpu_registers.RAX));
-  payload_remove(payload, &(destination->cpu_registers.RBX), sizeof(destination->cpu_registers.RBX));
-  payload_remove(payload, &(destination->cpu_registers.RCX), sizeof(destination->cpu_registers.RCX));
-  payload_remove(payload, &(destination->cpu_registers.RDX), sizeof(destination->cpu_registers.RDX));
-  payload_remove(payload, &(destination->cpu_registers.SI), sizeof(destination->cpu_registers.SI));
-  payload_remove(payload, &(destination->cpu_registers.DI), sizeof(destination->cpu_registers.DI));
-  */
+  if(payload_remove(payload, &(destination->PC), sizeof(((t_Exec_Context *)0)->PC)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.AX), sizeof(((t_Exec_Context *)0)->cpu_registers.AX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.BX), sizeof(((t_Exec_Context *)0)->cpu_registers.BX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.CX), sizeof(((t_Exec_Context *)0)->cpu_registers.CX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.DX), sizeof(((t_Exec_Context *)0)->cpu_registers.DX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.EX), sizeof(((t_Exec_Context *)0)->cpu_registers.EX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.FX), sizeof(((t_Exec_Context *)0)->cpu_registers.FX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.GX), sizeof(((t_Exec_Context *)0)->cpu_registers.GX)))
+    return 1;
+  if(payload_remove(payload, &(destination->cpu_registers.HX), sizeof(((t_Exec_Context *)0)->cpu_registers.HX)))
+    return 1;
 
   exec_context_log(*destination);
+  return 0;
 }
 
 void exec_context_log(t_Exec_Context source) {
-  /*
   log_info(SERIALIZE_LOGGER,
     "t_Exec_Context:\n"
-    "* PID: %" PRIu32 "\n"
     "* PC: %" PRIu32 "\n"
-    "* quantum: %" PRId64 "\n"
-    "* AX: %" PRIu8 "\n"
-    "* BX: %" PRIu8 "\n"
-    "* CX: %" PRIu8 "\n"
-    "* DX: %" PRIu8 "\n"
-    "* EAX: %" PRIu32 "\n"
-    "* EBX: %" PRIu32 "\n"
-    "* ECX: %" PRIu32 "\n"
-    "* EDX: %" PRIu32 "\n"
-    "* RAX: %" PRIu32 "\n"
-    "* RBX: %" PRIu32 "\n"
-    "* RCX: %" PRIu32 "\n"
-    "* RDX: %" PRIu32 "\n"
-    "* SI: %" PRIu32 "\n"
-    "* DI: %" PRIu32
-    , source.PID
+    "* AX: %" PRIu32 "\n"
+    "* BX: %" PRIu32 "\n"
+    "* CX: %" PRIu32 "\n"
+    "* DX: %" PRIu32 "\n"
+    "* EX: %" PRIu32 "\n"
+    "* FX: %" PRIu32 "\n"
+    "* GX: %" PRIu32 "\n"
+    "* HX: %" PRIu32
     , source.PC
-    , source.quantum
     , source.cpu_registers.AX
     , source.cpu_registers.BX
     , source.cpu_registers.CX
     , source.cpu_registers.DX
-    , source.cpu_registers.EAX
-    , source.cpu_registers.EBX
-    , source.cpu_registers.ECX
-    , source.cpu_registers.EDX
-    , source.cpu_registers.RAX
-    , source.cpu_registers.RBX
-    , source.cpu_registers.RCX
-    , source.cpu_registers.RDX
-    , source.cpu_registers.SI
-    , source.cpu_registers.DI
+    , source.cpu_registers.EX
+    , source.cpu_registers.FX
+    , source.cpu_registers.GX
+    , source.cpu_registers.HX
     );
-  */
 }

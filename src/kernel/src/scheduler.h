@@ -41,6 +41,7 @@ extern t_Shared_List **ARRAY_LIST_READY;
 extern t_Drain_Ongoing_Resource_Sync READY_SYNC;
 
 extern t_Shared_List SHARED_LIST_EXEC;
+
 extern t_Shared_List SHARED_LIST_EXIT;
 
 extern pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
@@ -52,6 +53,10 @@ extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 extern pthread_t THREAD_CPU_INTERRUPTER;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
+
+extern int FREE_MEMORY;
+extern pthread_mutex_t MUTEX_FREE_MEMORY;
+extern pthread_cond_t COND_FREE_MEMORY;
 
 extern int EXEC_TCB;
 

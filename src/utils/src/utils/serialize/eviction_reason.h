@@ -33,7 +33,7 @@ extern const char *EVICTION_REASON_NAMES[];
  * @param payload Payload a encolar.
  * @param source e_Eviction_Reason fuente a serializar
  */
-void eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source);
+int eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source);
 
 
 /**
@@ -41,7 +41,7 @@ void eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source);
  * @param payload Payload a desencolar.
  * @param destination Destino del e_Eviction_Reason deserializado
  */
-void eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination);
+int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination);
 
 
 /**

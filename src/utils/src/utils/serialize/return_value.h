@@ -25,7 +25,7 @@ typedef int8_t t_Return_Value;
  * @param payload Payload a encolar.
  * @param source t_Return_Value fuente a serializar
  */
-void return_value_serialize(t_Payload *payload, t_Return_Value source);
+int return_value_serialize(t_Payload *payload, t_Return_Value source);
 
 
 /**
@@ -33,7 +33,7 @@ void return_value_serialize(t_Payload *payload, t_Return_Value source);
  * @param payload Payload a desencolar.
  * @param destination Destino del t_Return_Value deserializado
  */
-void return_value_deserialize(t_Payload *payload, t_Return_Value *destination);
+int return_value_deserialize(t_Payload *payload, t_Return_Value *destination);
 
 
 /**

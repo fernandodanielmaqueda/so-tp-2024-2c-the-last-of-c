@@ -3,28 +3,38 @@
 
 #include "utils/serialize/subheader.h"
 
-void subheader_serialize(t_Payload *payload, e_Header source) {
-  if(payload == NULL)
-    return;
+int subheader_serialize(t_Payload *payload, e_Header source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
   
-    aux = (t_EnumValue) source;
-  payload_add(payload, &aux, sizeof(aux));
+  aux = (t_EnumValue) source;
+  
+  if(payload_add(payload, &aux, sizeof(aux)))
+    return 1;
 
   subheader_log(source);
+  return 0;
 }
 
-void subheader_deserialize(t_Payload *payload, e_Header *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int subheader_deserialize(t_Payload *payload, e_Header *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
+  
+  if(payload_remove(payload, &aux, sizeof(aux)))
+    return 1;
 
-  payload_remove(payload, &aux, sizeof(aux));
-    *destination = (e_Header) aux;
-
+  *destination = (e_Header) aux;
+  
   subheader_log(*destination);
+  return 0;
 }
 
 void subheader_log(e_Header source) {

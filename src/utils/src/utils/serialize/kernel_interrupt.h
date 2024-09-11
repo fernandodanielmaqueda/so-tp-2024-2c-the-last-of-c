@@ -30,7 +30,7 @@ extern const char *KERNEL_INTERRUPT_NAMES[];
  * @param payload Payload a encolar.
  * @param source e_Kernel_Interrupt fuente a serializar
  */
-void kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source);
+int kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source);
 
 
 /**
@@ -38,7 +38,7 @@ void kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source);
  * @param payload Payload a desencolar.
  * @param destination Destino del e_Kernel_Interrupt deserializado
  */
-void kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destination);
+int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destination);
 
 
 /**

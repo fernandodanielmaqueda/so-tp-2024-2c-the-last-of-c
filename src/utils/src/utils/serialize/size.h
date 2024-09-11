@@ -24,10 +24,10 @@ int str_to_uint32(char *string, uint32_t *destination);
 int str_to_size(char *string, size_t *destination);
 
 
-void size_serialize_element(t_Payload *payload, void *source);
+int size_serialize_element(t_Payload *payload, size_t *source);
 
 
-void size_deserialize_element(t_Payload *payload, void **destination);
+int size_deserialize_element(t_Payload *payload, size_t **destination);
 
 
 /**
@@ -35,7 +35,7 @@ void size_deserialize_element(t_Payload *payload, void **destination);
  * @param payload Payload a encolar.
  * @param source size_t fuente a serializar
  */
-void size_serialize(t_Payload *payload, size_t source);
+int size_serialize(t_Payload *payload, size_t source);
 
 
 /**
@@ -43,7 +43,7 @@ void size_serialize(t_Payload *payload, size_t source);
  * @param payload Payload a desencolar.
  * @param destination Destino del size_t deserializado
  */
-void size_deserialize(t_Payload *payload, size_t *destination);
+int size_deserialize(t_Payload *payload, size_t *destination);
 
 
 /**

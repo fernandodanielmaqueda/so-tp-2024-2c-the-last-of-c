@@ -12,28 +12,37 @@ const char *EVICTION_REASON_NAMES[] = {
     [QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON] = "QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON"  
 };
 
-void eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source) {
-  if(payload == NULL)
-    return;
+int eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
+  aux = (t_EnumValue) source;
   
-    aux = (t_EnumValue) source;
-  payload_add(payload, &aux, sizeof(aux));
+  if(payload_add(payload, &aux, sizeof(aux)))
+    return 1;
 
   eviction_reason_log(source);
+  return 0;
 }
 
-void eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_EnumValue aux;
 
-  payload_remove(payload, &aux, sizeof(aux));
-    *destination = (e_Eviction_Reason) aux;
+  if(payload_remove(payload, &aux, sizeof(aux)))
+    return 1;
 
+  *destination = (e_Eviction_Reason) aux;
+  
   eviction_reason_log(*destination);
+  return 0;
 }
 
 void eviction_reason_log(e_Eviction_Reason eviction_reason) {

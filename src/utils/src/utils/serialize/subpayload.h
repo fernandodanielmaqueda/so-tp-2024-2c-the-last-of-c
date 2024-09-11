@@ -11,11 +11,11 @@
 #include <netdb.h>
 #include <string.h>
 #include "commons/config.h"
+#include "commons/log.h"
 #include "commons/string.h"
 #include "utils/package.h"
-
-#include "commons/log.h"
 #include "utils/module.h"
+#include "utils/serialize/data.h"
 
 
 /**
@@ -23,7 +23,7 @@
  * @param payload Payload a encolar.
  * @param source t_Payload fuente a serializar
  */
-void subpayload_serialize(t_Payload *payload, t_Payload source);
+int subpayload_serialize(t_Payload *payload, t_Payload source);
 
 
 /**
@@ -31,7 +31,7 @@ void subpayload_serialize(t_Payload *payload, t_Payload source);
  * @param payload Payload a desencolar.
  * @param destination Destino del t_Payload deserializado
  */
-void subpayload_deserialize(t_Payload *payload, t_Payload *destination);
+int subpayload_deserialize(t_Payload *payload, t_Payload *destination);
 
 
 /**

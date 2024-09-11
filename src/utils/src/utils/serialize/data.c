@@ -3,65 +3,70 @@
 
 #include "utils/serialize/data.h"
 
-void data_serialize(t_Payload *payload, void *data, size_t size) {
-  if(payload == NULL)
-    return;
+int data_serialize(t_Payload *payload, void *data, size_t size) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
   
   if((data == NULL) || (!size)) {
     size = 0;
     t_Size size_serialized = (t_Size) size;
-    payload_add(payload, &size_serialized, sizeof(size_serialized));
+    
+    if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
+      return 1;
   } else {
     t_Size size_serialized = (t_Size) size;
-    payload_add(payload, &size_serialized, sizeof(size_serialized));
-    payload_add(payload, data, size);
+    if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
+      return 1;
+    if(payload_add(payload, data, size))
+      return 1;
   }
 
   data_log(data, size);
+  return 0;
 }
 
-void data_deserialize(t_Payload *payload, void **data, size_t *size) {
-  if(payload == NULL)
-    return;
+int data_deserialize(t_Payload *payload, void **data, size_t *size) {
+  if(payload == NULL || data == NULL || size == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_Size size_serialized;
-  payload_remove(payload, &size_serialized, sizeof(size_serialized));
+  
+  if(payload_remove(payload, &size_serialized, sizeof(size_serialized)))
+    return 1;
 
   if(!size_serialized) {
-
-    if(data != NULL)
-      *data = NULL;
-
-    if(size != NULL)
-      *size = 0;
-
+    *data = NULL;
+    *size = 0;
   } else {
 
-    if(data != NULL) {
-      *data = malloc((size_t) size_serialized);
-      if(*data == NULL) {
-        log_error(SERIALIZE_LOGGER, "No se pudo reservar memoria para los datos");
-        exit(EXIT_FAILURE);
-      }
+    *data = malloc((size_t) size_serialized);
+    if(*data == NULL) {
+      errno = ENOMEM;
+      return 1;
     }
 
-    payload_remove(payload, *data, (size_t) size_serialized);
+    if(payload_remove(payload, *data, (size_t) size_serialized)) {
+      free(*data);
+      return 1;
+    }
 
-    if(size != NULL)
-      *size = (size_t) size_serialized;
+    *size = (size_t) size_serialized;
 
   }
 
-  if(data != NULL)
-    data_log(*data, (size_t) size_serialized);
-  else
-    data_log(NULL, (size_t) size_serialized);
-
+  data_log(*data, (size_t) size_serialized);
+  return 0;
 }
 
 void data_log(void *data, size_t size) {
   log_info(SERIALIZE_LOGGER,
-    "data: %p - %zu bytes"
+    "data:\n"
+    "* stream: %p\n"
+    "* size: %zu"
     , data
     , size
   );

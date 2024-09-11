@@ -26,14 +26,13 @@ void payload_destroy(t_Payload *payload) {
 int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
   if (payload == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
     errno = EINVAL;
-    return -1;
+    return 1;
   }
 
   void *newStream = realloc(payload->stream, payload->size + sourceSize);
   if(newStream == NULL) {
-    log_error(SERIALIZE_LOGGER, "realloc: No se pudo agregar el stream al payload");
     errno = ENOMEM;
-    return -1;
+    return 1;
   }
   payload->stream = newStream;
 
@@ -53,7 +52,7 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
 int payload_remove(t_Payload *payload, void *destination, size_t destinationSize) {
   if(payload == NULL || payload->stream == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset) ) {
     errno = EINVAL;
-    return -1;
+    return 1;
   }
 
   if(destination != NULL)
@@ -70,9 +69,8 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 
     void *newStream = realloc(payload->stream, newSize);
     if(newStream == NULL) {
-      log_error(SERIALIZE_LOGGER, "No se pudo quitar el stream al payload con realloc");
       errno = ENOMEM;
-      return -1;
+      return 1;
     }
 
     payload->stream = newStream;
@@ -88,21 +86,20 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
   if (payload == NULL || sourceSize == 0) {
     errno = EINVAL;
-    return -1;
+    return 1;
   }
 
   if(sourceSize > (payload->size - payload->offset)) {
 
     if(sourceSize > (SIZE_MAX - payload->offset)) {
       errno = EINVAL;
-      return -1;
+      return 1;
     }
 
     void *newStream = realloc(payload->stream, payload->offset + sourceSize);
     if(newStream == NULL) {
-      log_error(SERIALIZE_LOGGER, "realloc: No se pudo agregar el stream al payload");
       errno = ENOMEM;
-      return -1;
+      return 1;
     }
 
     payload->stream = newStream;
@@ -120,7 +117,7 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
 int payload_read(t_Payload *payload, void *destination, size_t destinationSize) {
   if (payload == NULL || payload->stream == NULL || destination == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset)) {
     errno = EINVAL;
-    return -1;
+    return 1;
   }
 
   memcpy(destination, (void *) (((uint8_t *) payload->stream) + payload->offset), destinationSize);
@@ -133,7 +130,7 @@ int payload_read(t_Payload *payload, void *destination, size_t destinationSize) 
 int payload_seek(t_Payload *payload, long offset, int whence) {
   if(payload == NULL) {
     errno = EINVAL;
-    return -1;
+    return 1;
   }
 
   switch(whence) {
@@ -141,7 +138,7 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
     case SEEK_SET:
       if(offset < 0 || (size_t) offset > payload->size) {
         errno = EINVAL;
-        return -1;
+        return 1;
       }
       payload->offset = (size_t) offset;
       break;
@@ -150,14 +147,14 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
       if(offset < 0) {
         if((size_t) (-offset) > payload->offset) {
           errno = EINVAL;
-          return -1;
+          return 1;
         }
         payload->offset -= (size_t) (-offset);
       }
       else {
         if(((size_t) offset > (SIZE_MAX - payload->offset)) || ((payload->offset + (size_t) offset) > payload->size)) {
           errno = EINVAL;
-          return -1;
+          return 1;
         }
         payload->offset += (size_t) offset;
       }
@@ -166,14 +163,14 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
     case SEEK_END:
       if(offset > 0 || (size_t) (-offset) > payload->size) {
         errno = EINVAL;
-        return -1;
+        return 1;
       }
       payload->offset = payload->size - (size_t) (-offset);
       break;
 
     default:
       errno = EINVAL;
-      return -1;
+      return 1;
 
   }
 

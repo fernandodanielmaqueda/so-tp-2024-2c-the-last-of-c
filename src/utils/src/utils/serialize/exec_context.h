@@ -56,7 +56,7 @@ int str_to_priority(char *string, t_PC *destination);
  * @param payload Payload a encolar.
  * @param source t_Exec_Context fuente a serializar
  */
-void exec_context_serialize(t_Payload *payload, t_Exec_Context source);
+int exec_context_serialize(t_Payload *payload, t_Exec_Context source);
 
 
 /**
@@ -64,7 +64,7 @@ void exec_context_serialize(t_Payload *payload, t_Exec_Context source);
  * @param payload Payload a desencolar.
  * @param destination Destino del t_Exec_Context deserializado
  */
-void exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination);
+int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination);
 
 
 /**

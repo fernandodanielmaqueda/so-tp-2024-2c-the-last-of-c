@@ -3,44 +3,61 @@
 
 #include "utils/serialize/text.h"
 
-void text_serialize(t_Payload *payload, char *source) {
-  if(payload == NULL)
-    return;
+int text_serialize(t_Payload *payload, char *source) {
+  if(payload == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
   
   t_Size textLength;
 
   if(source == NULL) {
     textLength = 0;
-    payload_add(payload, (void *) &(textLength), sizeof(textLength));
+
+    if(payload_add(payload, &(textLength), sizeof(textLength)))
+      return 1;
+
   } else {
     textLength = (t_Size) strlen(source) + 1;
-    payload_add(payload, (void *) &(textLength), sizeof(textLength));
-    payload_add(payload, (void *) source, (size_t) textLength);
+    
+    if(payload_add(payload, &(textLength), sizeof(textLength)))
+      return 1;
+    if(payload_add(payload, source, (size_t) textLength))
+      return 1;
   }
 
   text_log(source);
+  return 0;
 }
 
-void text_deserialize(t_Payload *payload, char **destination) {
-  if(payload == NULL || destination == NULL)
-    return;
+int text_deserialize(t_Payload *payload, char **destination) {
+  if(payload == NULL || destination == NULL) {
+    errno = EINVAL;
+    return 1;
+  }
 
   t_Size textLength;
-  payload_remove(payload, (void *) &(textLength), sizeof(textLength));
+  
+  if(payload_remove(payload, &(textLength), sizeof(textLength)))
+    return 1;
 
   if(!textLength) {
     *destination = NULL;
   } else {
     *destination = malloc((size_t) textLength);
     if(*destination == NULL) {
-      log_error(SERIALIZE_LOGGER, "No se pudo reservar memoria para la cadena de destino");
-      exit(EXIT_FAILURE);
+      errno = ENOMEM;
+      return 1;
     }
-    
-    payload_remove(payload, (void *) *destination, (size_t) textLength);
+
+    if(payload_remove(payload, *destination, (size_t) textLength)) {
+      free(*destination);
+      return 1;
+    }
   }
 
   text_log(*destination);
+  return 0;
 }
 
 void text_log(char *text) {

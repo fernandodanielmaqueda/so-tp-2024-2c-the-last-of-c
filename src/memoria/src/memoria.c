@@ -327,8 +327,8 @@ void create_process(t_Payload *payload) {
         return;
     }
 
-    payload_remove(payload, &(new_process->pid), sizeof(new_process->pid));
-    payload_remove(payload, &(new_process->size), sizeof(new_process->size));
+    payload_remove(payload, &(new_process->pid), sizeof(((t_Memory_Process *)0)->pid));
+    payload_remove(payload, &(new_process->size), sizeof(((t_Memory_Process *)0)->size));
 
     //ASIGNAR PARTICION
 
@@ -339,7 +339,7 @@ void create_process(t_Payload *payload) {
     char *argument_path;
     t_Return_Value flag_relative_path;
 
-    payload_remove(payload, &(new_process->PID), sizeof(new_process->PID));
+    payload_remove(payload, &(new_process->PID), sizeof(((t_Memory_Process *)0)->PID));
     text_deserialize(payload, &(argument_path));
     return_value_deserialize(payload, &flag_relative_path);
 

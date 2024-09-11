@@ -343,7 +343,7 @@ void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
 }
 
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
-	if(destination == NULL || *destination == NULL || pcb_list == NULL)
+	if(pcb_list == NULL || destination == NULL || *destination == NULL)
 		return;
 
 	t_link_element *element = pcb_list->head;

@@ -23,7 +23,7 @@
  * @param payload Payload a encolar.
  * @param source e_Header fuente a serializar
  */
-void subheader_serialize(t_Payload *payload, e_Header source);
+int subheader_serialize(t_Payload *payload, e_Header source);
 
 
 /**
@@ -31,7 +31,7 @@ void subheader_serialize(t_Payload *payload, e_Header source);
  * @param payload Payload a desencolar.
  * @param destination Destino del e_Header deserializado
  */
-void subheader_deserialize(t_Payload *payload, e_Header *destination);
+int subheader_deserialize(t_Payload *payload, e_Header *destination);
 
 
 /**
