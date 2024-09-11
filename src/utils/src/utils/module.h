@@ -50,14 +50,14 @@ void finish_configs(void);
 bool config_has_properties(t_config *config, ...);
 extern void read_module_config(t_config *);
 
-void init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
-void signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);

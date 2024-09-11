@@ -60,73 +60,120 @@ bool config_has_properties(t_config *config, ...) {
     return 1;
 }
 
-void init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_init(&(resource_sync->mutex_resource), NULL);
+int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	if(pthread_mutex_init(&(resource_sync->mutex_resource), NULL))
+		return 1;
+	
 	resource_sync->drain_requests_count = 0;
-	pthread_cond_init(&(resource_sync->cond_drain_requests), NULL);
+	if(pthread_cond_init(&(resource_sync->cond_drain_requests), NULL))
+		return 1;
+	
 	resource_sync->ongoing_count = 0;
-	pthread_cond_init(&(resource_sync->cond_ongoing), NULL);
+	
+	if(pthread_cond_init(&(resource_sync->cond_ongoing), NULL))
+		return 1;
 }
 
-void destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_destroy(&(resource_sync->mutex_resource));
+int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	
+	if(pthread_mutex_destroy(&(resource_sync->mutex_resource)))
+		return 1;
+	
 	resource_sync->drain_requests_count = 0;
-	pthread_cond_destroy(&(resource_sync->cond_drain_requests));
+	
+	if(pthread_cond_destroy(&(resource_sync->cond_drain_requests)))
+		return 1;
+	
 	resource_sync->ongoing_count = 0;
-	pthread_cond_destroy(&(resource_sync->cond_ongoing));
+	
+	if(pthread_cond_destroy(&(resource_sync->cond_ongoing)))
+		return 1;
 }
 
-void wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-    wait_ongoing_locking(resource_sync);
-    pthread_mutex_unlock(&(resource_sync->mutex_resource));
+int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+    if(wait_ongoing_locking(resource_sync))
+		return 1;
+    
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		return 1;
 }
 
-void signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_lock(&(resource_sync->mutex_resource));
+int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
+		return 1;
+
 		resource_sync->drain_requests_count--;
 
 		// Acá se podría agregar un if para hacer el broadcast sólo si el semáforo efectivamente quedó en 0
-		pthread_cond_broadcast(&(resource_sync->cond_drain_requests));
-	pthread_mutex_unlock(&(resource_sync->mutex_resource));
+		if(pthread_cond_broadcast(&(resource_sync->cond_drain_requests)))
+			return 1;
+	
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		return 1;
 }
 
-void wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_lock(&(resource_sync->mutex_resource));
+int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
+		return 1;
 
 		resource_sync->drain_requests_count++;
 
 		while(1) {
+			
 			if(!(resource_sync->ongoing_count))
 				break;
-			pthread_cond_wait(&(resource_sync->cond_ongoing), &(resource_sync->mutex_resource));
+			
+			if(pthread_cond_wait(&(resource_sync->cond_ongoing), &(resource_sync->mutex_resource)))
+				return 1;
 		}
 }
 
-void signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_unlock(&(resource_sync->mutex_resource));
-	signal_ongoing(resource_sync);
+int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		return 1;
+
+	if(signal_ongoing(resource_sync))
+		return 1;
+
 }
 
-void wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-    pthread_mutex_lock(&(resource_sync->mutex_resource));
+int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+    if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
+		return 1;
+
 		while(1) {
 			if(!(resource_sync->drain_requests_count))
 				break;
-			pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource));
+
+			if(pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource)))
+				return 1;
 		}
+
 		resource_sync->ongoing_count++;
-    pthread_mutex_unlock(&(resource_sync->mutex_resource));
+    
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		return 1;
 }
 
-void signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	pthread_mutex_lock(&(resource_sync->mutex_resource));
+int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
+		return 1;
+	
 		resource_sync->ongoing_count--;
+		
 		// Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
-		pthread_cond_signal(&(resource_sync->cond_ongoing)); // podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
-	pthread_mutex_unlock(&(resource_sync->mutex_resource));
+		if(pthread_cond_signal(&(resource_sync->cond_ongoing))) // podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
+			 return 1;
+	
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		return 1;
 }
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
+	if(list == NULL || condition == NULL || comparation == NULL)
+		return NULL;
+
 	t_link_element **indirect = &(list->head);
 	while (*indirect != NULL) {
 		if(condition(((*indirect)->data), comparation)) {
@@ -145,6 +192,9 @@ void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(
 }
 
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation) {
+	if(list == NULL || condition == NULL || comparation == NULL)
+		return -1;
+
     t_link_element **indirect = &(list->head);
     while (*indirect != NULL) {
         if(condition((*indirect)->data, comparation))
@@ -154,8 +204,8 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 
     t_link_element *new_element = (t_link_element *) malloc(sizeof(t_link_element));
     if(new_element == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para [Elemento] de [Interfaz] Entrada/Salida");
-        return 1;
+        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para un nuevo elemento de lista");
+        return -1;
     }
 
     new_element->data = data;
@@ -168,6 +218,9 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 }
 
 void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
+	if(list == NULL || condition == NULL || comparation == NULL)
+		return NULL;
+
 	t_link_element **indirect = &(list->head);
 	while (*indirect != NULL) {
 		if(condition(((*indirect)->data), comparation)) {

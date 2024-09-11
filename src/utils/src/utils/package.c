@@ -30,7 +30,7 @@ t_Package *package_create(void) {
   t_Package *package = malloc(sizeof(t_Package));
   if(package == NULL) {
     log_error(SOCKET_LOGGER, "No se pudo crear el package con malloc");
-    exit(EXIT_FAILURE);
+    return NULL;
   }
 
   payload_init(&(package->payload));
@@ -40,7 +40,10 @@ t_Package *package_create(void) {
 
 t_Package *package_create_with_header(e_Header header) {
   t_Package *package = package_create();
-  package->header = header;
+
+  if(package != NULL)
+    package->header = header;
+  
   return package;
 }
 
