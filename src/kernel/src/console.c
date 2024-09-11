@@ -22,7 +22,7 @@ int kernel_command_start_process(int argc, char* argv[]) {
         case 3:
             if(strcmp(argv[1], "-a") != 0) {
                 log_warning(CONSOLE_LOGGER, "%s: Opción no reconocida", argv[1]);
-                return 1;
+                return -1;
             }
 
             filename = argv[2];
@@ -33,7 +33,7 @@ int kernel_command_start_process(int argc, char* argv[]) {
 
         default:
             log_warning(CONSOLE_LOGGER, "Uso: INICIAR_PROCESO [-a] <PATH (EN MEMORIA)>");
-            return 1;
+            return -1;
     }
 
     t_PCB *pcb = pcb_create();
@@ -53,7 +53,7 @@ int kernel_command_start_process(int argc, char* argv[]) {
     if(return_value) {
         log_warning(MODULE_LOGGER, "No se pudo INICIAR_PROCESO %s", argv[1]);
         // TODO
-        return 1;
+        return -1;
     }
 
     pthread_mutex_lock(&(SHARED_LIST_NEW.mutex));

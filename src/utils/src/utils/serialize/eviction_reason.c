@@ -15,14 +15,14 @@ const char *EVICTION_REASON_NAMES[] = {
 int eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
   aux = (t_EnumValue) source;
   
   if(payload_add(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   eviction_reason_log(source);
   return 0;
@@ -31,13 +31,13 @@ int eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source) {
 int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destination) {
   if(payload == NULL || destination == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
 
   if(payload_remove(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   *destination = (e_Eviction_Reason) aux;
   

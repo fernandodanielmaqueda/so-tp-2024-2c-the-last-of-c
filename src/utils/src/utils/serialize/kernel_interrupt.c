@@ -12,14 +12,14 @@ const char *KERNEL_INTERRUPT_NAMES[] = {
 int kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
   aux = (t_EnumValue) source;
 
   if(payload_add(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   kernel_interrupt_log(source);
   return 0;
@@ -28,13 +28,13 @@ int kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source) {
 int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destination) {
   if(payload == NULL || destination == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
   
   if(payload_remove(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   *destination = (e_Kernel_Interrupt) aux;
   

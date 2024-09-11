@@ -103,7 +103,7 @@ void pcb_destroy(t_PCB *pcb);
 t_TCB *tcb_create(t_PCB *pcb);
 void tcb_destroy(t_TCB *tcb);
 
-void id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type);
+int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type);
 void id_manager_destroy(t_ID_Manager *id_manager);
 
 size_t _id_assign(t_ID_Manager *id_manager, void *data);

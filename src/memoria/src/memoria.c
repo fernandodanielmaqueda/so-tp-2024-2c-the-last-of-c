@@ -201,7 +201,7 @@ void read_module_config(t_config* MODULE_CONFIG) {
 
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination) {
     if(name == NULL || destination == NULL)
-        return 1;
+        return -1;
     
     size_t memory_management_schemes_number = sizeof(MEMORY_MANAGEMENT_SCHEMES) / sizeof(MEMORY_MANAGEMENT_SCHEMES[0]);
     for (register e_Memory_Management_Scheme memory_management_scheme = 0; memory_management_scheme < memory_management_schemes_number; memory_management_scheme++)
@@ -210,12 +210,12 @@ int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destin
             return 0;
         }
 
-    return 1;
+    return -1;
 }
 
 int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *destination) {
     if(name == NULL || destination == NULL)
-        return 1;
+        return -1;
     
     size_t memory_allocation_algorithms_number = sizeof(MEMORY_ALLOCATION_ALGORITHMS) / sizeof(MEMORY_ALLOCATION_ALGORITHMS[0]);
     for (register e_Memory_Allocation_Algorithm memory_allocation_algorithm = 0; memory_allocation_algorithm < memory_allocation_algorithms_number; memory_allocation_algorithm++)
@@ -224,7 +224,7 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
             return 0;
         }
 
-    return 1;
+    return -1;
 }
 
 void *listen_kernel(t_Client* new_client) {
@@ -490,7 +490,7 @@ int parse_pseudocode_file(char *path, t_list *list_instruction) {
     FILE* file;
     if ((file = fopen(path, "r")) == NULL) {
         log_warning(MODULE_LOGGER, "%s: No se pudo abrir el archivo de pseudocodigo indicado.", path);
-        return 1;
+        return -1;
     }
 
     char *line = NULL, *subline;

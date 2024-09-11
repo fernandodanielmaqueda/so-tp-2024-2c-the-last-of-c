@@ -44,7 +44,7 @@ t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
 
     if(name == NULL || destination == NULL)
-        return 1;
+        return -1;
     
     size_t scheduling_algorithms_number = sizeof(SCHEDULING_ALGORITHMS) / sizeof(SCHEDULING_ALGORITHMS[0]);
     for (register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
@@ -53,7 +53,7 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
             return 0;
         }
 
-    return 1;
+    return -1;
 }
 
 void initialize_scheduling(void) {
@@ -140,21 +140,6 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 	}
 
 	return NULL;
-}
-
-void wait_free_memory(void) {
-	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
-		while(!FREE_MEMORY) {
-			pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY);
-		}
-	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
-}
-
-void signal_free_memory(void) {
-	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
-		FREE_MEMORY = 1;
-		pthread_cond_signal(&COND_FREE_MEMORY);
-	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
 }
 
 void *long_term_scheduler_exit(void *NULL_parameter) {
@@ -436,6 +421,21 @@ void *short_term_scheduler(void *NULL_parameter) {
 	}
 
 	return NULL;
+}
+
+void wait_free_memory(void) {
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		while(!FREE_MEMORY) {
+			pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY);
+		}
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
+}
+
+void signal_free_memory(void) {
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		FREE_MEMORY = 1;
+		pthread_cond_signal(&COND_FREE_MEMORY);
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
 }
 
 void *start_quantum(t_TCB *tcb) {

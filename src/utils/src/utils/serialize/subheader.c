@@ -6,7 +6,7 @@
 int subheader_serialize(t_Payload *payload, e_Header source) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
@@ -14,7 +14,7 @@ int subheader_serialize(t_Payload *payload, e_Header source) {
   aux = (t_EnumValue) source;
   
   if(payload_add(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   subheader_log(source);
   return 0;
@@ -23,13 +23,13 @@ int subheader_serialize(t_Payload *payload, e_Header source) {
 int subheader_deserialize(t_Payload *payload, e_Header *destination) {
   if(payload == NULL || destination == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
   
   if(payload_remove(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   *destination = (e_Header) aux;
   

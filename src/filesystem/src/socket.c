@@ -38,8 +38,8 @@ void *filesystem_start_server(t_Server *server) {
 
 		new_client = malloc(sizeof(t_Client));
 		if(new_client == NULL) {
-			log_error(SOCKET_LOGGER, "Error al reservar memoria para [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
-			exit(1);
+			log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para [Cliente] %s en Puerto: %s", sizeof(t_Client), PORT_NAMES[server->clients_type], server->port);
+			continue;
 		}
 
 		log_trace(SOCKET_LOGGER, "Aceptado [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);

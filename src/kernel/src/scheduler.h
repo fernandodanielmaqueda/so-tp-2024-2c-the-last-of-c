@@ -72,15 +72,23 @@ extern int QUANTUM_INTERRUPT;
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
+
 void initialize_scheduling(void);
 void finish_scheduling(void);
+
 void initialize_long_term_scheduler(void);
 void initialize_short_term_scheduler(void);
+
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
 void *cpu_interrupter(void *NULL_parameter);
 void *short_term_scheduler(void *NULL_parameter);
+
+void wait_free_memory(void);
+void signal_free_memory(void);
+
 void* start_quantum(t_TCB *tcb);
+
 void switch_process_state(t_TCB *tcb, e_Process_State new_state);
 
 #endif // KERNEL_SCHEDULER_H

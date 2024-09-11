@@ -35,13 +35,13 @@ int arguments_use(t_Arguments *arguments, char *line) {
     
     if(arguments->argc == arguments->max_argc) {
       errno = E2BIG;
-      return 1;
+      return -1;
     }
 
     new_argv = realloc(arguments->argv, (++(arguments->argc)) * sizeof(char *));
     if(new_argv == NULL) {
       errno = ENOMEM;
-      return 1;
+      return -1;
     }
     arguments->argv = new_argv;
     arguments->argv[arguments->argc - 1] = work_line + i;

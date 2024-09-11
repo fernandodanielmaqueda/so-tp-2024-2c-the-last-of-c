@@ -28,14 +28,14 @@ const char *CPU_OPCODE_NAMES[] = {
 int cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode source) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
   aux = (t_EnumValue) source;
   
   if(payload_add(payload, &aux, sizeof(aux))) {
-    return 1;
+    return -1;
   }
 
   cpu_opcode_log(source);
@@ -45,13 +45,13 @@ int cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode source) {
 int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
   if(payload == NULL || destination == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_EnumValue aux;
 
   if(payload_remove(payload, &aux, sizeof(aux)))
-    return 1;
+    return -1;
 
   *destination = (e_CPU_OpCode) aux;
 

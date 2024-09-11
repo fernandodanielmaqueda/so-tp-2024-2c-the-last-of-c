@@ -19,7 +19,7 @@ const t_CPU_Register_Info CPU_REGISTERS[] = {
 
 int decode_register(char *name, e_CPU_Register *destination) {
     if(name == NULL || destination == NULL)
-        return 1;
+        return -1;
     
     size_t cpu_registers_number = sizeof(CPU_REGISTERS) / sizeof(CPU_REGISTERS[0]);
     for (register e_CPU_Register cpu_register = 0; cpu_register < cpu_registers_number; cpu_register++)
@@ -28,7 +28,7 @@ int decode_register(char *name, e_CPU_Register *destination) {
             return 0;
         }
 
-    return 1;
+    return -1;
 }
 
 void *get_register_pointer(t_Exec_Context *exec_context, e_CPU_Register cpu_register) {
@@ -63,11 +63,11 @@ void *get_register_pointer(t_Exec_Context *exec_context, e_CPU_Register cpu_regi
 
 int set_register_value(t_Exec_Context *exec_context, e_CPU_Register cpu_register, uint32_t value) {
     if(exec_context == NULL)
-        return 1;
+        return -1;
         
     void *register_pointer = get_register_pointer(exec_context, cpu_register);
     if(register_pointer == NULL)
-        return 1;
+        return -1;
 
     switch(CPU_REGISTERS[cpu_register].dataType) {
        
@@ -83,11 +83,11 @@ int set_register_value(t_Exec_Context *exec_context, e_CPU_Register cpu_register
 int get_register_value(t_Exec_Context exec_context, e_CPU_Register cpu_register, uint32_t *destination)
 {
     if(destination == NULL)
-        return 1;
+        return -1;
 
     void *register_pointer = get_register_pointer(&exec_context, cpu_register);
     if(register_pointer == NULL)
-        return 1;
+        return -1;
 
     switch(CPU_REGISTERS[cpu_register].dataType) {
         

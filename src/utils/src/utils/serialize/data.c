@@ -6,7 +6,7 @@
 int data_serialize(t_Payload *payload, void *data, size_t size) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
   
   if((data == NULL) || (!size)) {
@@ -14,13 +14,13 @@ int data_serialize(t_Payload *payload, void *data, size_t size) {
     t_Size size_serialized = (t_Size) size;
     
     if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
-      return 1;
+      return -1;
   } else {
     t_Size size_serialized = (t_Size) size;
     if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
-      return 1;
+      return -1;
     if(payload_add(payload, data, size))
-      return 1;
+      return -1;
   }
 
   data_log(data, size);
@@ -30,13 +30,13 @@ int data_serialize(t_Payload *payload, void *data, size_t size) {
 int data_deserialize(t_Payload *payload, void **data, size_t *size) {
   if(payload == NULL || data == NULL || size == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   t_Size size_serialized;
   
   if(payload_remove(payload, &size_serialized, sizeof(size_serialized)))
-    return 1;
+    return -1;
 
   if(!size_serialized) {
     *data = NULL;
@@ -46,12 +46,12 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
     *data = malloc((size_t) size_serialized);
     if(*data == NULL) {
       errno = ENOMEM;
-      return 1;
+      return -1;
     }
 
     if(payload_remove(payload, *data, (size_t) size_serialized)) {
       free(*data);
-      return 1;
+      return -1;
     }
 
     *size = (size_t) size_serialized;

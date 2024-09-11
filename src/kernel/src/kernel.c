@@ -111,7 +111,7 @@ t_PCB *pcb_create(void) {
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
 	if(pcb == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el PCB");
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_PCB));
 		return NULL;
 	}
 
@@ -138,7 +138,7 @@ t_TCB *tcb_create(t_PCB *pcb) {
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el TCB");
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_TCB));
 		return NULL;
 	}
 
@@ -148,8 +148,6 @@ t_TCB *tcb_create(t_PCB *pcb) {
 
 	//pcb->current_state = NEW_STATE;
 	//pcb->shared_list_state = NULL;
-
-	//pcb->exec_context.quantum = QUANTUM;
 
 	//payload_init(&(pcb->syscall_instruction));
 
@@ -161,21 +159,57 @@ void tcb_destroy(t_TCB *tcb) {
 	free(tcb);
 }
 
-void id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
+int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
+	if(id_manager == NULL) {
+		log_error(MODULE_LOGGER, "id_manager_init: el ID_Manager pasado por parametro es NULL");
+		errno = EINVAL;
+		return -1;
+	}
+
+	int exit_value = 0;
+
 	id_manager->id_data_type = id_data_type;
 
 	id_manager->id_counter = malloc(get_id_size(id_data_type));
 	if(id_manager->id_counter == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el contador de IDs");
-		exit(EXIT_FAILURE);
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el contador de IDs", get_id_size(id_data_type));
+		errno = ENOMEM;
+		return -1;
 	}
 	size_to_id(id_data_type, id_manager->id_counter, &(size_t){0});
 
 	id_manager->cb_array = NULL;
-	pthread_mutex_init(&(id_manager->mutex_cb_array), NULL);
+
+	exit_value = pthread_mutex_init(&(id_manager->mutex_cb_array), NULL);
+	if(exit_value) {
+		free(id_manager->id_counter);
+		errno = exit_value;
+		return -1;
+	}
+
 	id_manager->list_released_ids = list_create();
-	pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL);
-	pthread_cond_init(&(id_manager->cond_list_released_ids), NULL);
+
+	exit_value = pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL);
+	if(exit_value) {
+		free(id_manager->id_counter);
+		free(id_manager->cb_array);
+		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
+		errno = exit_value;
+		return -1;
+	}
+
+	exit_value = pthread_cond_init(&(id_manager->cond_list_released_ids), NULL);
+	if(exit_value) {
+		free(id_manager->id_counter);
+		free(id_manager->cb_array);
+		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
+		list_destroy_and_destroy_elements(id_manager->list_released_ids, free);
+		pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
+		errno = exit_value;
+		return -1;
+	}
+
+	return 0;
 }
 
 void id_manager_destroy(t_ID_Manager *id_manager) {

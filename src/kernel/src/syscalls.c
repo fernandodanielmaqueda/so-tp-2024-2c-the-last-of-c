@@ -25,7 +25,7 @@ int syscall_execute(t_Payload *syscall_instruction) {
         payload_destroy(syscall_instruction);
         log_error(MODULE_LOGGER, "Funcion de syscall no encontrada");
         //SYSCALL_PCB->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
-        return 1;
+        return -1;
     }
 
     int exit_status = SYSCALLS[syscall_opcode].function(syscall_instruction);
@@ -135,7 +135,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
     if(resource == NULL) {
         log_trace(MODULE_LOGGER, "WAIT %s: recurso no encontrado", resource_name);
         free(resource_name);
-        return 1;
+        return -1;
     }
 
     pthread_mutex_lock(&(resource->mutex_instances));
@@ -180,7 +180,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
     if(resource == NULL) {
         log_trace(MODULE_LOGGER, "SIGNAL %s: recurso no encontrado", resource_name);
         free(resource_name);
-        return 1;
+        return -1;
     }
 
     free(resource_name);

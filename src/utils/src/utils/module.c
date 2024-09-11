@@ -57,64 +57,76 @@ bool config_has_properties(t_config *config, ...) {
     }
 
     va_end(args);
-    return 1;
+    return -1;
 }
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	if(pthread_mutex_init(&(resource_sync->mutex_resource), NULL))
-		return 1;
+		return -1;
 	
 	resource_sync->drain_requests_count = 0;
 	if(pthread_cond_init(&(resource_sync->cond_drain_requests), NULL))
-		return 1;
+		return -1;
 	
 	resource_sync->ongoing_count = 0;
 	
 	if(pthread_cond_init(&(resource_sync->cond_ongoing), NULL))
-		return 1;
+		return -1;
+	
+	return 0;
 }
 
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	
 	if(pthread_mutex_destroy(&(resource_sync->mutex_resource)))
-		return 1;
+		return -1;
 	
 	resource_sync->drain_requests_count = 0;
 	
 	if(pthread_cond_destroy(&(resource_sync->cond_drain_requests)))
-		return 1;
+		return -1;
 	
 	resource_sync->ongoing_count = 0;
 	
 	if(pthread_cond_destroy(&(resource_sync->cond_ongoing)))
-		return 1;
+		return -1;
+
+	return 0;
 }
 
 int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
     if(wait_ongoing_locking(resource_sync))
-		return 1;
+		return -1;
     
 	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return 1;
+		return -1;
+
+	return 0;
 }
 
 int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
 
 		resource_sync->drain_requests_count--;
 
 		// Acá se podría agregar un if para hacer el broadcast sólo si el semáforo efectivamente quedó en 0
-		if(pthread_cond_broadcast(&(resource_sync->cond_drain_requests)))
-			return 1;
+		if(pthread_cond_broadcast(&(resource_sync->cond_drain_requests))) {
+			return -1;
+		}
 	
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
+
+	return 0;
 }
 
 int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
 
 		resource_sync->drain_requests_count++;
 
@@ -123,51 +135,67 @@ int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 			if(!(resource_sync->ongoing_count))
 				break;
 			
-			if(pthread_cond_wait(&(resource_sync->cond_ongoing), &(resource_sync->mutex_resource)))
-				return 1;
+			if(pthread_cond_wait(&(resource_sync->cond_ongoing), &(resource_sync->mutex_resource))) {
+				return -1;
+			}
 		}
+
+	return 0;
 }
 
 int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
 
-	if(signal_ongoing(resource_sync))
-		return 1;
+	if(signal_ongoing(resource_sync)) {
+		return -1;
+	}
 
+	return 0;
 }
 
 int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-    if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
-		return 1;
+    if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
 
 		while(1) {
 			if(!(resource_sync->drain_requests_count))
 				break;
 
-			if(pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource)))
-				return 1;
+			if(pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource))) {
+				return -1;
+			}
 		}
 
 		resource_sync->ongoing_count++;
     
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
+
+	return 0;
 }
 
 int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	if(pthread_mutex_lock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
 	
 		resource_sync->ongoing_count--;
 		
 		// Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
-		if(pthread_cond_signal(&(resource_sync->cond_ongoing))) // podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
-			 return 1;
+		if(pthread_cond_signal(&(resource_sync->cond_ongoing))) {// podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
+			return -1;
+		}
 	
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return 1;
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
+		return -1;
+	}
+
+	return 0;
 }
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
@@ -198,7 +226,7 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
     t_link_element **indirect = &(list->head);
     while (*indirect != NULL) {
         if(condition((*indirect)->data, comparation))
-            return 1;
+            return -1;
         indirect = &((*indirect)->next);
     }
 

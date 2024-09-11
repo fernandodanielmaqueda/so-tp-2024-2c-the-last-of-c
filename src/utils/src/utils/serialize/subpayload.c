@@ -6,23 +6,25 @@
 int subpayload_serialize(t_Payload *payload, t_Payload source) {
   if(payload == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   if(data_serialize(payload, source.stream, source.size))
-    return 1;
+    return -1;
 
   subpayload_log(source);
+
+  return 0;
 }
 
 int subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
   if(payload == NULL || destination == NULL) {
     errno = EINVAL;
-    return 1;
+    return -1;
   }
 
   if(data_deserialize(payload, &(destination->stream), &(destination->size)))
-    return 1;
+    return -1;
     
   subpayload_log(*destination);
   return 0;
