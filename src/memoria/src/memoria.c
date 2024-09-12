@@ -903,6 +903,35 @@ void write_memory(t_Payload *payload, int socket) {
     */
 }
 
-void free_memory(void){
+void free_memory(){
+
+    //Free particiones
+    for (size_t i = 0; i < list_size(PARTITION_TABLE); i++)
+    {
+        t_Partition* partition = list_get(PARTITION_TABLE, i);
+        free(partition);
+    }
+
+
+    for (size_t i = 0; i < PID_COUNT; i++) //Free procesos
+    {
+        for (size_t y = 0; y < ARRAY_PROCESS_MEMORY[i]->tid_count; y++) //Free threads
+        {
+            for (size_t x = 0; x < ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->instructions_count; x++) //Free Instrucciones
+            {
+                free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->array_instructions[x]);
+            }
+            free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->array_instructions);
+            free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]);
+            
+        }
+        
+        free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads);
+        pthread_mutex_destroy(&(ARRAY_PROCESS_MEMORY[i]->mutex_array_memory_threads));
+        free(ARRAY_PROCESS_MEMORY[i]);
+    }
+
+    free(ARRAY_PROCESS_MEMORY);
     free(MAIN_MEMORY);
+    
 }
