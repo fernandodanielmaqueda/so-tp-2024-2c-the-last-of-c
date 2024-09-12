@@ -36,8 +36,8 @@ void *MAIN_MEMORY;
 t_list *PARTITION_TABLE;
 pthread_mutex_t MUTEX_PARTITION_TABLE;
 
-t_PID PID_COUNT;
-t_Memory_Process **ARRAY_PROCESS_MEMORY;
+t_PID PID_COUNT = 0;
+t_Memory_Process **ARRAY_PROCESS_MEMORY = NULL;
 pthread_mutex_t MUTEX_ARRAY_PROCESS_MEMORY;
 
 int module(int argc, char* argv[]) {
@@ -77,11 +77,15 @@ int module(int argc, char* argv[]) {
 void initialize_global_variables(void) {
     pthread_mutex_init(&(SHARED_LIST_CLIENTS_KERNEL.mutex), NULL);
     pthread_mutex_init(&(SHARED_LIST_CONNECTIONS_FILESYSTEM.mutex), NULL);
+    pthread_mutex_init(&(MUTEX_PARTITION_TABLE), NULL);
+    pthread_mutex_init(&(MUTEX_ARRAY_PROCESS_MEMORY), NULL);
 }
 
 void finish_global_variables(void) {
     pthread_mutex_destroy(&(SHARED_LIST_CLIENTS_KERNEL.mutex));
     pthread_mutex_destroy(&(SHARED_LIST_CONNECTIONS_FILESYSTEM.mutex));
+    pthread_mutex_destroy(&(MUTEX_PARTITION_TABLE));
+    pthread_mutex_destroy(&(MUTEX_ARRAY_PROCESS_MEMORY));
 }
 
 void read_module_config(t_config* MODULE_CONFIG) {
@@ -243,7 +247,8 @@ void *listen_kernel(t_Client* new_client) {
                 
                 case PROCESS_CREATE_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
-                    create_process(&(package->payload));
+                    int result = create_process(&(package->payload));
+                    send_return_value_with_header(PROCESS_CREATE_HEADER, result, new_client->fd_client);
                     break;
                 /*
                 case PROCESS_DESTROY_HEADER:
@@ -318,19 +323,121 @@ void *listen_kernel(t_Client* new_client) {
 }
 
     */
-void create_process(t_Payload *payload) {
+int create_process(t_Payload *payload) {
+
+    int result = 0;
 
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
         // TODO
         log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para el nuevo proceso.");
-        return;
+        result = 1;
+        return result;
     }
 
     payload_remove(payload, &(new_process->pid), sizeof(((t_Memory_Process *)0)->pid));
-    payload_remove(payload, &(new_process->size), sizeof(((t_Memory_Process *)0)->size));
+    size_deserialize(payload, &(new_process->size));
 
     //ASIGNAR PARTICION
+    pthread_mutex_lock(&MUTEX_PARTITION_TABLE);
+    bool unavailable = true;
+    size_t count = list_size(PARTITION_TABLE);
+    t_Partition* partition;
+    if(count != 0) partition = list_get(PARTITION_TABLE, 0);
+
+    switch(MEMORY_MANAGEMENT_SCHEME){
+
+        case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
+        {
+            for (size_t i = 0; i < count; i++)
+            {
+                partition = list_get(PARTITION_TABLE, i);
+                if ((partition->occupied == false) && (partition->size >= new_process->size)){
+                    unavailable = false;
+                    i = count;
+                }
+            }
+            break;
+        }
+
+        case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
+        {
+            t_Partition* aux_partition;
+            int location = 0;
+            
+            switch(MEMORY_ALLOCATION_ALGORITHM){
+                case FIRST_FIT_MEMORY_ALLOCATION_ALGORITHM:
+                {
+                    for (size_t i = 0; i < count; i++)
+                    {
+                        partition = list_get(PARTITION_TABLE, i);
+                        if ((partition->occupied == false) && (partition->size >= new_process->size)){
+                            unavailable = false;
+                            i = count;
+                        }
+                    }
+                    break;
+                }
+
+                case BEST_FIT_MEMORY_ALLOCATION_ALGORITHM:
+                {
+                    for (size_t i = 0; i < count; i++)
+                    {
+                        aux_partition = list_get(PARTITION_TABLE, i);
+                        if ((aux_partition->occupied == false) && (aux_partition->size >= new_process->size) && ((i == 0) || (aux_partition->size < partition->size))){
+                            unavailable = false;
+                            location = i;
+                            partition = aux_partition;
+                            break;
+                        }
+                    }
+                    break;
+                }
+
+                case WORST_FIT_MEMORY_ALLOCATION_ALGORITHM:
+                {
+                    for (size_t i = 0; i < count; i++)
+                    {
+                        aux_partition = list_get(PARTITION_TABLE, i);
+                        if ((aux_partition->occupied == false) && (aux_partition->size >= new_process->size) && ((i == 0) || (aux_partition->size > partition->size))){
+                            unavailable = false;
+                            location = i;
+                            partition = aux_partition;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+            //REALIZO EL SPLIT DE LA PARTICION (si es requerido)
+            if((partition->size != new_process->size) && !(unavailable)) split_partition(location, new_process->size);
+
+            break;
+        }
+    }
+
+    if(unavailable){
+        log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d.\n", new_process->pid);
+        free(new_process);
+                result = 1;
+    }
+    else{
+        log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d.\n", new_process->pid);
+        partition->pid = new_process->pid;
+        partition->occupied = true;
+        new_process->partition = partition;
+        pthread_mutex_init(&(new_process->mutex_array_memory_threads), NULL);
+        new_process->tid_count = 0;
+        new_process->array_memory_threads = NULL;
+
+        if(add_element_to_array_process(new_process)){
+            log_debug(MODULE_LOGGER, "[ERROR] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d.\n", new_process->pid);
+            free(new_process);
+                    result = 1;
+        }
+    }
+    
+    pthread_mutex_unlock(&MUTEX_PARTITION_TABLE);
 
     /*
     new_process->instructions_list = list_create();
@@ -424,7 +531,44 @@ void create_process(t_Payload *payload) {
         exit(1);
     }
     */
+
+   return result;
 }
+
+int add_element_to_array_process (t_Memory_Process* process){
+    pthread_mutex_lock(&MUTEX_ARRAY_PROCESS_MEMORY);
+    ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT +1));    
+    if (ARRAY_PROCESS_MEMORY == NULL) {
+        perror("No se pudo asignar memoria");
+        return EXIT_FAILURE;
+    }
+
+    PID_COUNT++;
+    ARRAY_PROCESS_MEMORY[PID_COUNT] = process;
+    pthread_mutex_unlock(&MUTEX_ARRAY_PROCESS_MEMORY);
+
+    return 0;
+}
+
+void split_partition(int position, size_t size){
+    
+            t_Partition* old_partition = list_get(PARTITION_TABLE, position);
+            t_Partition* new_partition = malloc(sizeof(t_Partition));
+            if(new_partition == NULL) {
+                fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
+                exit(EXIT_FAILURE);
+            }
+
+            new_partition->size = (old_partition->size - size);
+            new_partition->base = (old_partition->base + size);
+            new_partition->occupied = false;
+            old_partition->size = size;
+            position++;
+
+            list_add_in_index(PARTITION_TABLE, position, new_partition);
+
+}
+
 
 void kill_process(t_Payload *payload) {
 

@@ -65,7 +65,7 @@ typedef struct t_Memory_Process {
     t_PID pid;
     size_t size;
    // t_Partition_Number partition_number;
-    t_Partition partition;
+    t_Partition* partition;
     t_TID tid_count;
     t_Memory_Thread **array_memory_threads;
     pthread_mutex_t mutex_array_memory_threads;
@@ -114,7 +114,7 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
  * @brief Busca el archivo de pseudocodigo y crea la estructura dentro de memoria
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-void create_process(t_Payload *payload);
+int create_process(t_Payload *payload);
 
 /**
  * @brief Elimina el proceso, marca el marco como disponible y libera la pagina
@@ -160,5 +160,8 @@ void write_memory(t_Payload *socketRecibido, int socket);
 void read_memory(t_Payload *socketRecibido, int socket);
 
 void free_memory();
+
+void split_partition(int position, size_t size);
+int add_element_to_array_process (t_Memory_Process* process);
 
 #endif // MEMORIA_H
