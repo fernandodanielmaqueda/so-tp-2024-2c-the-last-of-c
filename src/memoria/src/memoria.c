@@ -547,7 +547,7 @@ int add_element_to_array_process (t_Memory_Process* process){
     ARRAY_PROCESS_MEMORY[PID_COUNT] = process;
     pthread_mutex_unlock(&MUTEX_ARRAY_PROCESS_MEMORY);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 void split_partition(int position, size_t size){
