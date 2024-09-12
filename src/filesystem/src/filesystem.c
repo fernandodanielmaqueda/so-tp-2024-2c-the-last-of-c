@@ -33,8 +33,17 @@ int module(int argc, char *argv[]) {
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-    initialize_bitmap(); //crea o abre si el archivo bitmap.dat
-	//inicializar al bitmap en 0 (todo:hacer la funcion.. revsiar en las commons si hay de utlidad)
+	//(ok) crea el archivo bitmap.dat, lo mapea a memoria ppal, lo agrega a la estructura bitarray (ppal)
+    // return t_bitarray *BITMAP;
+	initialize_bitmap(); 
+
+
+	// Inicializar cada bit del bitmap en 0
+	for (int bit_index = 0; i < bitarray_get_max_bit(BITMAP); i++) {
+		// Limpia el bit, lo pone en 0
+		int bit = (int) bitarray_test_bit(BITMAP, bit_index);
+		
+	}
 
 	initialize_sockets();
 
@@ -193,53 +202,64 @@ void initialize_blocks() {
     log_info(MODULE_LOGGER, "Bloques creados y mapeados correctamente.");
 }
 
-
+// ok
 void initialize_bitmap() {
+
+	// cantidad bytes = cantidad de bloques sobre 8.
 	BITMAP_SIZE = (size_t) ceil((double) BLOCK_COUNT / 8);
 	
+	// ruta al archivo
 	char* path_file_bitmap = string_new();
 	string_append(&path_file_bitmap, "/");
 	string_append(&path_file_bitmap, "bitmap.dat");
 
 	//Checkeo si el file ya esta creado, sino lo elimino
 	
+	// Abrir el archivo, si no existe lo crea
     int fd = open(path_file_bitmap, O_RDWR | O_CREAT , S_IRUSR | S_IWUSR);
-    if (fd == -1) {
+    if (fd == -1) { //NO pudo abrir el archivo 
         log_error(MODULE_LOGGER, "Error al abrir el archivo bitmap.dat: %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
-    if (ftruncate(fd, BITMAP_SIZE) == -1) {
+	// Darle el tamaño correcto al bitmap
+    if (ftruncate(fd, BITMAP_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
         log_error(MODULE_LOGGER, "Error al ajustar el tamaño del archivo bitmap.dat: %s", strerror(errno));
         close(fd);
         exit(EXIT_FAILURE);
     }
 
-	
+	// traer un archivo a memoria, poder manejarlo 
+	// PTRO_BITMAP = referencia en memoria del bitmap
     PTRO_BITMAP = mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (PTRO_BITMAP == MAP_FAILED) {
+    
+	if (PTRO_BITMAP == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
         close(fd);
         exit(EXIT_FAILURE);
     }
 	
-
+    //puntero a la estructura del bitarray (commons)
     BITMAP = bitarray_create_with_mode((char *)PTRO_BITMAP, BITMAP_SIZE,LSB_FIRST);
     if (BITMAP == NULL) {
         log_error(MODULE_LOGGER, "Error al crear la estructura del bitmap");
-        munmap(PTRO_BITMAP, BITMAP_SIZE);
+        munmap(PTRO_BITMAP, BITMAP_SIZE);//liberar la memoria reservada
         close(fd);
         exit(EXIT_FAILURE);
     }
 
+	// Inicializar cada bit del bitmap en 0
+	for (int bit_index = 0; i < bitarray_get_max_bit(BITMAP); i++) {
+		// Limpia el bit, lo pone en 0
+		bitarray_clean_bit( BITMAP, bit_index);
+	}
+
+	// Forzamos que los cambios en momoria ppal se reflejen en el archivo.
+	// vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
     if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
     }
-/*
-    if (munmap(PTRO_BITMAP, BITMAP_SIZE) == -1) {
-        log_error(MODULE_LOGGER, "Error al desmapear el archivo bitmap.dat de la memoria: %s", strerror(errno));
-    }
-*/
+
     log_info(MODULE_LOGGER, "Bitmap creado y mapeado correctamente.");
 }
 
