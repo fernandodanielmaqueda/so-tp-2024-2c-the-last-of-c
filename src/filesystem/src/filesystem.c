@@ -21,7 +21,8 @@ FILE *FILE_METADATA;
 char *PTRO_BITMAP;
 size_t BITMAP_SIZE;
 
-t_bitarray *BITMAP;
+t_Bitmap *BITMAP;
+//t_bitarray *BITMAP;
 char *PTRO_BLOCKS;
 size_t BLOCKS_TOTAL_SIZE;
 
@@ -33,17 +34,7 @@ int module(int argc, char *argv[]) {
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-	//(ok) crea el archivo bitmap.dat, lo mapea a memoria ppal, lo agrega a la estructura bitarray (ppal)
-    // return t_bitarray *BITMAP;
-	initialize_bitmap(); 
-
-
-	// Inicializar cada bit del bitmap en 0
-	for (int bit_index = 0; i < bitarray_get_max_bit(BITMAP); i++) {
-		// Limpia el bit, lo pone en 0
-		int bit = (int) bitarray_test_bit(BITMAP, bit_index);
-		
-	}
+	BITMAP = initialize_bitmap(); 
 
 	initialize_sockets();
 
@@ -202,8 +193,60 @@ void initialize_blocks() {
     log_info(MODULE_LOGGER, "Bloques creados y mapeados correctamente.");
 }
 
+
+/*
+void  set_bits(): 
+            
+        recorrer el bitarray seteando los indices (cero a uno)
+        guardar sus posiciones (nro indice) en lista. 
+        Sincroniza el archivo.
+        ejecutar write_block(datos*, list_index):  hacer en mas un hilo?? Escribir el archivo de Block.dat
+        liberar mutex  
+*/
+void set_bits_bitmap(t_Bitmap* bit_map){
+
+	t_list* list_bit_index = list_create(void);
+
+	// recorrer el bitarray seteando los indices de cero a uno
+	for (int bit_index = 0; i < bitarray_get_max_bit(bit_map->bits_blocks); i++) {
+			
+		bool bit = bitarray_test_bit(bit_map->bits_blocks, bit_index);
+		if(bit){ // entra si esta libre (0)
+			
+			// un bloque menos
+			bit_map->bits_free -= 1;
+
+			// lo cambia a ocupado (1)
+			bitarray_set_bit(bit_map->bits_blocks, bit_index); 
+
+			// guardar sus posiciones (nro indice) en lista.
+			list_add(list_bit_index, bit_index);
+		}
+	}
+
+	// Sincroniza el archivo.
+	  // Forzamos que los cambios en momoria ppal se reflejen en el archivo.
+	  // vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
+    if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
+        log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
+    }
+
+
+	// ejecutar write_block(datos*, list_index):  hacer en mas un hilo?? Escribir el archivo de Block.dat 
+
+
+	//  liberar mutex  
+}
+
+bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand){
+	if(bit_map->bits_free >= (count_block_demand +1)){
+		return true;
+	}
+	return false;
+}
+
 // ok
-void initialize_bitmap() {
+t_Bitmap* create_bitmap() {
 
 	// cantidad bytes = cantidad de bloques sobre 8.
 	BITMAP_SIZE = (size_t) ceil((double) BLOCK_COUNT / 8);
@@ -240,19 +283,25 @@ void initialize_bitmap() {
     }
 	
     //puntero a la estructura del bitarray (commons)
-    BITMAP = bitarray_create_with_mode((char *)PTRO_BITMAP, BITMAP_SIZE,LSB_FIRST);
-    if (BITMAP == NULL) {
+    t_bitarray bit_array = bitarray_create_with_mode((char *)PTRO_BITMAP, BITMAP_SIZE,LSB_FIRST);
+    if (bitmap == NULL) {
         log_error(MODULE_LOGGER, "Error al crear la estructura del bitmap");
         munmap(PTRO_BITMAP, BITMAP_SIZE);//liberar la memoria reservada
         close(fd);
         exit(EXIT_FAILURE);
     }
 
+	// Instanciar el bitmap
+	t_Bitmap* bit_map = malloc(sizeof(t_Bitmap));
+
+	bit_map->bits_blocks = bit_array;
+
 	// Inicializar cada bit del bitmap en 0
-	for (int bit_index = 0; i < bitarray_get_max_bit(BITMAP); i++) {
-		// Limpia el bit, lo pone en 0
-		bitarray_clean_bit( BITMAP, bit_index);
+	for (int bit_index = 0; i < bitarray_get_max_bit(bit_map->bits_blocks); i++) {
+		bitarray_clean_bit( bit_map->bits_blocks, bit_index); // Limpia el bit, lo pone en 0
 	}
+
+	bit_map->bits_free = BITMAP_SIZE // Inicialmente todos los bloques estan disponibles
 
 	// Forzamos que los cambios en momoria ppal se reflejen en el archivo.
 	// vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
@@ -261,6 +310,8 @@ void initialize_bitmap() {
     }
 
     log_info(MODULE_LOGGER, "Bitmap creado y mapeado correctamente.");
+
+	return bit_map;
 }
 
 void *reserve_blocks(){
@@ -455,88 +506,88 @@ void update_file(char* file_name, size_t size, size_t location){
 }
 
 
-t_FS_File* seek_file_by_header_index(size_t position){
+// t_FS_File* seek_file_by_header_index(size_t position){
 
-	t_FS_File* magic = NULL;
+// 	t_FS_File* magic = NULL;
 
-	/*
-	for (size_t i = 0; i < list_size(LIST_FILES); i++)
-	{
-		magic = list_get(LIST_FILES,i);
-		if (magic->initial_bloq == position) return magic;
-	}
-	*/
+// 	/*
+// 	for (size_t i = 0; i < list_size(LIST_FILES); i++)
+// 	{
+// 		magic = list_get(LIST_FILES,i);
+// 		if (magic->initial_bloq == position) return magic;
+// 	}
+// 	*/
 
-	return magic;
-}
+// 	return magic;
+// }
 
-void compact_blocks(t_FS_File* file, size_t nuevoLen, size_t nuevoSize){
-	//usleep(COMPRESSION_DELAY * 1000);
-	int total_free_spaces = 0;
-	int len = 0;
-	void* aux_memory = malloc(file->len * BLOCK_SIZE);
-	void *posicion = (void *)(((uint8_t *) PTRO_BLOCKS) + (file->initial_bloq * BLOCK_SIZE));
+// void compact_blocks(t_FS_File* file, size_t nuevoLen, size_t nuevoSize){
+// 	//usleep(COMPRESSION_DELAY * 1000);
+// 	int total_free_spaces = 0;
+// 	int len = 0;
+// 	void* aux_memory = malloc(file->len * BLOCK_SIZE);
+// 	void *posicion = (void *)(((uint8_t *) PTRO_BLOCKS) + (file->initial_bloq * BLOCK_SIZE));
 
-			for (uint32_t i = 0; i < BLOCK_COUNT; i++)
-			{
-				if (!(bitarray_test_bit(BITMAP,i)))//Cuento los espacios vacios
-				{
-					total_free_spaces++;
-				}
-				else if(file->initial_bloq == i) //Copio la memoria del archivo a agrandar a un aux 
-				{
-					memcpy(aux_memory, posicion, (file->len * BLOCK_SIZE)); 
-					int pos = i;
+// 			for (uint32_t i = 0; i < BLOCK_COUNT; i++)
+// 			{
+// 				if (!(bitarray_test_bit(BITMAP,i)))//Cuento los espacios vacios
+// 				{
+// 					total_free_spaces++;
+// 				}
+// 				else if(file->initial_bloq == i) //Copio la memoria del archivo a agrandar a un aux 
+// 				{
+// 					memcpy(aux_memory, posicion, (file->len * BLOCK_SIZE)); 
+// 					int pos = i;
 
-					for (size_t q = 0; q < file->len; q++)
-					{
-						bitarray_clean_bit(BITMAP,pos);
-						pos++;
-					}
-					i += file->len -1;
-					total_free_spaces++;
+// 					for (size_t q = 0; q < file->len; q++)
+// 					{
+// 						bitarray_clean_bit(BITMAP,pos);
+// 						pos++;
+// 					}
+// 					i += file->len -1;
+// 					total_free_spaces++;
 
-				}
-				else if(file->initial_bloq != i){//BITMAP no libre, no es el archivo en cuestion
-					t_FS_File* temp_entry = seek_file_by_header_index(i);
-					len = temp_entry->len;
-					if (total_free_spaces != 0){//Mueve el bloque y actualiza el bitmap
-						moveBlock(temp_entry->len, total_free_spaces, i);
-						temp_entry->initial_bloq = i - total_free_spaces;
-						update_file(temp_entry->name, temp_entry->size, i - total_free_spaces);
-					}
-					i+=len -1; //Salteo los casos ya contemplados en moveBlock
+// 				}
+// 				else if(file->initial_bloq != i){//BITMAP no libre, no es el archivo en cuestion
+// 					t_FS_File* temp_entry = seek_file_by_header_index(i);
+// 					len = temp_entry->len;
+// 					if (total_free_spaces != 0){//Mueve el bloque y actualiza el bitmap
+// 						moveBlock(temp_entry->len, total_free_spaces, i);
+// 						temp_entry->initial_bloq = i - total_free_spaces;
+// 						update_file(temp_entry->name, temp_entry->size, i - total_free_spaces);
+// 					}
+// 					i+=len -1; //Salteo los casos ya contemplados en moveBlock
 
-				}
+// 				}
 				
-			}
+// 			}
 		
-		//Actualizo el proceso copiado
-		size_t new_pos = BLOCK_COUNT - total_free_spaces;
-		file->initial_bloq = new_pos;
-		file->len = nuevoLen;
-		file->size = nuevoSize;
-		posicion = (void *)(((uint8_t *) PTRO_BLOCKS) + (new_pos * BLOCK_SIZE));
-		memcpy(posicion, aux_memory, (file->len * BLOCK_SIZE)); 
-		update_file(file->name, file->size, new_pos);
-					for (size_t r = 0; r < file->len; r++)
-					{
-						bitarray_set_bit(BITMAP,new_pos);
-						new_pos++;
-					}
-		free(aux_memory);
+// 		//Actualizo el proceso copiado
+// 		size_t new_pos = BLOCK_COUNT - total_free_spaces;
+// 		file->initial_bloq = new_pos;
+// 		file->len = nuevoLen;
+// 		file->size = nuevoSize;
+// 		posicion = (void *)(((uint8_t *) PTRO_BLOCKS) + (new_pos * BLOCK_SIZE));
+// 		memcpy(posicion, aux_memory, (file->len * BLOCK_SIZE)); 
+// 		update_file(file->name, file->size, new_pos);
+// 					for (size_t r = 0; r < file->len; r++)
+// 					{
+// 						bitarray_set_bit(BITMAP,new_pos);
+// 						new_pos++;
+// 					}
+// 		free(aux_memory);
 		
 			
-    if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
-        log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
-    }
+//     if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
+//         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
+//     }
 	
-    if (msync(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE, MS_SYNC) == -1) {
-        log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+//     if (msync(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE, MS_SYNC) == -1) {
+//         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
+//         exit(EXIT_FAILURE);
+//     }
 
-}
+// }
 
 void moveBlock(size_t blocks_to_move, size_t free_spaces, size_t location){
 	//Mueve el bloque y actualiza el bitmap
