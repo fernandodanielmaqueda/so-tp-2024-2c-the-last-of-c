@@ -79,17 +79,18 @@ void *filesystem_client_handler_for_memory(t_Client *new_client) {
 	t_list* list_bit_index = list_create(void);
 
     receive_memory_dump(&filename, &memory_dump, &dump_size, new_client->fd_client);//bloqueante
+	size_t necessary_bits_free = necessary_bits(dump_size) + 1; // mas el bloque de INDICE
 
     pthread_mutex_lock(&MUTEX_BITMAP);
 
-		if(!exist_free_bits_bitmap(BITMAP, necessary_bits(dump_size))){
+		if( BITMAP->bits_free < necessary_bits_free){
 			pthread_mutex_unlock(&MUTEX_BITMAP);
             send_return_value_with_header(MEMORY_DUMP_HEADER, 1, new_client->fd_client);
             close(new_client->fd_client);
             return NULL;
         }
 
-		set_bits_bitmap(BITMAP, list_bit_index);
+		set_bits_bitmap(BITMAP, list_bit_index, necessary_bits_free);
 
     pthread_mutex_unlock(&MUTEX_BITMAP);
 
@@ -110,24 +111,25 @@ void *filesystem_client_handler_for_memory(t_Client *new_client) {
     return NULL;
 }
 
-void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index){
+void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t necessary_bits_free){
 
-	// recorrer el bitarray seteando los indices de cero a uno
-	for (int bit_index = 0; i < bitarray_get_max_bit(bit_map->bits_blocks); i++) {
-			
-		bool bit = bitarray_test_bit(bit_map->bits_blocks, bit_index);
-		if(bit){ // entra si esta libre (0)
-			
-			// un bloque menos
-			bit_map->bits_free -= 1;
+	bit_map->bits_free -= necessary_bits_free; 
 
-			// lo cambia a ocupado (1)
-			bitarray_set_bit(bit_map->bits_blocks, bit_index); 
+    for (int bit_index = 0; necessary_bits_free > 0; bit_index++) { //5,4,3,2,1,0
+            
+        bool bit = bitarray_test_bit(bit_map->bits_blocks, bit_index);
 
-			// guardar sus posiciones (nro indice) en lista.
-			list_add(list_bit_index, bit_index);
-		}
-	}
+        if(!bit) { // entra si está libre (0 es false)
+            
+            necessary_bits_free--; // restar después de confirmar que hay un bit libre
+
+            // lo cambia a ocupado (1)
+            bitarray_set_bit(bit_map->bits_blocks, bit_index); 
+
+            // guardar sus posiciones (nro indice) en lista.
+            list_add(list_bit_index, bit_index); 
+        }
+    }
 
 	// Sincroniza el archivo. SINCRONIZAR EL ARCHIVO BITMAP.DAT ACTUALIZADO EN RAM COMPLETO EN DISCO
     if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
