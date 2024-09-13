@@ -73,6 +73,7 @@ extern size_t BITMAP_SIZE;
 extern t_bitarray *BITMAP;
 extern char *PTRO_BLOCKS;
 extern size_t BLOCKS_TOTAL_SIZE;
+extern pthread_mutex_t MUTEX_BITMAP;
 
 
 

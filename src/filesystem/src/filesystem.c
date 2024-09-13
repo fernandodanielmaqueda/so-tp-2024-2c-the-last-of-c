@@ -36,46 +36,8 @@ int module(int argc, char *argv[]) {
 
 	BITMAP = initialize_bitmap(); 
 
-	initialize_sockets();
+	initialize_sockets();// bucle infinito
 
-	//t_Return_Value return_value;
-	/* 
-	if(receive_expected_header(INTERFACE_DATA_REQUEST_HEADER, CONNECTION_KERNEL.fd_connection)) {
-		// TODO
-		exit(1);
-	}	
-	if(send_interface_data(INTERFACE_NAME, IO_TYPE, CONNECTION_KERNEL.fd_connection)) {
-		// TODO
-		exit(1);
-	}
-	if(receive_return_value_with_expected_header(INTERFACE_DATA_REQUEST_HEADER, &return_value, CONNECTION_KERNEL.fd_connection)) {
-		// TODO
-		exit(1);
-	}
-	
-	if(return_value) {
-		log_error(MODULE_LOGGER, "No se pudo registrar la interfaz %s en el Kernel", INTERFACE_NAME);
-		exit(EXIT_FAILURE);
-	}
-
-
-	// Invoco a la función que corresponda
-	//IO_TYPES[IO_TYPE].function();
-
-	t_Payload io_operation;
-	//escuchar peticion siempre
-	while(1) {
-		if(receive_io_operation_dispatch(&PID, &io_operation, CONNECTION_KERNEL.fd_connection)) {
-			exit(1);
-		}
-
-		t_Return_Value return_value = (t_Return_Value) io_operation_execute(&io_operation);
-
-		if(send_io_operation_finished(PID, return_value, CONNECTION_KERNEL.fd_connection)) {
-			exit(1);
-		}
-	}
-	*/
 	free_bitmap_blocks();
 	//finish_threads();
 	finish_sockets();
@@ -109,10 +71,13 @@ void read_module_config(t_config* MODULE_CONFIG) {
 	LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 }
 
+
+// cada cliente ejecuta esta logica
 void *filesystem_client_handler_for_memory(t_Client *new_client) {
 
 	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Memoria [%d] iniciado", new_client->fd_client);
 
+	if 
 	// Borrar este while(1) (ciclo incluido) y reemplazarlo por la lógica necesaria para atender al cliente
 
 	/*
@@ -193,6 +158,53 @@ void initialize_blocks() {
     log_info(MODULE_LOGGER, "Bloques creados y mapeados correctamente.");
 }
 
+//------------------------------------------------------------------
+// HILO SERVIDOR (PRINCIPAL): Ya implementado en socket.c
+// pthread_create(filesystem_client_handler_for_memory, new_client);
+
+// Función para los hilos atendededor de un boludo (Uno por cada solicitud de Memoria)
+void *filesystem_client_handler_for_memory(t_Client *new_client) {
+    char *filename;
+    void *memory_dump;
+    size_t dump_size;
+	t_list* list_bit_index = list_create(void);
+
+    receive_memory_dump(&filename, &memory_dump, &dump_size, new_client->fd_client);//bloqueante
+
+    pthread_mutex_lock(&MUTEX_BITMAP);
+
+		if(!exist_free_bits_bitmap(BITMAP, necessary_bits(dump_size))){
+			pthread_mutex_unlock(&MUTEX_BITMAP);
+            send_return_value_with_header(MEMORY_DUMP_HEADER, 1, new_client->fd_client);
+            close(new_client->fd_client);
+            return NULL;
+        }
+
+		set_bits_bitmap(BITMAP, list_bit_index);
+
+    pthread_mutex_unlock(&MUTEX_BITMAP);
+
+    // ESCRIBIR EN BLOQUES.DAT BLOQUE A BLOQUE (se armaron su lista/array dinámico auxiliar)
+        // Primero (ó a lo último, como prefieran) escribo en memoria (RAM) el bloque de índice
+            // Lógica de escritura del bloque de índice
+            // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
+        // En el medio escribo en memoria (RAM) los bloques de datos
+            for(...) {
+                ... = memory_dump[i];
+                // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
+            }
+
+    // Crear el archivo de metadata (es como escribir un config)
+
+    send_return_value_with_header(MEMORY_DUMP_HEADER, 0, new_client->fd_client);
+    close(new_client->fd_client);
+    return NULL;
+}
+//------------------------------------------------------------------
+
+
+
+
 
 /*
 void  set_bits(): 
@@ -203,9 +215,7 @@ void  set_bits():
         ejecutar write_block(datos*, list_index):  hacer en mas un hilo?? Escribir el archivo de Block.dat
         liberar mutex  
 */
-void set_bits_bitmap(t_Bitmap* bit_map){
-
-	t_list* list_bit_index = list_create(void);
+void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index){
 
 	// recorrer el bitarray seteando los indices de cero a uno
 	for (int bit_index = 0; i < bitarray_get_max_bit(bit_map->bits_blocks); i++) {
@@ -224,32 +234,27 @@ void set_bits_bitmap(t_Bitmap* bit_map){
 		}
 	}
 
-	// Sincroniza el archivo.
-	  // Forzamos que los cambios en momoria ppal se reflejen en el archivo.
-	  // vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
+	// Sincroniza el archivo. SINCRONIZAR EL ARCHIVO BITMAP.DAT ACTUALIZADO EN RAM COMPLETO EN DISCO
     if (msync(PTRO_BITMAP, BITMAP_SIZE, MS_SYNC) == -1) {
         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
     }
-
-
 	// ejecutar write_block(datos*, list_index):  hacer en mas un hilo?? Escribir el archivo de Block.dat 
-
-
-	//  liberar mutex  
 }
 
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand){
-	if(bit_map->bits_free >= (count_block_demand +1)){
-		return true;
-	}
-	return false;
+	return (bit_map->bits_free >= (count_block_demand +1));
+}
+
+// y bits = redodear(x bytes / 8)
+size_t necessary_bits(size_t bytes_size){
+	return (size_t) ceil((double) bytes_size / 8);
 }
 
 // ok
 t_Bitmap* create_bitmap() {
 
-	// cantidad bytes = cantidad de bloques sobre 8.
-	BITMAP_SIZE = (size_t) ceil((double) BLOCK_COUNT / 8);
+	// cantidad bits = cantidad de bloques (bytes) sobre 8.
+	BITMAP_SIZE = necessary_bits(BLOCK_COUNT);
 	
 	// ruta al archivo
 	char* path_file_bitmap = string_new();
