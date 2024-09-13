@@ -48,7 +48,7 @@ int module(int argc, char* argv[]) {
         // TODO
         exit(EXIT_FAILURE);
     }
-    
+
     initialize_loggers();
     initialize_global_variables();
 
@@ -315,7 +315,7 @@ void *listen_kernel(t_Client* new_client) {
             pthread_cancel(CLIENT_CPU->thread_client_handler);
             pthread_join(CLIENT_CPU->thread_client_handler, NULL);
             close(CLIENT_CPU->fd_client);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         switch(package->header) {
             case PROCESS_CREATE_HEADER:
@@ -513,7 +513,7 @@ int create_process(t_Payload *payload) {
             pthread_cancel(CLIENT_CPU->thread_client_handler);
             pthread_join(CLIENT_CPU->thread_client_handler, NULL);
             close(CLIENT_CPU->fd_client);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         return;
     }
@@ -542,7 +542,7 @@ int create_process(t_Payload *payload) {
         pthread_cancel(CLIENT_CPU->thread_client_handler);
         pthread_join(CLIENT_CPU->thread_client_handler, NULL);
         close(CLIENT_CPU->fd_client);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     */
 
@@ -652,7 +652,7 @@ int kill_process(t_Payload *payload) {
         pthread_cancel(CLIENT_CPU->thread_client_handler);
         pthread_join(CLIENT_CPU->thread_client_handler, NULL);
         close(CLIENT_CPU->fd_client);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     */
 }
@@ -778,7 +778,7 @@ void listen_cpu(void) {
             // pthread_cancel(CLIENT_CPU->thread_client_handler);
             // pthread_join(CLIENT_CPU->thread_client_handler, NULL);
             close(CLIENT_CPU->fd_client);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         switch (package->header) {
@@ -840,7 +840,7 @@ void seek_instruccion(t_Payload *payload) {
         // pthread_cancel(CLIENT_CPU->thread_client_handler);
         // pthread_join(CLIENT_CPU->thread_client_handler, NULL);
         close(CLIENT_CPU->fd_client);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     log_info(MODULE_LOGGER, "Instruccion enviada.");¨
     */
@@ -984,7 +984,7 @@ void write_memory(t_Payload *payload, int socket) {
 
     if(send_return_value_with_header(WRITE_REQUEST_HEADER, 0, socket)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     */
 }

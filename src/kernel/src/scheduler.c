@@ -172,14 +172,14 @@ int kernel_command_start_process(int argc, char* argv[]) {
      
     if(send_process_create(pcb->exec_context.PID, filename, flag_relative_path, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
   
 
     t_Return_Value return_value;
     if(receive_return_value_with_expected_header(PROCESS_CREATE_HEADER, &return_value, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-		exit(1);
+		exit(EXIT_FAILURE);
     }
     if(return_value) {
         log_warning(MODULE_LOGGER, "No se pudo INICIAR_PROCESO %s", argv[1]);
@@ -249,12 +249,12 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 
 		if(send_process_destroy(pcb->PID, CONNECTION_MEMORY.fd_connection)) {
 			// TODO
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		if(receive_expected_header(PROCESS_DESTROY_HEADER, CONNECTION_MEMORY.fd_connection)) {
 			// TODO
-        	exit(1);
+        	exit(EXIT_FAILURE);
 		}
 		*/
 
@@ -286,7 +286,7 @@ void *cpu_interrupter(void *NULL_parameter) {
 				break;
 			default:
 				// TODO
-				exit(1);
+				exit(EXIT_FAILURE);
 		}
 
 	e_Kernel_Interrupt kernel_interrupt;
@@ -296,7 +296,7 @@ void *cpu_interrupter(void *NULL_parameter) {
 	while(1) {
 		if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CONNECTION_CPU_INTERRUPT.fd_connection)) {
 			// TODO
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		switch(kernel_interrupt) {
@@ -338,7 +338,7 @@ void *start_quantum(t_TCB *tcb) {
 
     if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
 		// TODO
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
     log_trace(MODULE_LOGGER, "(%d:%d) - Se envia interrupcion por quantum tras %li milisegundos", (int) tcb->pcb->PID, (int) tcb->TID, quantum);
@@ -400,7 +400,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 
 				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
 					// TODO
-					exit(1);
+					exit(EXIT_FAILURE);
 				}
 
 				signal_draining_requests(&SCHEDULING_SYNC);
@@ -421,7 +421,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 
 				if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.fd_connection)) {
 					// TODO
-					exit(1);
+					exit(EXIT_FAILURE);
 				}
 
 				switch(SCHEDULING_ALGORITHM) {

@@ -31,9 +31,9 @@ int module(int argc, char *argv[]) {
 
 	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
-    
+
 	initialize_loggers();
 	initialize_global_variables();
 

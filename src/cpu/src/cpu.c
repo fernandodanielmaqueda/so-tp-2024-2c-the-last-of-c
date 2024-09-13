@@ -34,9 +34,9 @@ int module(int argc, char *argv[])
 
     if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
-    
+
     initialize_loggers();
     initialize_global_variables();
     initialize_sockets();
@@ -110,19 +110,19 @@ void instruction_cycle(void)
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
             if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
             if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             // Recibo la respuesta de memoria con el contexto de ejecución
             if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
 
@@ -218,12 +218,12 @@ void instruction_cycle(void)
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
             if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
 
@@ -245,7 +245,7 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
 
         if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
             // TODO
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         pthread_mutex_lock(&MUTEX_EXECUTING);
@@ -276,11 +276,11 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
 void cpu_fetch_next_instruction(char **line) {
     if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -295,12 +295,12 @@ void write_memory(size_t physical_address, void *source, size_t bytes) {
 
     if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     
     log_info(MODULE_LOGGER, "(%d:%d): Accion: ESCRIBIR OK", PID, TID);
@@ -314,12 +314,12 @@ void read_memory(size_t physical_address, void *destination, size_t bytes) {
 
     if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if(package_receive(&package, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     payload_remove(&(package->payload), destination, bytes);
     package_destroy(package);
