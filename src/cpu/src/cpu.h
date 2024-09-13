@@ -43,7 +43,7 @@ extern size_t BASE;
 extern size_t LIMIT;
 extern pthread_mutex_t MUTEX_EXEC_CONTEXT;
 
-extern int EXECUTING;
+extern bool EXECUTING;
 extern pthread_mutex_t MUTEX_EXECUTING;
 
 extern e_Eviction_Reason EVICTION_REASON;
@@ -51,7 +51,7 @@ extern e_Eviction_Reason EVICTION_REASON;
 extern e_Kernel_Interrupt KERNEL_INTERRUPT;
 extern pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
 
-extern int SYSCALL_CALLED;
+extern bool SYSCALL_CALLED;
 extern t_Payload SYSCALL_INSTRUCTION;
 
 #define MAX_CPU_INSTRUCTION_ARGUMENTS 1 + 5

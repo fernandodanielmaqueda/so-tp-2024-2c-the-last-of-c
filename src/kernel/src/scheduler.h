@@ -23,17 +23,6 @@
 #include "utils/socket.h"
 #include "kernel.h"
 
-typedef enum e_Scheduling_Algorithm {
-    FIFO_SCHEDULING_ALGORITHM,
-    PRIORITIES_SCHEDULING_ALGORITHM,
-    MLQ_SCHEDULING_ALGORITHM
-} e_Scheduling_Algorithm;
-
-typedef struct t_Scheduling_Algorithm {
-    char *name;
-    t_PCB *(*function_fetcher) (void);
-} t_Scheduling_Algorithm;
-
 extern t_Shared_List SHARED_LIST_NEW;
 
 extern t_Priority PRIORITY_COUNT;
@@ -54,24 +43,25 @@ extern pthread_t THREAD_CPU_INTERRUPTER;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 
-extern int FREE_MEMORY;
+extern bool FREE_MEMORY;
 extern pthread_mutex_t MUTEX_FREE_MEMORY;
 extern pthread_cond_t COND_FREE_MEMORY;
 
-extern int EXEC_TCB;
+extern bool KILL_EXEC_PROCESS;
+extern pthread_mutex_t MUTEX_KILL_EXEC_PROCESS;
 
-extern char *SCHEDULING_ALGORITHMS[];
+extern t_TCB *EXEC_TCB;
 
-extern e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
+extern bool SHOULD_REDISPATCH;
 
 extern t_Quantum QUANTUM;
 extern pthread_t THREAD_QUANTUM_INTERRUPT;
 extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-extern int QUANTUM_INTERRUPT;
+extern bool QUANTUM_INTERRUPT;
+extern pthread_cond_t COND_QUANTUM_INTERRUPT;
+extern struct timespec TS_QUANTUM_INTERRUPT;
 
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
-
-int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 
 void initialize_scheduling(void);
 void finish_scheduling(void);
@@ -84,8 +74,8 @@ void *long_term_scheduler_exit(void *NULL_parameter);
 void *cpu_interrupter(void *NULL_parameter);
 void *short_term_scheduler(void *NULL_parameter);
 
-void wait_free_memory(void);
-void signal_free_memory(void);
+int wait_free_memory(void);
+int signal_free_memory(void);
 
 void* start_quantum(t_TCB *tcb);
 

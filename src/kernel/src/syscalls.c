@@ -14,8 +14,6 @@ t_Syscall SYSCALLS[] = {
     [IO_CPU_OPCODE] = {.name = "IO" , .function = io_kernel_syscall}
 };
 
-t_TCB *SYSCALL_TCB;
-
 int syscall_execute(t_Payload *syscall_instruction) {
 
     e_CPU_OpCode syscall_opcode;
@@ -28,9 +26,9 @@ int syscall_execute(t_Payload *syscall_instruction) {
         return -1;
     }
 
-    int exit_status = SYSCALLS[syscall_opcode].function(syscall_instruction);
+    int status = SYSCALLS[syscall_opcode].function(syscall_instruction);
     payload_destroy(syscall_instruction);
-    return exit_status;
+    return status;
 }
 
 int process_create_kernel_syscall(t_Payload *syscall_arguments) {
@@ -46,7 +44,7 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
     t_Priority priority;
     // priority_deserialize(syscall_arguments, &priority);
 
-    EXEC_TCB = 1;
+    SHOULD_REDISPATCH = 1;
 
     return 0;
 }
@@ -55,7 +53,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_EXIT");
 
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
 
     return 0;
 }
@@ -70,7 +68,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     t_Priority priority;
     // priority_deserialize(syscall_arguments, &priority);
 
-    EXEC_TCB = 1;
+    SHOULD_REDISPATCH = 1;
 
     return 0;
 }
@@ -82,7 +80,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     t_TID tid;
     // tid_deserialize(syscall_arguments, &tid);
 
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
 
     return 0;
 }
@@ -95,9 +93,9 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     // tid_deserialize(syscall_arguments, &tid);
 
     // Si es suicida (se cancela a sí mismo)
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
     // Si cancela a otros
-    EXEC_TCB = 1;
+    SHOULD_REDISPATCH = 1;
 
     return 0;
 }
@@ -106,7 +104,7 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_EXIT");
 
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
 
     return 0;
 }
@@ -118,7 +116,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
 
-    EXEC_TCB = 1;
+    SHOULD_REDISPATCH = 1;
 
     return 0;
 }
@@ -223,7 +221,7 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
 
     return 0;
 }
@@ -235,7 +233,7 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "IO");
 
-    EXEC_TCB = 0;
+    SHOULD_REDISPATCH = 0;
 
     return 0;
 }

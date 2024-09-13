@@ -20,41 +20,25 @@ pthread_t THREAD_CPU_INTERRUPTER;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
 
-int FREE_MEMORY;
+bool FREE_MEMORY = 1;
 pthread_mutex_t MUTEX_FREE_MEMORY;
 pthread_cond_t COND_FREE_MEMORY;
 
-int EXEC_TCB;
+bool KILL_EXEC_PROCESS;
+pthread_mutex_t MUTEX_KILL_EXEC_PROCESS;
 
-char *SCHEDULING_ALGORITHMS[] = {
-	[FIFO_SCHEDULING_ALGORITHM] = "FIFO",
-	[PRIORITIES_SCHEDULING_ALGORITHM] = "PRIORIDADES",
-	[MLQ_SCHEDULING_ALGORITHM] = "CMN"
-};
+t_TCB *EXEC_TCB = NULL;
 
-e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
+bool SHOULD_REDISPATCH = 0;
 
 t_Quantum QUANTUM;
 pthread_t THREAD_QUANTUM_INTERRUPT;
+bool QUANTUM_INTERRUPT;
 pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-int QUANTUM_INTERRUPT;
+pthread_cond_t COND_QUANTUM_INTERRUPT;
+struct timespec TS_QUANTUM_INTERRUPT;
 
 t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
-
-int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
-
-    if(name == NULL || destination == NULL)
-        return -1;
-    
-    size_t scheduling_algorithms_number = sizeof(SCHEDULING_ALGORITHMS) / sizeof(SCHEDULING_ALGORITHMS[0]);
-    for (register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
-        if (strcmp(SCHEDULING_ALGORITHMS[scheduling_algorithm], name) == 0) {
-            *destination = scheduling_algorithm;
-            return 0;
-        }
-
-    return -1;
-}
 
 void initialize_scheduling(void) {
 	initialize_long_term_scheduler();
@@ -115,10 +99,16 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 				}
 
 				if(return_value) {
-					// TODO: Algo malió sal
-				}
+					pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+						FREE_MEMORY = 0;
+					pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
 
-				// TODO: Sacar de la lista de NEW
+					close(connection_memory.fd_connection);
+					signal_draining_requests(&SCHEDULING_SYNC);
+					sem_post(&SEM_LONG_TERM_SCHEDULER_NEW);
+
+					continue;
+				}
 
 			close(connection_memory.fd_connection);
 
@@ -132,15 +122,82 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 					// TODO
 				}
 
-				// TODO: Poner el hilo en READY
 			close(connection_memory.fd_connection);
 
-			//switch_process_state(pcb, READY_STATE);
+			switch_process_state(((t_TCB **) (pcb->thread_manager.cb_array))[0], READY_STATE);
 		signal_draining_requests(&SCHEDULING_SYNC);
 	}
 
 	return NULL;
 }
+
+/*
+int kernel_command_start_process(int argc, char* argv[]) {
+
+    char *filename;
+    t_Return_Value flag_relative_path;
+
+    switch(argc) {
+        case 2:
+            if(*(argv[1]) == '/')
+                filename = argv[1] + 1;
+            else {
+                filename = argv[1];
+            }
+
+            log_trace(CONSOLE_LOGGER, "INICIAR_PROCESO %s", argv[1]);
+            flag_relative_path = 1;
+
+            break;
+        
+        case 3:
+            if(strcmp(argv[1], "-a") != 0) {
+                log_warning(CONSOLE_LOGGER, "%s: Opción no reconocida", argv[1]);
+                return -1;
+            }
+
+            filename = argv[2];
+            log_trace(CONSOLE_LOGGER, "INICIAR_PROCESO -a %s", argv[2]);
+            flag_relative_path = 0;
+
+            break;
+
+        default:
+            log_warning(CONSOLE_LOGGER, "Uso: INICIAR_PROCESO [-a] <PATH (EN MEMORIA)>");
+            return -1;
+    }
+
+    t_PCB *pcb = pcb_create();
+
+     
+    if(send_process_create(pcb->exec_context.PID, filename, flag_relative_path, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(1);
+    }
+  
+
+    t_Return_Value return_value;
+    if(receive_return_value_with_expected_header(PROCESS_CREATE_HEADER, &return_value, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+		exit(1);
+    }
+    if(return_value) {
+        log_warning(MODULE_LOGGER, "No se pudo INICIAR_PROCESO %s", argv[1]);
+        // TODO
+        return -1;
+    }
+
+    pthread_mutex_lock(&(SHARED_LIST_NEW.mutex));
+        list_add(SHARED_LIST_NEW.list, pcb);
+    pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex));
+
+   // log_info(MINIMAL_LOGGER, "Se crea el proceso <%d> en NEW", pcb->exec_context.PID);
+
+    sem_post(&SEM_LONG_TERM_SCHEDULER_NEW);
+
+    return 0;
+}
+*/
 
 void *long_term_scheduler_exit(void *NULL_parameter) {
 
@@ -214,6 +271,24 @@ void *cpu_interrupter(void *NULL_parameter) {
 
 	log_trace(MODULE_LOGGER, "Hilo de interrupciones de CPU iniciado");
 
+	int status;
+
+	pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT);
+		QUANTUM_INTERRUPT = 0;
+		status = pthread_cond_timedwait(&COND_QUANTUM_INTERRUPT, &MUTEX_QUANTUM_INTERRUPT, &TS_QUANTUM_INTERRUPT);
+		switch(status) {
+			case 0:
+				// Se cumplió la condición antes que el tiempo de espera
+				break;
+			case ETIMEDOUT:
+				QUANTUM_INTERRUPT = 1;
+				// HACER LA INTERRUPCIÓN DE QUANTUM
+				break;
+			default:
+				// TODO
+				exit(1);
+		}
+
 	e_Kernel_Interrupt kernel_interrupt;
 	t_PID pid;
 	t_TID tid;
@@ -246,198 +321,6 @@ void *cpu_interrupter(void *NULL_parameter) {
 	return NULL;
 }
 
-void *short_term_scheduler(void *NULL_parameter) {
-
-	log_trace(MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
- 
-	t_TCB *tcb;
-	e_Eviction_Reason eviction_reason;
-	t_Payload syscall_instruction;
-	int exit_status;
-
-	while(1) {
-		sem_wait(&SEM_SHORT_TERM_SCHEDULER);
-
-		wait_draining_requests(&SCHEDULING_SYNC);
-
-			tcb = NULL;
-			switch(SCHEDULING_ALGORITHM) {
-
-				case FIFO_SCHEDULING_ALGORITHM:
-
-					pthread_mutex_lock(&(ARRAY_LIST_READY[0]->mutex));
-						if((ARRAY_LIST_READY[0]->list)->head != NULL)
-							tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[0]->list), 0);
-					pthread_mutex_unlock(&(ARRAY_LIST_READY[0]->mutex));
-
-					break;
-				
-				case PRIORITIES_SCHEDULING_ALGORITHM:
-				case MLQ_SCHEDULING_ALGORITHM:
-					
-					for(register t_Priority priority = 0; priority < PRIORITY_COUNT; priority++) {
-						pthread_mutex_lock(&(ARRAY_LIST_READY[priority]->mutex));
-							if((ARRAY_LIST_READY[priority]->list)->head != NULL) {
-								tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[priority]->list), 0);
-								pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
-								break;
-							}
-						pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
-					}
-					
-					break;
-
-			}
-			if(tcb == NULL) {
-				signal_draining_requests(&SCHEDULING_SYNC);
-				continue;
-			}
-
-			switch_process_state(tcb, EXEC_STATE);
-
-			EXEC_TCB = 1;
-			while(EXEC_TCB) {
-
-				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
-					// TODO
-					exit(1);
-				}
-
-				signal_draining_requests(&SCHEDULING_SYNC);
-
-				switch(SCHEDULING_ALGORITHM) {
-
-					case FIFO_SCHEDULING_ALGORITHM:
-					case PRIORITIES_SCHEDULING_ALGORITHM:
-						break;
-					
-					case MLQ_SCHEDULING_ALGORITHM:
-						QUANTUM_INTERRUPT = 0;
-						pthread_create(&THREAD_QUANTUM_INTERRUPT, NULL, (void *(*)(void *)) start_quantum, (void *) tcb);
-						break;
-				
-				}
-
-				if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.fd_connection)) {
-					// TODO
-					exit(1);
-				}
-
-				switch(SCHEDULING_ALGORITHM) {
-
-					case FIFO_SCHEDULING_ALGORITHM:
-					case PRIORITIES_SCHEDULING_ALGORITHM:
-						break;
-
-					case MLQ_SCHEDULING_ALGORITHM:
-
-						pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT);
-							if(!QUANTUM_INTERRUPT)
-								pthread_cancel(THREAD_QUANTUM_INTERRUPT);
-						pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT);
-						pthread_join(THREAD_QUANTUM_INTERRUPT, NULL);
-
-						break;
-
-				}
-
-				wait_draining_requests(&SCHEDULING_SYNC);
-
-				switch(eviction_reason) {
-					case UNEXPECTED_ERROR_EVICTION_REASON:
-						switch_process_state(tcb, EXIT_STATE);
-						EXEC_TCB = 0;
-						break;
-
-					case SEGMENTATION_FAULT_EVICTION_REASON:
-						switch_process_state(tcb, EXIT_STATE);
-						EXEC_TCB = 0;
-						break;
-
-					case EXIT_EVICTION_REASON:
-						switch_process_state(tcb, EXIT_STATE);
-						EXEC_TCB = 0;
-						break;
-
-					case KILL_KERNEL_INTERRUPT_EVICTION_REASON:
-						/*
-						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);
-							KILL_EXEC_PROCESS = 0;
-						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
-						*/
-						switch_process_state(tcb, EXIT_STATE);
-						EXEC_TCB = 0;
-						break;
-						
-					case SYSCALL_EVICTION_REASON:
-
-						/*
-						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);             
-							if(KILL_EXEC_PROCESS) {
-								KILL_EXEC_PROCESS = 0;
-								pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
-								switch_process_state(tcb, EXIT_STATE);
-								EXEC_TCB = 0;
-								break;
-							}
-						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
-						*/
-
-						SYSCALL_TCB = tcb;
-						exit_status = syscall_execute(&syscall_instruction);
-
-						if(exit_status) {
-							// La syscall se encarga de settear el e_Exit_Reason (en SYSCALL_TCB)
-							switch_process_state(tcb, EXIT_STATE);
-							EXEC_TCB = 0;
-							break;
-						}
-
-						// La syscall se encarga de settear el e_Exit_Reason (en SYSCALL_TCB) y/o el EXEC_TCB
-						break;
-
-					case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
-						log_info(MINIMAL_LOGGER, "PID: <%d> - Desalojado por fin de Quantum", (int) tcb->TID);
-
-						/*
-						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);             
-							if(KILL_EXEC_PROCESS) {
-								KILL_EXEC_PROCESS = 0;
-								pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
-								pcb->exit_reason = INTERRUPTED_BY_USER_EXIT_REASON;
-								switch_process_state(pcb, EXIT_STATE);
-								EXEC_TCB = 0;
-								break;
-							}
-						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
-						*/
-
-						switch_process_state(tcb, READY_STATE);
-						EXEC_TCB = 0;
-						break;
-				}
-			}
-		signal_draining_requests(&SCHEDULING_SYNC);
-	}
-
-	return NULL;
-}
-
-void wait_free_memory(void) {
-	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
-		while(!FREE_MEMORY) {
-			pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY);
-		}
-	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
-}
-
-void signal_free_memory(void) {
-	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
-		FREE_MEMORY = 1;
-		pthread_cond_signal(&COND_FREE_MEMORY);
-	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
-}
-
 void *start_quantum(t_TCB *tcb) {
 	t_Quantum quantum = tcb->quantum;
 
@@ -461,6 +344,206 @@ void *start_quantum(t_TCB *tcb) {
     log_trace(MODULE_LOGGER, "(%d:%d) - Se envia interrupcion por quantum tras %li milisegundos", (int) tcb->pcb->PID, (int) tcb->TID, quantum);
 
 	return NULL;
+}
+
+void *short_term_scheduler(void *NULL_parameter) {
+
+	log_trace(MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
+ 
+	e_Eviction_Reason eviction_reason;
+	t_Payload syscall_instruction;
+	int status;
+
+	while(1) {
+		sem_wait(&SEM_SHORT_TERM_SCHEDULER);
+
+		wait_draining_requests(&SCHEDULING_SYNC);
+
+			EXEC_TCB = NULL;
+			switch(SCHEDULING_ALGORITHM) {
+
+				case FIFO_SCHEDULING_ALGORITHM:
+
+					pthread_mutex_lock(&(ARRAY_LIST_READY[0]->mutex));
+						if((ARRAY_LIST_READY[0]->list)->head != NULL)
+							EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[0]->list), 0);
+					pthread_mutex_unlock(&(ARRAY_LIST_READY[0]->mutex));
+
+					break;
+				
+				case PRIORITIES_SCHEDULING_ALGORITHM:
+				case MLQ_SCHEDULING_ALGORITHM:
+					
+					for(register t_Priority priority = 0; priority < PRIORITY_COUNT; priority++) {
+						pthread_mutex_lock(&(ARRAY_LIST_READY[priority]->mutex));
+							if((ARRAY_LIST_READY[priority]->list)->head != NULL) {
+								EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[priority]->list), 0);
+								pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
+								break;
+							}
+						pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex));
+					}
+
+					break;
+
+			}
+
+			if(EXEC_TCB == NULL) {
+				signal_draining_requests(&SCHEDULING_SYNC);
+				continue;
+			}
+
+			switch_process_state(EXEC_TCB, EXEC_STATE);
+
+			SHOULD_REDISPATCH = 1;
+			while(SHOULD_REDISPATCH) {
+
+				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
+					// TODO
+					exit(1);
+				}
+
+				signal_draining_requests(&SCHEDULING_SYNC);
+
+				switch(SCHEDULING_ALGORITHM) {
+
+					case FIFO_SCHEDULING_ALGORITHM:
+					case PRIORITIES_SCHEDULING_ALGORITHM:
+						break;
+					
+					case MLQ_SCHEDULING_ALGORITHM:
+						QUANTUM_INTERRUPT = 0;
+						// cond_signal
+						// pthread_create(&THREAD_QUANTUM_INTERRUPT, NULL, (void *(*)(void *)) start_quantum, (void *) tcb);
+						break;
+
+				}
+
+				if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.fd_connection)) {
+					// TODO
+					exit(1);
+				}
+
+				switch(SCHEDULING_ALGORITHM) {
+
+					case FIFO_SCHEDULING_ALGORITHM:
+					case PRIORITIES_SCHEDULING_ALGORITHM:
+						break;
+
+					case MLQ_SCHEDULING_ALGORITHM:
+
+						pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT);
+							if(!QUANTUM_INTERRUPT)
+								//pthread_cancel(THREAD_QUANTUM_INTERRUPT);
+						pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT);
+						pthread_join(THREAD_QUANTUM_INTERRUPT, NULL);
+
+						break;
+
+				}
+
+				wait_draining_requests(&SCHEDULING_SYNC);
+
+				switch(eviction_reason) {
+					case UNEXPECTED_ERROR_EVICTION_REASON:
+						switch_process_state(EXEC_TCB, EXIT_STATE);
+						SHOULD_REDISPATCH = 0;
+						break;
+
+					case SEGMENTATION_FAULT_EVICTION_REASON:
+						switch_process_state(EXEC_TCB, EXIT_STATE);
+						SHOULD_REDISPATCH = 0;
+						break;
+
+					case EXIT_EVICTION_REASON:
+						switch_process_state(EXEC_TCB, EXIT_STATE);
+						SHOULD_REDISPATCH = 0;
+						break;
+
+					case KILL_KERNEL_INTERRUPT_EVICTION_REASON:
+						/*
+						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);
+							KILL_EXEC_PROCESS = 0;
+						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+						*/
+						switch_process_state(EXEC_TCB, EXIT_STATE);
+						SHOULD_REDISPATCH = 0;
+						break;
+						
+					case SYSCALL_EVICTION_REASON:
+
+						/*
+						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);             
+							if(KILL_EXEC_PROCESS) {
+								KILL_EXEC_PROCESS = 0;
+								pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+								switch_process_state(EXEC_TCB, EXIT_STATE);
+								SHOULD_REDISPATCH = 0;
+								break;
+							}
+						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+						*/
+
+						status = syscall_execute(&syscall_instruction);
+
+						if(status) {
+							// La syscall se encarga de settear el e_Exit_Reason (en EXEC_TCB)
+							switch_process_state(EXEC_TCB, EXIT_STATE);
+							SHOULD_REDISPATCH = 0;
+							break;
+						}
+
+						// La syscall se encarga de settear el e_Exit_Reason (en EXEC_TCB) y/o el SHOULD_REDISPATCH
+						break;
+
+					case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
+						log_info(MINIMAL_LOGGER, "PID: <%d> - Desalojado por fin de Quantum", (int) EXEC_TCB->TID);
+
+						/*
+						pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS);             
+							if(KILL_EXEC_PROCESS) {
+								KILL_EXEC_PROCESS = 0;
+								pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+								EXEC_TCB->exit_reason = INTERRUPTED_BY_USER_EXIT_REASON;
+								switch_process_state(EXEC_TCB, EXIT_STATE);
+								SHOULD_REDISPATCH = 0;
+								break;
+							}
+						pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS);
+						*/
+
+						switch_process_state(EXEC_TCB, READY_STATE);
+						SHOULD_REDISPATCH = 0;
+						break;
+				}
+			}
+		signal_draining_requests(&SCHEDULING_SYNC);
+	}
+
+	return NULL;
+}
+
+int wait_free_memory(void) {
+	int status;
+
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		while(!FREE_MEMORY) {
+			pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY);
+		}
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
+
+	return 0;
+}
+
+int signal_free_memory(void) {
+	int status;
+	
+	pthread_mutex_lock(&MUTEX_FREE_MEMORY);
+		FREE_MEMORY = 1;
+		pthread_cond_signal(&COND_FREE_MEMORY);
+	pthread_mutex_unlock(&MUTEX_FREE_MEMORY);
+
+	return 0;
 }
 
 void switch_process_state(t_TCB *tcb, e_Process_State new_state) {

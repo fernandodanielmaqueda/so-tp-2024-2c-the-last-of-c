@@ -29,7 +29,7 @@ void *filesystem_start_server(t_Server *server) {
 	while(1) {
 
 		log_trace(SOCKET_LOGGER, "Esperando [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
-		fd_new_client = server_accept(server->fd_listen);
+		fd_new_client = server_accept(server->fd_listen);// bloqueante
 
 		if(fd_new_client == -1) {
 			log_warning(SOCKET_LOGGER, "Fallo al aceptar [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
@@ -47,7 +47,7 @@ void *filesystem_start_server(t_Server *server) {
 		new_client->client_type = server->clients_type;
 		new_client->server = server;
 		pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) filesystem_client_handler_for_memory, (void *) new_client);
-		pthread_detach(new_client->thread_client_handler);
+		pthread_detach(new_client->thread_client_handler);// desacopla del hilo ppal
 	}
 
 	return NULL;

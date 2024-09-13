@@ -18,7 +18,7 @@ size_t BASE;
 size_t LIMIT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
 
-int EXECUTING = 0;
+bool EXECUTING = 0;
 pthread_mutex_t MUTEX_EXECUTING;
 
 e_Eviction_Reason EVICTION_REASON;
@@ -26,7 +26,7 @@ e_Eviction_Reason EVICTION_REASON;
 e_Kernel_Interrupt KERNEL_INTERRUPT;
 pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
 
-int SYSCALL_CALLED;
+bool SYSCALL_CALLED;
 t_Payload SYSCALL_INSTRUCTION;
 
 int module(int argc, char *argv[])
@@ -87,7 +87,7 @@ void instruction_cycle(void)
     char *IR;
     t_Arguments *arguments = arguments_create(MAX_CPU_INSTRUCTION_ARGUMENTS);
     e_CPU_OpCode cpu_opcode;
-    int exit_status;
+    int status;
 
     while(1) {
 
@@ -134,8 +134,8 @@ void instruction_cycle(void)
             }
 
             // Decode
-            exit_status = arguments_use(arguments, IR);
-            if(exit_status) {
+            status = arguments_use(arguments, IR);
+            if(status) {
                 switch(errno) {
                     case E2BIG:
                         log_error(MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", IR);
@@ -162,12 +162,12 @@ void instruction_cycle(void)
             }
 
             // Execute
-            exit_status = CPU_OPERATIONS[cpu_opcode].function(arguments->argc, arguments->argv);
+            status = CPU_OPERATIONS[cpu_opcode].function(arguments->argc, arguments->argv);
 
             arguments_remove(arguments);
             free(IR);
 
-            if(exit_status) {
+            if(status) {
                 log_trace(MODULE_LOGGER, "Error en la ejecucion de la instruccion");
                 // EVICTION_REASON ya debe ser asignado por la instrucción cuando falla
                 break;
