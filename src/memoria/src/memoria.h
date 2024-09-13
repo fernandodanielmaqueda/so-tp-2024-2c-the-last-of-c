@@ -120,7 +120,7 @@ int create_process(t_Payload *payload);
  * @brief Elimina el proceso, marca el marco como disponible y libera la pagina
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-void kill_process (t_Payload *payload);
+int kill_process (t_Payload *payload);
 
 /**
  * @brief Busca la lista de instruccion y devuelve la instruccion buscada
@@ -163,5 +163,6 @@ void free_memory();
 
 void split_partition(int position, size_t size);
 int add_element_to_array_process (t_Memory_Process* process);
+int verify_and_join_splited_partitions(t_PID pid);
 
 #endif // MEMORIA_H
