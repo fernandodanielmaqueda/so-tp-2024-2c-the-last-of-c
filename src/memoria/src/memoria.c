@@ -149,6 +149,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
                 new_partition->base = base;
                 new_partition->occupied = false;
+                new_partition->pid = -1;
 
                 list_add(PARTITION_TABLE, new_partition);
 
@@ -176,6 +177,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
             new_partition->size = MEMORY_SIZE;
             new_partition->base = 0;
             new_partition->occupied = false;
+            new_partition->pid = -1;
 
             list_add(PARTITION_TABLE, new_partition);
             break;
@@ -260,7 +262,8 @@ void *listen_kernel(t_Client* new_client) {
                 /*
                 case PROCESS_DESTROY_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
-                    kill_process(&(package->payload));
+                    int result = kill_process(&(package->payload));
+                    send_return_value_with_header(PROCESS_DESTROY_HEADER, result, new_client->fd_client);
                     break;
                 
                 case THREAD_CREATE_HEADER:
@@ -577,7 +580,21 @@ void split_partition(int position, size_t size){
 }
 
 
-void kill_process(t_Payload *payload) {
+int kill_process(t_Payload *payload) {
+    
+    int result = 0;
+    t_PID pid;
+
+    payload_remove(payload, &pid, sizeof(t_PID));
+
+    pthread_mutex_lock(&MUTEX_PARTITION_TABLE);
+    ARRAY_PROCESS_MEMORY[pid]->partition->occupied = false;
+    ARRAY_PROCESS_MEMORY[pid]->partition->pid = -1;
+    ARRAY_PROCESS_MEMORY[pid]->partition = NULL;
+    if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME) result = verify_and_join_splited_partitions(pid);    
+    pthread_mutex_unlock(&MUTEX_PARTITION_TABLE);
+    
+    return result;
 
     /*
     t_PID pid;
@@ -634,6 +651,64 @@ void kill_process(t_Payload *payload) {
         exit(1);
     }
     */
+}
+
+int verify_and_join_splited_partitions(t_PID pid){
+
+    int position = -1;
+    t_Partition* partition;
+    size_t count = list_size(PARTITION_TABLE);
+    for (size_t i = 0; i < count; i++)
+    {
+        partition = list_get(PARTITION_TABLE, i);
+        if(partition->pid == pid){
+            position = i;
+            break;
+        }
+    }
+
+    if(position == (-1)) return 1;
+    if((position != 0) && (position != (count-1))){ //No es 1er ni ultima posicion
+        t_Partition* aux_partition_left;
+        t_Partition* aux_partition_right;
+        aux_partition_left = list_get(PARTITION_TABLE, (position -1));
+        aux_partition_right = list_get(PARTITION_TABLE, (position +1));
+        if(aux_partition_right->occupied == false){
+            partition->size += aux_partition_right->size;
+            //free(aux_partition_right);
+            list_remove_and_destroy_element(PARTITION_TABLE, (position +1), free);
+        }
+        if(aux_partition_left->occupied == false){
+            aux_partition_left->size += partition->size;
+            //free(partition);
+            list_remove_and_destroy_element(PARTITION_TABLE, position, free);
+        }
+        return 0;
+    }
+
+    if((position != 0) && (position == (count -1))){ //Es ultima posicion --> contempla que el len > 1
+        t_Partition* aux_partition_left;
+        aux_partition_left = list_get(PARTITION_TABLE, (position -1));
+        if(aux_partition_left->occupied == false){
+            aux_partition_left->size += partition->size;
+            //free(partition);
+            list_remove_and_destroy_element(PARTITION_TABLE, position, free);
+        }
+        return 0;
+    }
+
+    if((position == 0) && (position != (count - 1))){ //Es primer posicion --> contempla que el len > 1
+        t_Partition* aux_partition_right;
+        aux_partition_right = list_get(PARTITION_TABLE, (position +1));
+        if(aux_partition_right->occupied == false){
+            partition->size += aux_partition_right->size;
+            //free(aux_partition_right);
+            list_remove_and_destroy_element(PARTITION_TABLE, (position +1), free);
+        }
+        return 0;
+    }
+    
+    return 0;
 }
 
 int parse_pseudocode_file(char *path, t_list *list_instruction) {
