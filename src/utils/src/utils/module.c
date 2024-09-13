@@ -50,7 +50,7 @@ bool config_has_properties(t_config *config, ...) {
     char *property;
     while((property = va_arg(args, char *)) != NULL) {
         if(!config_has_property(config, property)) {
-            fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", config->path, property);
+            fprintf(stderr, "%s: El archivo de configuración no contiene la clave %s", config->path, property);
             va_end(args);
             return 0;
         }
@@ -232,7 +232,7 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 
     t_link_element *new_element = (t_link_element *) malloc(sizeof(t_link_element));
     if(new_element == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para un nuevo elemento de lista");
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento de la lista", sizeof(t_link_element));
         return -1;
     }
 

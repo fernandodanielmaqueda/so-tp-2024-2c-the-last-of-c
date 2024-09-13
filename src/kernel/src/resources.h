@@ -38,7 +38,7 @@ typedef struct t_Resource {
 extern int RESOURCE_QUANTITY;
 extern t_Resource *RESOURCES;
 
-void resources_read_module_config(t_config *module_config);
+int resources_read_module_config(t_config *module_config);
 t_Resource *resource_find(char *name);
 void resource_log(t_Resource *resource);
 void resources_free(void);

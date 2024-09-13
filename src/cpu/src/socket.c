@@ -11,7 +11,7 @@ t_Client CLIENT_KERNEL_CPU_INTERRUPT;
 
 t_Connection CONNECTION_MEMORY;
 
-void initialize_sockets(void) {
+int initialize_sockets(void) {
     pthread_t thread_cpu_connect_to_memory;
 
     // [Server] CPU (Dispatch) <- [Cliente] Kernel
@@ -25,6 +25,8 @@ void initialize_sockets(void) {
     pthread_join(SERVER_CPU_DISPATCH.thread_server, NULL);
     pthread_join(SERVER_CPU_INTERRUPT.thread_server, NULL);
     pthread_join(thread_cpu_connect_to_memory, NULL);
+
+    return 0;
 }
 
 void finish_sockets(void) {

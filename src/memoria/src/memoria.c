@@ -52,6 +52,11 @@ int module(int argc, char* argv[]) {
     SHARED_LIST_CONNECTIONS_FILESYSTEM.list = list_create();
 
     MAIN_MEMORY = (void *) malloc(MEMORY_SIZE);
+    if(MAIN_MEMORY == NULL) {
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
+        exit(EXIT_FAILURE);
+    }
+
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
     // TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
@@ -88,25 +93,25 @@ void finish_global_variables(void) {
     pthread_mutex_destroy(&(MUTEX_ARRAY_PROCESS_MEMORY));
 }
 
-void read_module_config(t_config* MODULE_CONFIG) {
+int read_module_config(t_config* MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
-        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias", MODULE_CONFIG_PATHNAME);
+        return -1;
     }
 
     char *string;
 
     string = config_get_string_value(MODULE_CONFIG, "ESQUEMA");
 	if(memory_management_scheme_find(string, &MEMORY_MANAGEMENT_SCHEME)) {
-		fprintf(stderr, "%s: No se reconoce el ESQUEMA", string);
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s: valor de la clave ESQUEMA invalido: %s", MODULE_CONFIG_PATHNAME, string);
+		return -1;
 	}
 
     string = config_get_string_value(MODULE_CONFIG, "ALGORITMO_BUSQUEDA");
 	if(memory_allocation_algorithm_find(string, &MEMORY_ALLOCATION_ALGORITHM)) {
-		fprintf(stderr, "%s: No se reconoce el ALGORITMO_BUSQUEDA", string);
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s: valor de la clave ALGORITMO_BUSQUEDA invalido: %s", MODULE_CONFIG_PATHNAME, string);
+		return -1;
 	}
 
     MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
@@ -117,9 +122,9 @@ void read_module_config(t_config* MODULE_CONFIG) {
         { 
             char **fixed_partitions = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
             if(fixed_partitions == NULL) {
-                fprintf(stderr, "No se pudo obtener el valor de PARTICIONES");
+                fprintf(stderr, "%s: la clave PARTICIONES no tiene valor", MODULE_CONFIG_PATHNAME);
                 // string_array_destroy(fixed_partitions); TODO: Ver si acepta que fixed_partitions sea NULL
-                exit(EXIT_FAILURE);
+                return -1;
             }
 
             char *end;
@@ -128,18 +133,18 @@ void read_module_config(t_config* MODULE_CONFIG) {
             for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
                 new_partition = malloc(sizeof(t_Partition));
                 if(new_partition == NULL) {
-                    fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
+                    fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
-                    exit(EXIT_FAILURE);
+                    return -1;
                 }
 
                 new_partition->size = strtoul(fixed_partitions[i], &end, 10);
                 if(!*(fixed_partitions[i]) || *end) {
-                    fprintf(stderr, "El tamaño de la partición %d no es un número entero válido: %s", i, fixed_partitions[i]);
+                    fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
-                    exit(EXIT_FAILURE);
+                    return -1;
                 }
 
                 new_partition->base = base;
@@ -151,9 +156,9 @@ void read_module_config(t_config* MODULE_CONFIG) {
             }
 
             if(list_size(PARTITION_TABLE) == 0) {
-                fprintf(stderr, "No se encontraron particiones fijas");
+                fprintf(stderr, "%s: valor de la clave PARTICIONES invalido", MODULE_CONFIG_PATHNAME);
                 string_array_destroy(fixed_partitions);
-                exit(EXIT_FAILURE);
+                return -1;
             }
 
             string_array_destroy(fixed_partitions);
@@ -164,8 +169,8 @@ void read_module_config(t_config* MODULE_CONFIG) {
         {
             t_Partition *new_partition = malloc(sizeof(t_Partition));
             if(new_partition == NULL) {
-                fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
-                exit(EXIT_FAILURE);
+                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
+                return -1;
             }
 
             new_partition->size = MEMORY_SIZE;
@@ -191,9 +196,9 @@ void read_module_config(t_config* MODULE_CONFIG) {
 
             DIR *dir = opendir(INSTRUCTIONS_PATH);
             if(dir == NULL) {
-                fprintf(stderr, "No se pudo abrir el directorio de instrucciones.");
+                fprintf(stderr, "%s: No se pudo abrir el directorio indicado en el valor de PATH_INSTRUCCIONES: %s", MODULE_CONFIG_PATHNAME, INSTRUCTIONS_PATH);
                 // TODO
-                exit(EXIT_FAILURE);
+                return -1;
             }
             closedir(dir);
         }
@@ -201,6 +206,8 @@ void read_module_config(t_config* MODULE_CONFIG) {
     RESPONSE_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_RESPUESTA");
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
+
+    return 0;
 }
 
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination) {
@@ -330,7 +337,7 @@ int create_process(t_Payload *payload) {
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
         // TODO
-        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para el nuevo proceso.");
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
         result = 1;
         return result;
     }
@@ -459,7 +466,7 @@ int create_process(t_Payload *payload) {
         // Ruta relativa
         target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
         if(target_path == NULL) {
-            log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para la ruta relativa.");
+            log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
             exit(EXIT_FAILURE);
         }
 
@@ -537,9 +544,9 @@ int create_process(t_Payload *payload) {
 
 int add_element_to_array_process (t_Memory_Process* process){
     pthread_mutex_lock(&MUTEX_ARRAY_PROCESS_MEMORY);
-    ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT +1));    
+    ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT + 1));    
     if (ARRAY_PROCESS_MEMORY == NULL) {
-        perror("No se pudo asignar memoria");
+        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de procesos", sizeof(t_Memory_Process *) * (PID_COUNT +1));
         return EXIT_FAILURE;
     }
 
@@ -555,7 +562,7 @@ void split_partition(int position, size_t size){
             t_Partition* old_partition = list_get(PARTITION_TABLE, position);
             t_Partition* new_partition = malloc(sizeof(t_Partition));
             if(new_partition == NULL) {
-                fprintf(stderr, "malloc: No se pudo reservar memoria para una particion");
+                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
                 exit(EXIT_FAILURE);
             }
 

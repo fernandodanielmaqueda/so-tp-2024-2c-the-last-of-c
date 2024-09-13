@@ -51,23 +51,27 @@ int module(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-void initialize_global_variables(void) {
+int initialize_global_variables(void) {
     pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL);
     pthread_mutex_init(&MUTEX_EXECUTING, NULL);
     pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);
+
+    return 0;
 }
 
-void finish_global_variables(void) {
+int finish_global_variables(void) {
     pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT);
     pthread_mutex_destroy(&MUTEX_EXECUTING);
     pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);
+
+    return 0;
 }
 
-void read_module_config(t_config *MODULE_CONFIG) {
+int read_module_config(t_config *MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "PUERTO_ESCUCHA_DISPATCH", "PUERTO_ESCUCHA_INTERRUPT", "LOG_LEVEL", NULL)) {
-        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias", MODULE_CONFIG_PATHNAME);
+        return -1;
     }
 
     CONNECTION_MEMORY = (t_Connection){.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
@@ -79,6 +83,8 @@ void read_module_config(t_config *MODULE_CONFIG) {
     CLIENT_KERNEL_CPU_INTERRUPT = (t_Client){.client_type = KERNEL_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
+
+    return 0;
 }
 
 void instruction_cycle(void)
@@ -263,11 +269,6 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
     return NULL;
 }
 
-int mmu(size_t logical_address, size_t bytes, size_t *destination) {
-
-   return 0;
-}
-
 void cpu_fetch_next_instruction(char **line) {
     if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
         // TODO
@@ -279,6 +280,10 @@ void cpu_fetch_next_instruction(char **line) {
     }
 }
 
+int mmu(size_t logical_address, size_t bytes, size_t *destination) {
+
+   return 0;
+}
 
 void write_memory(size_t physical_address, void *source, size_t bytes) {
     if(source == NULL)

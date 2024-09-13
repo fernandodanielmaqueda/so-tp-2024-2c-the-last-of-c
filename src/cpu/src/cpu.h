@@ -57,17 +57,20 @@ extern t_Payload SYSCALL_INSTRUCTION;
 #define MAX_CPU_INSTRUCTION_ARGUMENTS 1 + 5
 
 int module(int, char*[]);
-void initialize_global_variables(void);
-void finish_global_variables(void);
-void read_module_config(t_config *module_config);
-void initialize_sockets(void);
-void finish_sockets(void);
-void *cpu_dispatch_start_server_for_kernel(void *server_parameter);
-void *cpu_interrupt_start_server_for_kernel(void *server_parameter);
+
+int initialize_global_variables(void);
+int finish_global_variables(void);
+
+int read_module_config(t_config *module_config);
+
 void instruction_cycle(void);
+
 void *kernel_cpu_interrupt_handler(void *NULL_parameter);
-int mmu(size_t logical_address, size_t bytes, size_t *destination);
+
 void cpu_fetch_next_instruction(char **line);
+
+int mmu(size_t logical_address, size_t bytes, size_t *destination);
+
 void write_memory(size_t physical_address, void *source, size_t bytes);
 void read_memory(size_t physical_address, void *destination, size_t bytes);
 

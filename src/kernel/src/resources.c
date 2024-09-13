@@ -6,7 +6,7 @@
 int RESOURCE_QUANTITY;
 t_Resource *RESOURCES;
 
-void resources_read_module_config(t_config *module_config) {
+int resources_read_module_config(t_config *module_config) {
 	char **resource_names = config_get_array_value(module_config, "RECURSOS");
 	char **resource_instances = config_get_array_value(module_config, "INSTANCIAS_RECURSOS");
 
@@ -20,7 +20,7 @@ void resources_read_module_config(t_config *module_config) {
 	if(RESOURCE_QUANTITY > 0) {
 		RESOURCES = malloc(sizeof(t_Resource) * RESOURCE_QUANTITY);
 		if(RESOURCES == NULL) {
-			fprintf(stderr, "No se pudo reservar memoria para los recursos");
+			fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para el array de recursos", sizeof(t_Resource) * RESOURCE_QUANTITY);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -37,6 +37,8 @@ void resources_read_module_config(t_config *module_config) {
 		RESOURCES[i].shared_list_blocked.list = list_create();
 		pthread_mutex_init(&(RESOURCES[i].shared_list_blocked.mutex), NULL);
 	}
+
+	return 0;
 }
 
 t_Resource *resource_find(char *name) {
