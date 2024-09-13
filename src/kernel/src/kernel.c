@@ -21,6 +21,14 @@ const char *STATE_NAMES[] = {
 	[EXIT_STATE] = "EXIT"
 };
 
+char *SCHEDULING_ALGORITHMS[] = {
+	[FIFO_SCHEDULING_ALGORITHM] = "FIFO",
+	[PRIORITIES_SCHEDULING_ALGORITHM] = "PRIORIDADES",
+	[MLQ_SCHEDULING_ALGORITHM] = "CMN"
+};
+
+e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
+
 int module(int argc, char *argv[]) {
 
 	if(argc < 3) {
@@ -107,6 +115,21 @@ void read_module_config(t_config *module_config) {
 	LOG_LEVEL = log_level_from_string(config_get_string_value(module_config, "LOG_LEVEL"));
 }
 
+int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
+
+    if(name == NULL || destination == NULL)
+        return -1;
+    
+    size_t scheduling_algorithms_number = sizeof(SCHEDULING_ALGORITHMS) / sizeof(SCHEDULING_ALGORITHMS[0]);
+    for (register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
+        if (strcmp(SCHEDULING_ALGORITHMS[scheduling_algorithm], name) == 0) {
+            *destination = scheduling_algorithm;
+            return 0;
+        }
+
+    return -1;
+}
+
 t_PCB *pcb_create(void) {
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
@@ -115,7 +138,7 @@ t_PCB *pcb_create(void) {
 		return NULL;
 	}
 
-	pcb->PID = pid_assign(&PID_MANAGER, pcb);
+	pid_assign(&PID_MANAGER, pcb, &(pcb->PID));
 	id_manager_init(&(pcb->thread_manager), THREAD_ID_MANAGER_TYPE);
 	pcb->list_mutexes = list_create();
 
@@ -142,7 +165,7 @@ t_TCB *tcb_create(t_PCB *pcb) {
 		return NULL;
 	}
 
-	tcb->TID = tid_assign(&(pcb->thread_manager), tcb);
+	tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID));
 	//pcb->list_tids = list_create();
 	pcb->list_mutexes = list_create();
 
@@ -166,7 +189,7 @@ int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
 		return -1;
 	}
 
-	int exit_value = 0;
+	int status;
 
 	id_manager->id_data_type = id_data_type;
 
@@ -180,32 +203,32 @@ int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
 
 	id_manager->cb_array = NULL;
 
-	exit_value = pthread_mutex_init(&(id_manager->mutex_cb_array), NULL);
-	if(exit_value) {
+	status = pthread_mutex_init(&(id_manager->mutex_cb_array), NULL);
+	if(status) {
 		free(id_manager->id_counter);
-		errno = exit_value;
+		errno = status;
 		return -1;
 	}
 
 	id_manager->list_released_ids = list_create();
 
-	exit_value = pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL);
-	if(exit_value) {
+	status = pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL);
+	if(status) {
 		free(id_manager->id_counter);
 		free(id_manager->cb_array);
 		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
-		errno = exit_value;
+		errno = status;
 		return -1;
 	}
 
-	exit_value = pthread_cond_init(&(id_manager->cond_list_released_ids), NULL);
-	if(exit_value) {
+	status = pthread_cond_init(&(id_manager->cond_list_released_ids), NULL);
+	if(status) {
 		free(id_manager->id_counter);
 		free(id_manager->cb_array);
 		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
 		list_destroy_and_destroy_elements(id_manager->list_released_ids, free);
 		pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
-		errno = exit_value;
+		errno = status;
 		return -1;
 	}
 
@@ -221,64 +244,138 @@ void id_manager_destroy(t_ID_Manager *id_manager) {
 	pthread_cond_destroy(&(id_manager->cond_list_released_ids));
 }
 
-size_t _id_assign(t_ID_Manager *id_manager, void *data) {
-	size_t id_value;
+int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
+	if(id_manager == NULL || result == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
 
-	pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
-		id_to_size(id_manager->id_data_type, &id_value, id_manager->id_counter);
+	int status;
+	size_t id_generic;
 
-		if(id_value <= (get_id_max(id_manager->id_data_type))) {
-			// Si no se alcanzó el máximo de ID (sin fijarse si hay o no ID liberados), se asigna un nuevo ID
+	status = pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
+	if(status) {
+		log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
+		errno = status;
+		return -1;
+	}
+		// Convierto el tipo de dato del ID a uno genérico (size_t) para poder operar con él en la función
+		if(id_to_size(id_manager->id_data_type, id_manager->id_counter, &id_generic)) {
 			pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+			return -1;
+		}
 
-			pthread_mutex_lock(&(id_manager->mutex_cb_array));
-				void **new_cb_array = realloc(id_manager->cb_array, sizeof(void *) * (id_value + 1));
+		// Si no se alcanzó el máximo de ID (sin fijarse si hay o no ID liberados), se asigna un nuevo ID
+		if(id_generic <= get_id_max(id_manager->id_data_type)) {
+			status = pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+			if(status) {
+				log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+				errno = status;
+				return -1;
+			}
+
+			status = pthread_mutex_lock(&(id_manager->mutex_cb_array));
+			if(status) {
+				log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
+				errno = status;
+				return -1;
+			}
+
+				void **new_cb_array = realloc(id_manager->cb_array, sizeof(void *) * (id_generic + 1));
 				if(new_cb_array == NULL) {
-					log_error(MODULE_LOGGER, "No se pudo reservar memoria para el array dinamico");
-					exit(EXIT_FAILURE);
+					log_warning(MODULE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el array dinamico de bloques de control", sizeof(void *) * (id_generic + 1));
+					pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+					errno = ENOMEM;
+					return -1;
 				}
 				id_manager->cb_array = new_cb_array;
 
-				(id_manager->cb_array)[id_value] = data;
-			pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+				(id_manager->cb_array)[id_generic] = data;
+				
+			status = pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+			if(status) {
+				log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+				errno = status;
+				return -1;
+			}
 
-			id_value++;
-			size_to_id(id_manager->id_data_type, id_manager->id_counter, &id_value);
+			// Se convierte el ID asignado a su tipo de dato correspondiente como resultado
+			if(size_to_id(id_manager->id_data_type, &id_generic, result)) {
+				return -1;
+			}
 
-			return id_value;
+			id_generic++;
+			
+			// Se actualiza el contador de IDs
+			if(size_to_id(id_manager->id_data_type, &id_generic, id_manager->id_counter)) {
+				return -1;
+			}
+
+			return 0;
 		}
 
-		// Se espera hasta que haya algún ID liberado para reutilizarlo
-		while(id_manager->list_released_ids->head == NULL)
-			pthread_cond_wait(&(id_manager->cond_list_released_ids), &(id_manager->mutex_list_released_ids));
+		// En caso contrario, se espera hasta que haya algún ID liberado para reutilizarlo
+		while(id_manager->list_released_ids->head == NULL) {
+			status = pthread_cond_wait(&(id_manager->cond_list_released_ids), &(id_manager->mutex_list_released_ids));
+			if(status) {
+				log_warning(MODULE_LOGGER, "pthread_cond_wait: %s", strerror(status));
+				errno = status;
+				return -1;
+			}
+		}
 
 		t_link_element *element = id_manager->list_released_ids->head;
 
 		id_manager->list_released_ids->head = element->next;
 		id_manager->list_released_ids->elements_count--;
-	pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+	
+	status = pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+	if(status) {
+		log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+		errno = status;
+		return -1;
+	}
 
-	id_to_size(id_manager->id_data_type, &id_value, element->data);
+	// Se determina el ID liberado como el resultado
+	memcpy(result, element->data, get_id_size(id_manager->id_data_type));
+
+	// Convierto el tipo de dato del ID a uno genérico (size_t) para poder operar con él en la función
+	status = id_to_size(id_manager->id_data_type, element->data, &id_generic);
+	if(status) {
+		return -1;
+	}
 
 	free(element->data);
 	free(element);
 
-	pthread_mutex_lock(&(id_manager->mutex_cb_array));
-		(id_manager->cb_array)[id_value] = data;
-	pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+	status = pthread_mutex_lock(&(id_manager->mutex_cb_array));
+	if(status) {
+		log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
+		errno = status;
+		return -1;
+	}
 
-	return id_value;
+		(id_manager->cb_array)[id_generic] = data;
+
+	status = pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+	if(status) {
+		log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+		errno = status;
+		return -1;
+	}
+
+	return 0;
 }
 
-t_PID pid_assign(t_ID_Manager *id_manager, t_PCB *pcb) {
-	return (t_PID) _id_assign(id_manager, (void *) pcb);
+int pid_assign(t_ID_Manager *id_manager, t_PCB *pcb, t_PID *result) {
+	return _id_assign(id_manager, (void *) pcb, (void *) result);
 }
 
-t_TID tid_assign(t_ID_Manager *id_manager, t_TCB *tcb) {
-	return (t_TID) _id_assign(id_manager, (void *) tcb);
+int tid_assign(t_ID_Manager *id_manager, t_TCB *tcb, t_TID *result) {
+	return _id_assign(id_manager, (void *) tcb, (void *) result);
 }
 
-void _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
+int _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
 	pthread_mutex_lock(&(id_manager->mutex_cb_array));
 		(id_manager->cb_array)[id] = NULL;
 	pthread_mutex_unlock(&(id_manager->mutex_cb_array));
@@ -297,9 +394,11 @@ void _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
 	pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
 
 	pthread_cond_signal(&(id_manager->cond_list_released_ids));
+
+	return 0;
 }
 
-void pid_release(t_ID_Manager *id_manager, t_PID pid) {
+int pid_release(t_ID_Manager *id_manager, t_PID pid) {
 	t_PID *pid_copy = malloc(sizeof(t_PID));
 	if(pid_copy == NULL) {
 		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el PID");
@@ -308,9 +407,11 @@ void pid_release(t_ID_Manager *id_manager, t_PID pid) {
 	*pid_copy = pid;
 
 	_id_release(id_manager, (size_t) pid, (void *) pid_copy);
+
+	return 0;
 }
 
-void tid_release(t_ID_Manager *id_manager, t_TID tid) {
+int tid_release(t_ID_Manager *id_manager, t_TID tid) {
 	t_TID *tid_copy = malloc(sizeof(t_TID));
 	if(tid_copy == NULL) {
 		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el TID");
@@ -319,6 +420,8 @@ void tid_release(t_ID_Manager *id_manager, t_TID tid) {
 	*tid_copy = tid;
 
 	_id_release(id_manager, (size_t) tid, (void *) tid_copy);
+
+	return 0;
 }
 
 size_t get_id_max(e_ID_Manager_Type id_manager_type) {
@@ -343,22 +446,36 @@ size_t get_id_size(e_ID_Manager_Type id_manager_type) {
 	return 0;
 }
 
-void id_to_size(e_ID_Manager_Type id_data_type, size_t *destination, void *source) {
+int id_to_size(e_ID_Manager_Type id_data_type, void *source, size_t *destination) {
+	if(destination == NULL || source == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
 	switch(id_data_type) {
 		case PROCESS_ID_MANAGER_TYPE:
 			*destination = *((t_PID *) source);
 		case THREAD_ID_MANAGER_TYPE:
 			*destination = *((t_TID *) source);
 	}
+
+	return 0;
 }
 
-void size_to_id(e_ID_Manager_Type id_data_type, void *destination, size_t *source) {
+int size_to_id(e_ID_Manager_Type id_data_type, size_t *source, void *destination) {
+	if(destination == NULL || source == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
 	switch(id_data_type) {
 		case PROCESS_ID_MANAGER_TYPE:
 			*((t_PID *) destination) = (t_PID) (*source);
 		case THREAD_ID_MANAGER_TYPE:
 			*((t_TID *) destination) = (t_TID) (*source);
 	}
+
+	return 0;
 }
 
 bool pcb_matches_pid(t_PCB *pcb, t_PID *pid) {

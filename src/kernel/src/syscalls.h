@@ -30,8 +30,6 @@ typedef struct t_Syscall {
 
 extern t_Syscall SYSCALLS[];
 
-extern t_TCB *SYSCALL_TCB;
-
 int syscall_execute(t_Payload *syscall_instruction);
 
 int wait_kernel_syscall(t_Payload *syscall_arguments);

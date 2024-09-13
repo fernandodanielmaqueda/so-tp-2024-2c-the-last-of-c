@@ -25,7 +25,6 @@
 #include "utils/module.h"
 #include "utils/serialize/exec_context.h"
 #include "utils/socket.h"
-#include "console.h"
 #include "socket.h"
 #include "scheduler.h"
 

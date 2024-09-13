@@ -61,9 +61,9 @@ int client_start_try(char *ip, char *port) {
 	hints.ai_family = AF_UNSPEC; // AF_INET para IPv4 unicamente
 	hints.ai_socktype = SOCK_STREAM;
 
-	int exit_code = getaddrinfo(ip, port, &hints, &result);
-  if (exit_code != 0) {
-    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(exit_code));
+	int status = getaddrinfo(ip, port, &hints, &result);
+  if (status) {
+    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
 
@@ -125,9 +125,9 @@ int server_start_try(char* port) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	int exit_code = getaddrinfo(NULL, port, &hints, &result);
-  if (exit_code != 0) {
-    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(exit_code));
+	int status = getaddrinfo(NULL, port, &hints, &result);
+  if (status) {
+    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
 
