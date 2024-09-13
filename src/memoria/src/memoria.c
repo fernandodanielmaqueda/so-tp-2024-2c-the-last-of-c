@@ -44,7 +44,11 @@ int module(int argc, char* argv[]) {
 
     PARTITION_TABLE = list_create();
 
-	initialize_configs(MODULE_CONFIG_PATHNAME);
+	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
+        // TODO
+        exit(EXIT_FAILURE);
+    }
+    
     initialize_loggers();
     initialize_global_variables();
 

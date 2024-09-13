@@ -28,15 +28,15 @@ void finish_loggers(void) {
 	log_destroy(SERIALIZE_LOGGER);
 }
 
-void initialize_configs(char *pathname) {
+int initialize_configs(char *pathname) {
 	MODULE_CONFIG = config_create(pathname);
 
 	if(MODULE_CONFIG == NULL) {
 		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", pathname);
-        exit(EXIT_FAILURE);
+        return -1;
 	}
 
-	read_module_config(MODULE_CONFIG);
+	return read_module_config(MODULE_CONFIG);
 }
 
 void finish_configs(void) {
@@ -46,18 +46,20 @@ void finish_configs(void) {
 bool config_has_properties(t_config *config, ...) {
     va_list args;
     va_start(args, config);
+
+	bool result = true;
     
     char *property;
     while((property = va_arg(args, char *)) != NULL) {
         if(!config_has_property(config, property)) {
             fprintf(stderr, "%s: El archivo de configuración no contiene la clave %s\n", config->path, property);
             va_end(args);
-            return 0;
+            result = false;
         }
     }
 
     va_end(args);
-    return -1;
+    return result;
 }
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {

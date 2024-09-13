@@ -45,7 +45,7 @@ extern char *MODULE_CONFIG_PATHNAME;
 
 void initialize_loggers(void);
 void finish_loggers(void);
-void initialize_configs(char *pathname);
+int initialize_configs(char *pathname);
 void finish_configs(void);
 bool config_has_properties(t_config *config, ...);
 extern int read_module_config(t_config *);

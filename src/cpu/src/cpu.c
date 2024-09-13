@@ -32,7 +32,11 @@ t_Payload SYSCALL_INSTRUCTION;
 int module(int argc, char *argv[])
 {
 
-    initialize_configs(MODULE_CONFIG_PATHNAME);
+    if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
+        // TODO
+        exit(1);
+    }
+    
     initialize_loggers();
     initialize_global_variables();
     initialize_sockets();
