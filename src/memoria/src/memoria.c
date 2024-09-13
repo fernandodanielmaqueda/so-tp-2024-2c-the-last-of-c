@@ -96,7 +96,7 @@ void finish_global_variables(void) {
 int read_module_config(t_config* MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
-        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias", MODULE_CONFIG_PATHNAME);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
         return -1;
     }
 
@@ -104,13 +104,13 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
     string = config_get_string_value(MODULE_CONFIG, "ESQUEMA");
 	if(memory_management_scheme_find(string, &MEMORY_MANAGEMENT_SCHEME)) {
-		fprintf(stderr, "%s: valor de la clave ESQUEMA invalido: %s", MODULE_CONFIG_PATHNAME, string);
+		fprintf(stderr, "%s: valor de la clave ESQUEMA invalido: %s\n", MODULE_CONFIG_PATHNAME, string);
 		return -1;
 	}
 
     string = config_get_string_value(MODULE_CONFIG, "ALGORITMO_BUSQUEDA");
 	if(memory_allocation_algorithm_find(string, &MEMORY_ALLOCATION_ALGORITHM)) {
-		fprintf(stderr, "%s: valor de la clave ALGORITMO_BUSQUEDA invalido: %s", MODULE_CONFIG_PATHNAME, string);
+		fprintf(stderr, "%s: valor de la clave ALGORITMO_BUSQUEDA invalido: %s\n", MODULE_CONFIG_PATHNAME, string);
 		return -1;
 	}
 
@@ -122,7 +122,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
         { 
             char **fixed_partitions = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
             if(fixed_partitions == NULL) {
-                fprintf(stderr, "%s: la clave PARTICIONES no tiene valor", MODULE_CONFIG_PATHNAME);
+                fprintf(stderr, "%s: la clave PARTICIONES no tiene valor\n", MODULE_CONFIG_PATHNAME);
                 // string_array_destroy(fixed_partitions); TODO: Ver si acepta que fixed_partitions sea NULL
                 return -1;
             }
@@ -133,7 +133,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
             for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
                 new_partition = malloc(sizeof(t_Partition));
                 if(new_partition == NULL) {
-                    fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
+                    fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
                     return -1;
@@ -141,7 +141,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
                 new_partition->size = strtoul(fixed_partitions[i], &end, 10);
                 if(!*(fixed_partitions[i]) || *end) {
-                    fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
+                    fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
                     // TODO: Liberar la lista de particiones
                     string_array_destroy(fixed_partitions);
                     return -1;
@@ -157,7 +157,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
             }
 
             if(list_size(PARTITION_TABLE) == 0) {
-                fprintf(stderr, "%s: valor de la clave PARTICIONES invalido", MODULE_CONFIG_PATHNAME);
+                fprintf(stderr, "%s: valor de la clave PARTICIONES invalido\n", MODULE_CONFIG_PATHNAME);
                 string_array_destroy(fixed_partitions);
                 return -1;
             }
@@ -170,7 +170,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
         {
             t_Partition *new_partition = malloc(sizeof(t_Partition));
             if(new_partition == NULL) {
-                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
+                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
                 return -1;
             }
 
@@ -198,7 +198,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
             DIR *dir = opendir(INSTRUCTIONS_PATH);
             if(dir == NULL) {
-                fprintf(stderr, "%s: No se pudo abrir el directorio indicado en el valor de PATH_INSTRUCCIONES: %s", MODULE_CONFIG_PATHNAME, INSTRUCTIONS_PATH);
+                fprintf(stderr, "%s: No se pudo abrir el directorio indicado en el valor de PATH_INSTRUCCIONES: %s\n", MODULE_CONFIG_PATHNAME, INSTRUCTIONS_PATH);
                 // TODO
                 return -1;
             }
@@ -565,7 +565,7 @@ void split_partition(int position, size_t size){
             t_Partition* old_partition = list_get(PARTITION_TABLE, position);
             t_Partition* new_partition = malloc(sizeof(t_Partition));
             if(new_partition == NULL) {
-                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion", sizeof(t_Partition));
+                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
                 exit(EXIT_FAILURE);
             }
 

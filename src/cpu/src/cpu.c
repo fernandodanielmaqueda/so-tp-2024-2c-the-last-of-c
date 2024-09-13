@@ -70,7 +70,7 @@ int finish_global_variables(void) {
 int read_module_config(t_config *MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "PUERTO_ESCUCHA_DISPATCH", "PUERTO_ESCUCHA_INTERRUPT", "LOG_LEVEL", NULL)) {
-        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias", MODULE_CONFIG_PATHNAME);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
         return -1;
     }
 

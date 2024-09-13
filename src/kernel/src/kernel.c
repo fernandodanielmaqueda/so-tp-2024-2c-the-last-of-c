@@ -103,7 +103,7 @@ int finish_global_variables(void) {
 int read_module_config(t_config *module_config) {
 
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "IP_CPU", "PUERTO_CPU_DISPATCH", "PUERTO_CPU_INTERRUPT", "ALGORITMO_PLANIFICACION", "QUANTUM", "LOG_LEVEL", NULL)) {
-        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias", MODULE_CONFIG_PATHNAME);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
         return -1;
     }
 	
@@ -112,7 +112,7 @@ int read_module_config(t_config *module_config) {
 	
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
-		fprintf(stderr, "%s: valor de la clave ALGORITMO_PLANIFICACION invalido: %s", MODULE_CONFIG_PATHNAME, string);
+		fprintf(stderr, "%s: valor de la clave ALGORITMO_PLANIFICACION invalido: %s\n", MODULE_CONFIG_PATHNAME, string);
 		return -1;
 	}
 

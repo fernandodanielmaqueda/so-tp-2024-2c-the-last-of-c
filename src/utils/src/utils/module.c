@@ -32,7 +32,7 @@ void initialize_configs(char *pathname) {
 	MODULE_CONFIG = config_create(pathname);
 
 	if(MODULE_CONFIG == NULL) {
-		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion", pathname);
+		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", pathname);
         exit(EXIT_FAILURE);
 	}
 
@@ -50,7 +50,7 @@ bool config_has_properties(t_config *config, ...) {
     char *property;
     while((property = va_arg(args, char *)) != NULL) {
         if(!config_has_property(config, property)) {
-            fprintf(stderr, "%s: El archivo de configuración no contiene la clave %s", config->path, property);
+            fprintf(stderr, "%s: El archivo de configuración no contiene la clave %s\n", config->path, property);
             va_end(args);
             return 0;
         }
