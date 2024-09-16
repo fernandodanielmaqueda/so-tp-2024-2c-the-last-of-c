@@ -249,6 +249,7 @@ void *listen_kernel(t_Client* new_client) {
 	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] iniciado.", new_client->fd_client);
 
     t_Package* package;
+    int status;
     bool petition_arrived = true;
 
 	while (petition_arrived){
@@ -260,14 +261,14 @@ void *listen_kernel(t_Client* new_client) {
                 
                 case PROCESS_CREATE_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
-                    int result = create_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_CREATE_HEADER, result, new_client->fd_client);
+                    status = create_process(&(package->payload));
+                    send_return_value_with_header(PROCESS_CREATE_HEADER, status, new_client->fd_client);
                     break;
                 
                 case PROCESS_DESTROY_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
-                    int result = kill_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_DESTROY_HEADER, result, new_client->fd_client);
+                    status = kill_process(&(package->payload));
+                    send_return_value_with_header(PROCESS_DESTROY_HEADER, status, new_client->fd_client);
                     break;
                 /*
                 case THREAD_CREATE_HEADER:
