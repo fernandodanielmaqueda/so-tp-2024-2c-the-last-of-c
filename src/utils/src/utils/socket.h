@@ -47,6 +47,7 @@ typedef struct t_Client {
 
 // Server
 
+void *server_thread_for_client(t_Client *new_client);
 void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Client *));
 
 void server_start(t_Server *server);

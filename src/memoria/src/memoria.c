@@ -248,45 +248,40 @@ void listen_kernel(int fd_client) {
 
     t_Package* package;
     int status;
-    bool petition_arrived = true;
 
-	while (petition_arrived){
-
-        if(package_receive(&package, fd_client)) {
-            petition_arrived = false;
+    if(package_receive(&package, fd_client)) {
+        
+        switch(package->header) {
             
-            switch(package->header) {
-                
-                case PROCESS_CREATE_HEADER:
-                    log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
-                    status = create_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_CREATE_HEADER, status, fd_client);
-                    break;
-                
-                case PROCESS_DESTROY_HEADER:
-                    log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
-                    status = kill_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_DESTROY_HEADER, status, fd_client);
-                    break;
-                /*
-                case THREAD_CREATE_HEADER:
-                    log_info(MODULE_LOGGER, "KERNEL: Creacion hilo nuevo recibido.");
-                    create_thread(&(package->payload));
-                    break;
-                
-                case THREAD_DESTROY_HEADER:
-                    log_info(MODULE_LOGGER, "KERNEL: Finalizar hilo recibido.");
-                    kill_thread(&(package->payload));
-                    break;
+            case PROCESS_CREATE_HEADER:
+                log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion proceso nuevo recibido.", fd_client);
+                status = create_process(&(package->payload));
+                send_return_value_with_header(PROCESS_CREATE_HEADER, status, fd_client);
+                break;
+            
+            case PROCESS_DESTROY_HEADER:
+                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar proceso recibido.", fd_client);
+                status = kill_process(&(package->payload));
+                send_return_value_with_header(PROCESS_DESTROY_HEADER, status, fd_client);
+                break;
+            /*
+            case THREAD_CREATE_HEADER:
+                log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion hilo nuevo recibido.", fd_client);
+                create_thread(&(package->payload));
+                break;
+            
+            case THREAD_DESTROY_HEADER:
+                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
+                kill_thread(&(package->payload));
+                break;
 */
-                default:
-                    log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
-                    break;
+            default:
+                log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+                break;
 
-            }
-
-            package_destroy(package);
         }
+
+        package_destroy(package);
     }
 
 	return;
