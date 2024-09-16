@@ -161,7 +161,7 @@ void read_memory(t_Payload *socketRecibido, int socket);
 
 void free_memory();
 
-void split_partition(int position, size_t size);
+int split_partition(int position, size_t size);
 int add_element_to_array_process (t_Memory_Process* process);
 int verify_and_join_splited_partitions(t_PID pid);
 void free_threads(int pid);

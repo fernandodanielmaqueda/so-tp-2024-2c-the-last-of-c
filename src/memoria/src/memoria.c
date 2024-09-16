@@ -424,7 +424,7 @@ int create_process(t_Payload *payload) {
                 }
             }
             //REALIZO EL SPLIT DE LA PARTICION (si es requerido)
-            if((partition->size != new_process->size) && !(unavailable)) split_partition(location, new_process->size);
+            if((partition->size != new_process->size) && !(unavailable)) result = split_partition(location, new_process->size);
 
             break;
         }
@@ -564,7 +564,7 @@ int add_element_to_array_process (t_Memory_Process* process){
     return EXIT_SUCCESS;
 }
 
-void split_partition(int position, size_t size){
+int split_partition(int position, size_t size){
     
             t_Partition* old_partition = list_get(PARTITION_TABLE, position);
             t_Partition* new_partition = malloc(sizeof(t_Partition));
@@ -580,6 +580,8 @@ void split_partition(int position, size_t size){
             position++;
 
             list_add_in_index(PARTITION_TABLE, position, new_partition);
+
+            return EXIT_SUCCESS;
 
 }
 
