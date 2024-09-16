@@ -53,10 +53,12 @@ typedef enum e_Process_State {
 
 typedef struct t_PCB {
     t_PID PID;
+
     size_t size;
 
     t_ID_Manager thread_manager;
-    t_list *list_mutexes;
+
+    t_Shared_List shared_list_mutexes;
 } t_PCB;
 
 typedef struct t_TCB {
@@ -64,16 +66,17 @@ typedef struct t_TCB {
 
     t_PCB *pcb;
 
-    char *pseudocode_pathname;
+    char *pseudocode_filename;
+    t_Priority priority;
 
     e_Process_State current_state;
     t_Shared_List *shared_list_state;
 
-    t_Priority priority;
-
     t_Quantum quantum;
 
     t_Payload syscall_instruction;
+
+    t_Shared_List shared_list_blocked_thread_join;
 } t_TCB;
 
 typedef enum e_Scheduling_Algorithm {
@@ -107,10 +110,10 @@ int finish_global_variables(void);
 int read_module_config(t_config *module_config);
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 
-t_PCB *pcb_create(void);
+t_PCB *pcb_create(size_t size);
 void pcb_destroy(t_PCB *pcb);
 
-t_TCB *tcb_create(t_PCB *pcb);
+t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority);
 void tcb_destroy(t_TCB *tcb);
 
 int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type);

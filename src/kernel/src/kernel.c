@@ -2,6 +2,7 @@
 /* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
 
 #include "kernel.h"
+#include <commons/memory.h>
 
 char *MODULE_NAME = "kernel";
 
@@ -40,7 +41,7 @@ int module(int argc, char *argv[]) {
 		// TODO
 		exit(EXIT_FAILURE);
 	}
-	
+
 	initialize_loggers();
 
 	initialize_global_variables();
@@ -67,6 +68,8 @@ int initialize_global_variables(void) {
 	pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL);
 
 	init_resource_sync(&READY_SYNC);
+
+	//new_ready_list(&READY_SYNC, &ARRAY_LIST_READY[0], 0);
 
 	SHARED_LIST_EXEC.list = list_create();
 	pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL);
@@ -100,6 +103,29 @@ int finish_global_variables(void) {
 	sem_destroy(&SEM_SHORT_TERM_SCHEDULER);
 
 	pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT);
+
+	return 0;
+}
+
+int assign_ready_list(t_TCB *tcb, t_Priority *result) {
+
+	//wait_ongoing_requests(sync);
+	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
+	if(new_shared_list == NULL) {
+		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
+		return -1;
+	}
+
+	new_shared_list->list = list_create();
+	pthread_mutex_init(&(new_shared_list->mutex), NULL);
+
+	ARRAY_LIST_READY = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
+	if(ARRAY_LIST_READY == NULL) {
+		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
+		return -1;
+	}
+	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
+	PRIORITY_COUNT++;
 
 	return 0;
 }
@@ -141,7 +167,7 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
     return -1;
 }
 
-t_PCB *pcb_create(void) {
+t_PCB *pcb_create(size_t size) {
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
 	if(pcb == NULL) {
@@ -149,18 +175,24 @@ t_PCB *pcb_create(void) {
 		return NULL;
 	}
 
-	pid_assign(&PID_MANAGER, pcb, &(pcb->PID));
+	pcb->size = size;
+
 	id_manager_init(&(pcb->thread_manager), THREAD_ID_MANAGER_TYPE);
-	pcb->list_mutexes = list_create();
+	
+	//pcb->list_mutexes = list_create();
 
 	//pcb->exec_context.quantum = QUANTUM;
 
 	//payload_init(&(pcb->syscall_instruction));
 
+	pid_assign(&PID_MANAGER, pcb, &(pcb->PID));
+
 	return pcb;
 }
 
 void pcb_destroy(t_PCB *pcb) {
+	pid_release(&PID_MANAGER, pcb->PID);
+
 	//list_destroy(pcb->assigned_resources);
 
 	//payload_destroy(&(pcb->syscall_instruction));
@@ -168,7 +200,7 @@ void pcb_destroy(t_PCB *pcb) {
 	free(pcb);
 }
 
-t_TCB *tcb_create(t_PCB *pcb) {	
+t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {	
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
@@ -176,19 +208,35 @@ t_TCB *tcb_create(t_PCB *pcb) {
 		return NULL;
 	}
 
+	tcb->pcb = pcb;
+
+	tcb->pseudocode_filename = pseudocode_filename;
+	tcb->priority = priority;
+
+	tcb->current_state = NEW_STATE;
+	tcb->shared_list_state = NULL;
+
+	tcb->quantum = QUANTUM;
+
+	payload_init(&(tcb->syscall_instruction));
+
+	tcb->shared_list_blocked_thread_join.list = list_create();
+	pthread_mutex_init(&(tcb->shared_list_blocked_thread_join.mutex), NULL);
+
 	tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID));
-	//pcb->list_tids = list_create();
-	pcb->list_mutexes = list_create();
-
-	//pcb->current_state = NEW_STATE;
-	//pcb->shared_list_state = NULL;
-
-	//payload_init(&(pcb->syscall_instruction));
 
 	return tcb;
 }
 
 void tcb_destroy(t_TCB *tcb) {
+	tid_release(&(tcb->pcb->thread_manager), tcb->TID);
+	
+	free(tcb->pseudocode_filename);
+
+	payload_destroy(&(tcb->syscall_instruction));
+
+	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) pcb_destroy);
+	pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex));
 
 	free(tcb);
 }
