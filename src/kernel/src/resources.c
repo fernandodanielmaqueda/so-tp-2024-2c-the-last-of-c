@@ -6,21 +6,21 @@
 int RESOURCE_QUANTITY;
 t_Resource *RESOURCES;
 
-void resources_read_module_config(t_config *module_config) {
+int resources_read_module_config(t_config *module_config) {
 	char **resource_names = config_get_array_value(module_config, "RECURSOS");
 	char **resource_instances = config_get_array_value(module_config, "INSTANCIAS_RECURSOS");
 
 	for(RESOURCE_QUANTITY = 0; (resource_names[RESOURCE_QUANTITY] != NULL) && (resource_instances[RESOURCE_QUANTITY] != NULL); RESOURCE_QUANTITY++);
 	
 	if((resource_names[RESOURCE_QUANTITY] != NULL) || (resource_instances[RESOURCE_QUANTITY] != NULL)) {
-		fprintf(stderr, "La cantidad de recursos y de instancias de recursos no coinciden");
+		fprintf(stderr, "La cantidad de recursos y de instancias de recursos no coinciden\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if(RESOURCE_QUANTITY > 0) {
 		RESOURCES = malloc(sizeof(t_Resource) * RESOURCE_QUANTITY);
 		if(RESOURCES == NULL) {
-			fprintf(stderr, "No se pudo reservar memoria para los recursos");
+			fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para el array de recursos\n", sizeof(t_Resource) * RESOURCE_QUANTITY);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -29,7 +29,7 @@ void resources_read_module_config(t_config *module_config) {
 	for(register int i = 0; i < RESOURCE_QUANTITY; i++) {
 		RESOURCES[i].instances = strtol(resource_instances[i], &end, 10);
 		if(!*(resource_instances[i]) || *end) {
-			fprintf(stderr, "La cantidad de instancias del recurso %s no es un número válido: %s", resource_names[i], resource_instances[i]);
+			fprintf(stderr, "La cantidad de instancias del recurso %s no es un número válido: %s\n", resource_names[i], resource_instances[i]);
 			exit(EXIT_FAILURE);
 		}
 
@@ -37,6 +37,8 @@ void resources_read_module_config(t_config *module_config) {
 		RESOURCES[i].shared_list_blocked.list = list_create();
 		pthread_mutex_init(&(RESOURCES[i].shared_list_blocked.mutex), NULL);
 	}
+
+	return 0;
 }
 
 t_Resource *resource_find(char *name) {

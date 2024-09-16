@@ -45,6 +45,7 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
 
     *data = malloc((size_t) size_serialized);
     if(*data == NULL) {
+      log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar los datos", (size_t) size_serialized);
       errno = ENOMEM;
       return -1;
     }

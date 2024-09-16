@@ -113,7 +113,7 @@ int read_mem_cpu_operation(int argc, char **argv)
     /*
     void *source = malloc((size_t) bytes);
     if(source == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes", (size_t) bytes);
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para read_memory", (size_t) bytes);
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         // free_list_physical_addresses(list_physical_addresses);
         return -1;

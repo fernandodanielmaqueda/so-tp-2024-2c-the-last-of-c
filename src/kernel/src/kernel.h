@@ -102,9 +102,9 @@ extern char *SCHEDULING_ALGORITHMS[];
 extern e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 
 int module(int, char*[]);
-void initialize_global_variables(void);
-void finish_global_variables(void);
-void read_module_config(t_config *module_config);
+int initialize_global_variables(void);
+int finish_global_variables(void);
+int read_module_config(t_config *module_config);
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 
 t_PCB *pcb_create(void);

@@ -45,10 +45,10 @@ extern char *MODULE_CONFIG_PATHNAME;
 
 void initialize_loggers(void);
 void finish_loggers(void);
-void initialize_configs(char *pathname);
+int initialize_configs(char *pathname);
 void finish_configs(void);
 bool config_has_properties(t_config *config, ...);
-extern void read_module_config(t_config *);
+extern int read_module_config(t_config *);
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);

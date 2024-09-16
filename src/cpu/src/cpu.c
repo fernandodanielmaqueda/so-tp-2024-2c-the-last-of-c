@@ -32,7 +32,11 @@ t_Payload SYSCALL_INSTRUCTION;
 int module(int argc, char *argv[])
 {
 
-    initialize_configs(MODULE_CONFIG_PATHNAME);
+    if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
+        // TODO
+        exit(EXIT_FAILURE);
+    }
+
     initialize_loggers();
     initialize_global_variables();
     initialize_sockets();
@@ -51,23 +55,27 @@ int module(int argc, char *argv[])
     return EXIT_SUCCESS;
 }
 
-void initialize_global_variables(void) {
+int initialize_global_variables(void) {
     pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL);
     pthread_mutex_init(&MUTEX_EXECUTING, NULL);
     pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);
+
+    return 0;
 }
 
-void finish_global_variables(void) {
+int finish_global_variables(void) {
     pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT);
     pthread_mutex_destroy(&MUTEX_EXECUTING);
     pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);
+
+    return 0;
 }
 
-void read_module_config(t_config *MODULE_CONFIG) {
+int read_module_config(t_config *MODULE_CONFIG) {
 
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "PUERTO_ESCUCHA_DISPATCH", "PUERTO_ESCUCHA_INTERRUPT", "LOG_LEVEL", NULL)) {
-        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
+        return -1;
     }
 
     CONNECTION_MEMORY = (t_Connection){.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
@@ -79,6 +87,8 @@ void read_module_config(t_config *MODULE_CONFIG) {
     CLIENT_KERNEL_CPU_INTERRUPT = (t_Client){.client_type = KERNEL_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
+
+    return 0;
 }
 
 void instruction_cycle(void)
@@ -100,19 +110,19 @@ void instruction_cycle(void)
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
             if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
             if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             // Recibo la respuesta de memoria con el contexto de ejecución
             if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
 
@@ -208,12 +218,12 @@ void instruction_cycle(void)
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
             if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
 
             if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
 
@@ -235,7 +245,7 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
 
         if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
             // TODO
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         pthread_mutex_lock(&MUTEX_EXECUTING);
@@ -263,22 +273,21 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
     return NULL;
 }
 
+void cpu_fetch_next_instruction(char **line) {
+    if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(EXIT_FAILURE);
+    }
+    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
+        // TODO
+        exit(EXIT_FAILURE);
+    }
+}
+
 int mmu(size_t logical_address, size_t bytes, size_t *destination) {
 
    return 0;
 }
-
-void cpu_fetch_next_instruction(char **line) {
-    if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
-        // TODO
-        exit(1);
-    }
-}
-
 
 void write_memory(size_t physical_address, void *source, size_t bytes) {
     if(source == NULL)
@@ -286,12 +295,12 @@ void write_memory(size_t physical_address, void *source, size_t bytes) {
 
     if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     
     log_info(MODULE_LOGGER, "(%d:%d): Accion: ESCRIBIR OK", PID, TID);
@@ -305,12 +314,12 @@ void read_memory(size_t physical_address, void *destination, size_t bytes) {
 
     if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if(package_receive(&package, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     payload_remove(&(package->payload), destination, bytes);
     package_destroy(package);

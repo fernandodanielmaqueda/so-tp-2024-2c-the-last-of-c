@@ -36,7 +36,11 @@ int module(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	initialize_configs(MODULE_CONFIG_PATHNAME);
+	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
+		// TODO
+		exit(EXIT_FAILURE);
+	}
+	
 	initialize_loggers();
 
 	initialize_global_variables();
@@ -57,7 +61,7 @@ int module(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-void initialize_global_variables(void) {
+int initialize_global_variables(void) {
 
 	SHARED_LIST_NEW.list = list_create();
 	pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL);
@@ -75,9 +79,11 @@ void initialize_global_variables(void) {
 	sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0);
 
 	pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPT, NULL);
+
+	return 0;
 }
 
-void finish_global_variables(void) {
+int finish_global_variables(void) {
 	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
 	pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex));
 	
@@ -94,25 +100,30 @@ void finish_global_variables(void) {
 	sem_destroy(&SEM_SHORT_TERM_SCHEDULER);
 
 	pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT);
+
+	return 0;
 }
 
-void read_module_config(t_config *module_config) {
+int read_module_config(t_config *module_config) {
 
     if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "IP_CPU", "PUERTO_CPU_DISPATCH", "PUERTO_CPU_INTERRUPT", "ALGORITMO_PLANIFICACION", "QUANTUM", "LOG_LEVEL", NULL)) {
-        //fprintf(stderr, "%s: El archivo de configuración no tiene la propiedad/key/clave %s", MODULE_CONFIG_PATHNAME, "LOG_LEVEL");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
+        return -1;
     }
 	
 	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
 	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
 	
-	if(find_scheduling_algorithm(config_get_string_value(module_config, "ALGORITMO_PLANIFICACION"), &SCHEDULING_ALGORITHM)) {
-		fprintf(stderr, "ALGORITMO_PLANIFICACION invalido");
-		exit(EXIT_FAILURE);
+	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
+	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
+		fprintf(stderr, "%s: valor de la clave ALGORITMO_PLANIFICACION invalido: %s\n", MODULE_CONFIG_PATHNAME, string);
+		return -1;
 	}
 
 	QUANTUM = config_get_int_value(module_config, "QUANTUM");
 	LOG_LEVEL = log_level_from_string(config_get_string_value(module_config, "LOG_LEVEL"));
+
+	return 0;
 }
 
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
@@ -382,7 +393,7 @@ int _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
 
 	t_link_element *element = malloc(sizeof(t_link_element));
 	if(element == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el elemento de la lista de IDs libres");
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento en la lista de IDs libres", sizeof(t_link_element));
 		exit(EXIT_FAILURE);
 	}
 
@@ -401,7 +412,7 @@ int _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
 int pid_release(t_ID_Manager *id_manager, t_PID pid) {
 	t_PID *pid_copy = malloc(sizeof(t_PID));
 	if(pid_copy == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el PID");
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PID", sizeof(t_PID));
 		exit(EXIT_FAILURE);
 	}
 	*pid_copy = pid;
@@ -414,7 +425,7 @@ int pid_release(t_ID_Manager *id_manager, t_PID pid) {
 int tid_release(t_ID_Manager *id_manager, t_TID tid) {
 	t_TID *tid_copy = malloc(sizeof(t_TID));
 	if(tid_copy == NULL) {
-		log_error(MODULE_LOGGER, "No se pudo reservar memoria para el TID");
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TID", sizeof(t_TID));
 		exit(EXIT_FAILURE);
 	}
 	*tid_copy = tid;

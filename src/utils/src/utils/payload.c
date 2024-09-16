@@ -31,6 +31,7 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
 
   void *newStream = realloc(payload->stream, payload->size + sourceSize);
   if(newStream == NULL) {
+    log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", payload->size + sourceSize);
     errno = ENOMEM;
     return -1;
   }
@@ -69,6 +70,7 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 
     void *newStream = realloc(payload->stream, newSize);
     if(newStream == NULL) {
+      log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", newSize);
       errno = ENOMEM;
       return -1;
     }
@@ -98,6 +100,7 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
 
     void *newStream = realloc(payload->stream, payload->offset + sourceSize);
     if(newStream == NULL) {
+      log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", payload->offset + sourceSize);
       errno = ENOMEM;
       return -1;
     }

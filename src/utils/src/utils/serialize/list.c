@@ -41,6 +41,7 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
   for(; list_size > 0; list_size--) {
     new_element = malloc(sizeof(t_link_element));
     if(new_element == NULL) {
+      log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar un elemento de la lista", sizeof(t_link_element));
       errno = ENOMEM;
       return -1;
     }

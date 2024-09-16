@@ -29,7 +29,7 @@ t_Package *package_create(void) {
 
   t_Package *package = malloc(sizeof(t_Package));
   if(package == NULL) {
-    log_error(SOCKET_LOGGER, "No se pudo crear el package con malloc");
+    log_error(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
     return NULL;
   }
 
@@ -142,7 +142,7 @@ int package_receive_payload(t_Package *package, int fd_socket) {
 
   package->payload.stream = malloc((size_t) package->payload.size);
   if(package->payload.stream == NULL) {
-    log_warning(SOCKET_LOGGER, "malloc: No se pudo reservar %zu bytes de memoria\n", (size_t) package->payload.size);
+    log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
     return -1;
   }
 

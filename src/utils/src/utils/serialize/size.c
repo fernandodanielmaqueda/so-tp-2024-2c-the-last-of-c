@@ -57,6 +57,7 @@ int size_deserialize_element(t_Payload *payload, size_t **destination) {
 
   *destination = malloc(sizeof(size_t));
   if(*destination == NULL) {
+    log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar un size_t", sizeof(size_t));
     errno = ENOMEM;
     return -1;
   }

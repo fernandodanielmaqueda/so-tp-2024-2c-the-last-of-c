@@ -104,7 +104,7 @@ void initialize_global_variables(void);
 
 void finish_global_variables(void);
 
-void read_module_config(t_config *module_config);
+int read_module_config(t_config *module_config);
 
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination);
 
