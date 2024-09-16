@@ -244,9 +244,7 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
     return -1;
 }
 
-void *listen_kernel(t_Client* new_client) {
-
-	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] iniciado.", new_client->fd_client);
+void listen_kernel(int fd_client) {
 
     t_Package* package;
     int status;
@@ -254,7 +252,7 @@ void *listen_kernel(t_Client* new_client) {
 
 	while (petition_arrived){
 
-        if(package_receive(&package, new_client->fd_client)) {
+        if(package_receive(&package, fd_client)) {
             petition_arrived = false;
             
             switch(package->header) {
@@ -262,13 +260,13 @@ void *listen_kernel(t_Client* new_client) {
                 case PROCESS_CREATE_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Creacion proceso nuevo recibido.");
                     status = create_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_CREATE_HEADER, status, new_client->fd_client);
+                    send_return_value_with_header(PROCESS_CREATE_HEADER, status, fd_client);
                     break;
                 
                 case PROCESS_DESTROY_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
                     status = kill_process(&(package->payload));
-                    send_return_value_with_header(PROCESS_DESTROY_HEADER, status, new_client->fd_client);
+                    send_return_value_with_header(PROCESS_DESTROY_HEADER, status, fd_client);
                     break;
                 /*
                 case THREAD_CREATE_HEADER:
@@ -291,10 +289,7 @@ void *listen_kernel(t_Client* new_client) {
         }
     }
 
-	close(new_client->fd_client);
-	log_trace(MODULE_LOGGER, "Hilo receptor de [Cliente] Kernel [%d] finalizado.", new_client->fd_client);
-
-	return NULL;
+	return;
 }
 
     /*

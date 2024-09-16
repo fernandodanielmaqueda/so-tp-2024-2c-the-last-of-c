@@ -33,8 +33,8 @@ extern t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM;
 
 void initialize_sockets(void);
 void finish_sockets(void);
-void *memory_start_server(t_Server *server);
-void *memory_client_handler(t_Client *new_client);
-bool client_matches_pthread(t_Client *client, pthread_t *thread);
+
+void memory_client_handler(t_Client *new_client);
+void *memory_thread_for_client(t_Client *new_client);
 
 #endif /* MEMORIA_SOCKET_H */

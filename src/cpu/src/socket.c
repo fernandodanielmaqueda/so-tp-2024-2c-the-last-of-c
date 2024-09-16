@@ -40,50 +40,48 @@ void *cpu_start_server_for_kernel(t_Client *new_client) {
     log_trace(MODULE_LOGGER, "Hilo de [Servidor] %s para [Cliente] %s iniciado", PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type]);
 
     e_Port_Type port_type;
-    int fd_new_client;
 
     server_start(new_client->server);
 
     while(1) {
         while(1) {
-            log_trace(SOCKET_LOGGER, "Esperando [Cliente] %s en Puerto: %s", PORT_NAMES[new_client->server->clients_type], new_client->server->port);
-            fd_new_client = server_accept(new_client->server->fd_listen);
+            log_trace(SOCKET_LOGGER, "[%d] Esperando [Cliente] %s en Puerto: %s", new_client->server->fd_listen, PORT_NAMES[new_client->server->clients_type], new_client->server->port);
+            new_client->fd_client = server_accept(new_client->server->fd_listen);
 
-            if (fd_new_client != -1)
+            if (new_client->fd_client != -1)
                 break;
 
-            log_warning(SOCKET_LOGGER, "Fallo al aceptar [Cliente] %s en Puerto: %s", PORT_NAMES[new_client->server->clients_type], new_client->server->port);
+            log_warning(SOCKET_LOGGER, "[%d] Fallo al aceptar [Cliente] %s", new_client->server->fd_listen, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
         }
 
-        log_trace(SOCKET_LOGGER, "Aceptado [Cliente] %s en Puerto: %s", PORT_NAMES[new_client->server->clients_type], new_client->server->port);
+        log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", new_client->server->fd_listen, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE], new_client->fd_client);
 
         // Handshake
 
-        if(receive_port_type(&port_type, fd_new_client)) {
-            log_warning(SOCKET_LOGGER, "Error al recibir Handshake de [Cliente]");
-            close(fd_new_client);
+        if(receive_port_type(&port_type, new_client->fd_client)) {
+            log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
+            close(new_client->fd_client);
             continue;
         }
 
-        if (port_type != new_client->server->clients_type) {
-            log_warning(SOCKET_LOGGER, "No reconocido Handshake de [Cliente]");
-            send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, fd_new_client);
-            close(fd_new_client);
+        if(port_type != new_client->server->clients_type) {
+            log_warning(SOCKET_LOGGER, "[%d] No reconocido Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
+            send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client);
+            close(new_client->fd_client);
             continue;
         }
 
-        if(send_port_type(new_client->server->server_type, fd_new_client)) {
-            log_warning(SOCKET_LOGGER, "Error al enviar Handshake a [Cliente] %s", PORT_NAMES[new_client->server->clients_type]);
-            close(fd_new_client);
+        if(send_port_type(new_client->server->server_type, new_client->fd_client)) {
+            log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->server->clients_type]);
+            close(new_client->fd_client);
             continue;
         }
 
-        log_debug(SOCKET_LOGGER, "OK Handshake con [Cliente] Kernel");
+        log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->server->clients_type]);
         break;
     }
 
-    new_client->fd_client = fd_new_client;
-
+    log_trace(SOCKET_LOGGER, "[%d] Cerrando [Servidor] %s para Cliente [%s] en Puerto: %s", new_client->server->fd_listen, PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type], new_client->server->port);
     close(new_client->server->fd_listen);
 
     return NULL;

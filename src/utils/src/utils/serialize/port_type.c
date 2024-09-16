@@ -5,12 +5,14 @@
 
 const char *PORT_NAMES[] = {
   [KERNEL_PORT_TYPE] = "Kernel",
+  [KERNEL_CPU_DISPATCH_PORT_TYPE] = "Kernel (Dispatch)",
+  [KERNEL_CPU_INTERRUPT_PORT_TYPE] = "Kernel (Interrupt)",
   [CPU_PORT_TYPE] = "CPU",
   [CPU_DISPATCH_PORT_TYPE] = "CPU (Dispatch)",
   [CPU_INTERRUPT_PORT_TYPE] = "CPU (Interrupt)",
   [MEMORY_PORT_TYPE] = "Memoria",
   [FILESYSTEM_PORT_TYPE] = "Filesystem",
-  [TO_BE_IDENTIFIED_PORT_TYPE] = "A identificar"
+  [TO_BE_IDENTIFIED_PORT_TYPE] = "Sin identificar"
 };
 
 int port_type_serialize(t_Payload *payload, e_Port_Type source) {

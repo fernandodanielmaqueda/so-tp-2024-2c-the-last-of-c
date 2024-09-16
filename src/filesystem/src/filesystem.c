@@ -78,23 +78,22 @@ int read_module_config(t_config* MODULE_CONFIG) {
     return 0;
 }
 
-// Función para los hilos atendededor de un boludo (Uno por cada solicitud de Memoria)
-void *filesystem_client_handler_for_memory(t_Client *new_client) {
+void filesystem_client_handler_for_memory(int fd_client) {
     char *filename;
     void *memory_dump;
     size_t dump_size;
+
 	t_list* list_bit_index = list_create();
 
-    receive_memory_dump(&filename, &memory_dump, &dump_size, new_client->fd_client);//bloqueante
+    receive_memory_dump(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
 	size_t necessary_bits_free = necessary_bits(dump_size) + 1; // mas el bloque de INDICE
 
     pthread_mutex_lock(&MUTEX_BITMAP);
 
 		if( BITMAP.bits_free < necessary_bits_free){
 			pthread_mutex_unlock(&MUTEX_BITMAP);
-            send_return_value_with_header(MEMORY_DUMP_HEADER, 1, new_client->fd_client);
-            close(new_client->fd_client);
-            return NULL;
+            send_return_value_with_header(MEMORY_DUMP_HEADER, 1, fd_client);
+            return;
         }
 
 		set_bits_bitmap(&BITMAP, list_bit_index, necessary_bits_free);
@@ -116,12 +115,11 @@ void *filesystem_client_handler_for_memory(t_Client *new_client) {
 
     // Crear el archivo de metadata (es como escribir un config)
 
-    send_return_value_with_header(MEMORY_DUMP_HEADER, 0, new_client->fd_client);
-    close(new_client->fd_client);
-    return NULL;
+    send_return_value_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
+    return;
 }
 
-void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t necessary_bits_free){
+void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index, size_t necessary_bits_free){
 
 	bit_map->bits_free -= necessary_bits_free; 
 

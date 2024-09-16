@@ -10,7 +10,7 @@ t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
 void initialize_sockets(void) {
 
 	// [Servidor] Filesystem <- [Cliente(s)] Memoria
-	filesystem_start_server(&SERVER_FILESYSTEM);
+	server_thread_coordinator(&SERVER_FILESYSTEM, filesystem_client_handler);
 
 }
 
@@ -19,36 +19,24 @@ void finish_sockets(void) {
 	//close(CONNECTION_MEMORY.fd_connection);
 }
 
-void *filesystem_start_server(t_Server *server) {
+void filesystem_client_handler(t_Client *new_client) {
+	pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
+	pthread_detach(new_client->thread_client_handler);
+}
 
-	int fd_new_client;
-	t_Client *new_client;
+void *filesystem_thread_for_client(t_Client *new_client) {
+	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
-	server_start(server);
-
-	while(1) {
-
-		log_trace(SOCKET_LOGGER, "Esperando [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
-		fd_new_client = server_accept(server->fd_listen);// bloqueante
-
-		if(fd_new_client == -1) {
-			log_warning(SOCKET_LOGGER, "Fallo al aceptar [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
-			continue;
-		}
-
-		new_client = malloc(sizeof(t_Client));
-		if(new_client == NULL) {
-			log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para [Cliente] %s en Puerto: %s", sizeof(t_Client), PORT_NAMES[server->clients_type], server->port);
-			continue;
-		}
-
-		log_trace(SOCKET_LOGGER, "Aceptado [Cliente] %s en Puerto: %s", PORT_NAMES[server->clients_type], server->port);
-		new_client->fd_client = fd_new_client;
-		new_client->client_type = server->clients_type;
-		new_client->server = server;
-		pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) filesystem_client_handler_for_memory, (void *) new_client);
-		pthread_detach(new_client->thread_client_handler);// desacopla del hilo ppal
+    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->fd_client)) {
+        close(new_client->fd_client);
+		free(new_client);
+        return NULL;
 	}
 
-	return NULL;
+	filesystem_client_handler_for_memory(new_client->fd_client);
+
+	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+    close(new_client->fd_client);
+	free(new_client);
+    return NULL;
 }

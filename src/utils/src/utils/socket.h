@@ -45,10 +45,23 @@ typedef struct t_Client {
     t_Server *server;
 } t_Client;
 
-void *client_thread_connect_to_server(t_Connection *connection);
-int client_start_try(char *ip, char *port);
+// Server
+
+void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Client *));
+
 void server_start(t_Server *server);
 int server_start_try(char *port);
+
 int server_accept(int socket_servidor);
+
+int server_handshake(e_Port_Type server_type, e_Port_Type client_type, int fd_client);
+
+// Client
+
+void *client_thread_connect_to_server(t_Connection *connection);
+
+int client_start_try(char *ip, char *port);
+
+bool client_matches_pthread(t_Client *client, pthread_t *thread);
 
 #endif // UTILS_SOCKET_H
