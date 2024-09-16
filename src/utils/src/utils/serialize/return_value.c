@@ -29,9 +29,11 @@ int return_value_deserialize(t_Payload *payload, t_Return_Value *destination) {
   return 0;
 }
 
-void return_value_log(t_Return_Value source) {
+int return_value_log(t_Return_Value source) {
   log_info(SERIALIZE_LOGGER,
     "t_Return_Value: %" PRId8
     , source
   );
+
+  return 0;
 }

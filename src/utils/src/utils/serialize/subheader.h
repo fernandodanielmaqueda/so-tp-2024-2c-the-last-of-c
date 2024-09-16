@@ -38,6 +38,6 @@ int subheader_deserialize(t_Payload *payload, e_Header *destination);
  * @brief Loguea un e_Header.
  * @param subheader e_Header a loguear.
  */
-void subheader_log(e_Header source);
+int subheader_log(e_Header source);
 
 #endif // UTILS_SERIALIZE_SUBHEADER_H

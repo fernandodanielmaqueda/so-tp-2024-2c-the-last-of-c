@@ -95,7 +95,7 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
   return 0;
 }
 
-void exec_context_log(t_Exec_Context source) {
+int exec_context_log(t_Exec_Context source) {
   log_info(SERIALIZE_LOGGER,
     "t_Exec_Context:\n"
     "* PC: %" PRIu32 "\n"
@@ -117,4 +117,6 @@ void exec_context_log(t_Exec_Context source) {
     , source.cpu_registers.GX
     , source.cpu_registers.HX
     );
+  
+  return 0;
 }

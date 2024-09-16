@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <string.h>
 #include "commons/config.h"
+#include "commons/memory.h"
 #include "commons/string.h"
 #include "utils/package.h"
 
@@ -40,6 +41,6 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
  * @brief Loguea un t_list.
  * @param list t_list a loguear.
  */
-void list_log(t_list list);
+int list_log(t_list list);
 
 #endif // UTILS_SERIALIZE_LIST_H

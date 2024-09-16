@@ -63,11 +63,31 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
   return 0;
 }
 
-void list_log(t_list list) {
+int list_log(t_list list) {
+  char *string_elements = string_new();
+  if(string_elements == NULL) {
+    log_warning(SERIALIZE_LOGGER, "string_new: No se pudo reservar memoria para loguear los elementos de la lista");
+    errno = ENOMEM;
+    return -1;
+  }
+
+  t_link_element *element = list.head;
+  for(register int i = 0; i < list.elements_count; i++) {
+    string_append_with_format(&string_elements, "* element (%d/%d): %p\n", i, list.elements_count, element->data);    
+    element = element->next;
+  }
 
   log_info(SERIALIZE_LOGGER,
     "t_list:\n"
-    "* elements_count: %d"
+    "* elements_count: %d\n"
+    "* head: %p\n"
+    "%s"
     , list.elements_count
+    , (void *) list.head
+    , string_elements
   );
+
+  free(string_elements);
+
+  return 0;
 }

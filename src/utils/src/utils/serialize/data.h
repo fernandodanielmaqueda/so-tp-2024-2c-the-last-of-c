@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <string.h>
 #include "commons/config.h"
+#include "commons/memory.h"
 #include "commons/string.h"
 #include "utils/package.h"
 
@@ -40,6 +41,6 @@ int data_deserialize(t_Payload *payload, void **data, size_t *bytes);
  * @brief Loguea un texto.
  * @param text Texto a loguear.
  */
-void data_log(void *data, size_t bytes);
+int data_log(void *data, size_t bytes);
 
 #endif // UTILS_SERIALIZE_DATA_H

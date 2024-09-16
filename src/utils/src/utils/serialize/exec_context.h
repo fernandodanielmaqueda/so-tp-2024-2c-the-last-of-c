@@ -71,6 +71,6 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination);
  * @brief Loguea un t_Exec_Context.
  * @param source t_Exec_Context a loguear.
  */
-void exec_context_log(t_Exec_Context source);
+int exec_context_log(t_Exec_Context source);
 
 #endif // UTILS_SERIALIZE_EXEC_CONTEXT_H

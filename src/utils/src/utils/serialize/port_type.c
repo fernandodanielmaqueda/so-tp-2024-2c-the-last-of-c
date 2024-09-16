@@ -46,9 +46,11 @@ int port_type_deserialize(t_Payload *payload, e_Port_Type *destination) {
   return 0;
 }
 
-void port_type_log(e_Port_Type source) {
+int port_type_log(e_Port_Type source) {
   log_info(SERIALIZE_LOGGER,
     "e_Port_Type: %s"
     , PORT_NAMES[source]
   );
+
+  return 0;
 }

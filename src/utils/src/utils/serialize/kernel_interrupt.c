@@ -42,9 +42,11 @@ int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destina
   return 0;
 }
 
-void kernel_interrupt_log(e_Kernel_Interrupt source) {
+int kernel_interrupt_log(e_Kernel_Interrupt source) {
   log_info(SERIALIZE_LOGGER,
     "e_Kernel_Interrupt: %s"
     , KERNEL_INTERRUPT_NAMES[source]
   );
+
+  return 0;
 }

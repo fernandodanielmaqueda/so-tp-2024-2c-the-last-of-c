@@ -102,9 +102,11 @@ int size_deserialize(t_Payload *payload, size_t *destination) {
   return 0;
 }
 
-void size_log(size_t source) {
+int size_log(size_t source) {
   log_info(SERIALIZE_LOGGER,
     "size_t: %zu"
     , source
   );
+
+  return 0;
 }

@@ -40,6 +40,6 @@ int return_value_deserialize(t_Payload *payload, t_Return_Value *destination);
  * @brief Loguea un t_Return_Value.
  * @param return_value t_Return_Value a loguear.
  */
-void return_value_log(t_Return_Value return_value);
+int return_value_log(t_Return_Value return_value);
 
 #endif // UTILS_SERIALIZE_RETURN_VALUE_H

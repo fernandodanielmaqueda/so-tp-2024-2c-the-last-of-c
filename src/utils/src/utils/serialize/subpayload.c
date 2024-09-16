@@ -30,13 +30,21 @@ int subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
   return 0;
 }
 
-void subpayload_log(t_Payload source) {
+int subpayload_log(t_Payload source) {
+
+  char *dump_string = mem_hexstring(source.stream, source.size);
 
   log_info(SERIALIZE_LOGGER,
     "t_Payload:\n"
     "* size: %zd\n"
-    "* stream: %p"
+    "* stream: %p\n"
+    "%s"
     , source.size
     , source.stream
+    , dump_string
   );
+
+  free(dump_string);
+
+  return 0;
 }

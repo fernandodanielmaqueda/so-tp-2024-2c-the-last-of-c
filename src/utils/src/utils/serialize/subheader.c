@@ -37,9 +37,11 @@ int subheader_deserialize(t_Payload *payload, e_Header *destination) {
   return 0;
 }
 
-void subheader_log(e_Header source) {
+int subheader_log(e_Header source) {
   log_info(SERIALIZE_LOGGER,
     "e_Header: %s"
     , HEADER_NAMES[source]
   );
+
+  return 0;
 }

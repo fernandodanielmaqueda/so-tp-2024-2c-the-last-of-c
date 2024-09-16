@@ -59,9 +59,11 @@ int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
   return 0;
 }
 
-void cpu_opcode_log(e_CPU_OpCode cpu_opcode) {
+int cpu_opcode_log(e_CPU_OpCode cpu_opcode) {
   log_info(SERIALIZE_LOGGER,
     "e_CPU_OpCode: %s"
     , CPU_OPCODE_NAMES[cpu_opcode]
   );
+
+  return 0;
 }

@@ -45,9 +45,11 @@ int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destinati
   return 0;
 }
 
-void eviction_reason_log(e_Eviction_Reason eviction_reason) {
+int eviction_reason_log(e_Eviction_Reason eviction_reason) {
   log_info(SERIALIZE_LOGGER,
     "e_Eviction_Reason: %s"
     , EVICTION_REASON_NAMES[eviction_reason]
   );
+
+  return 0;
 }

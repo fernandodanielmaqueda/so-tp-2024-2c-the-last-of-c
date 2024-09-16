@@ -63,12 +63,20 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
   return 0;
 }
 
-void data_log(void *data, size_t size) {
+int data_log(void *data, size_t size) {
+  char *dump_string = mem_hexstring(data, size);
+
   log_info(SERIALIZE_LOGGER,
     "data:\n"
+    "* size: %zu\n"
     "* stream: %p\n"
-    "* size: %zu"
-    , data
+    "%s"
     , size
+    , data
+    , dump_string
   );
+
+  free(dump_string);
+
+  return 0;
 }

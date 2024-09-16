@@ -62,6 +62,6 @@ int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *cpu_opcode);
  * @brief Loguea un e_CPU_OpCode.
  * @param cpu_opcode e_CPU_OpCode a loguear.
  */
-void cpu_opcode_log(e_CPU_OpCode cpu_opcode);
+int cpu_opcode_log(e_CPU_OpCode cpu_opcode);
 
 #endif // UTILS_SERIALIZE_CPU_INSTRUCTION_H

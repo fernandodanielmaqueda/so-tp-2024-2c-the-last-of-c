@@ -12,6 +12,7 @@
 #include <string.h>
 #include "commons/config.h"
 #include "commons/log.h"
+#include "commons/memory.h"
 #include "commons/string.h"
 #include "utils/package.h"
 #include "utils/module.h"
@@ -38,6 +39,6 @@ int subpayload_deserialize(t_Payload *payload, t_Payload *destination);
  * @brief Loguea un t_Payload.
  * @param subpayload t_Payload a loguear.
  */
-void subpayload_log(t_Payload source);
+int subpayload_log(t_Payload source);
 
 #endif // UTILS_SERIALIZE_SUBPAYLOAD_H

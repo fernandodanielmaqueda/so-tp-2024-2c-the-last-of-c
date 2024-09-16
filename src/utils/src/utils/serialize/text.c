@@ -61,10 +61,12 @@ int text_deserialize(t_Payload *payload, char **destination) {
   return 0;
 }
 
-void text_log(char *text) {
+int text_log(char *text) {
 
   log_info(SERIALIZE_LOGGER,
     "text: %s"
     , (text != NULL) ? text : "(nil)"
-    );
+  );
+
+  return 0;
 }

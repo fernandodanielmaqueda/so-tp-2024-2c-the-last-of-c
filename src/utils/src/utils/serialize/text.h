@@ -38,6 +38,6 @@ int text_deserialize(t_Payload *payload, char **destination);
  * @brief Loguea un texto.
  * @param text Texto a loguear.
  */
-void text_log(char *text);
+int text_log(char *text);
 
 #endif // UTILS_SERIALIZE_TEXT_H
