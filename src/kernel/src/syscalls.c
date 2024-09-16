@@ -35,8 +35,8 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_CREATE");
 
-    char *instruction_file;
-    text_deserialize(syscall_arguments, &instruction_file);
+    char *pseudocode_filename;
+    text_deserialize(syscall_arguments, &pseudocode_filename);
 
     size_t size;
     size_deserialize(syscall_arguments, &size);
@@ -62,11 +62,23 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_CREATE");
 
-    char *instruction_file;
-    text_deserialize(syscall_arguments, &instruction_file);
+    char *pseudocode_filename;
+    text_deserialize(syscall_arguments, &pseudocode_filename);
 
     t_Priority priority;
     // priority_deserialize(syscall_arguments, &priority);
+
+    /*
+    t_TCB *new_tcb = tcb_create(EXEC_TCB->pcb);
+    if(new_tcb == NULL) {
+        log_error(MODULE_LOGGER, "No se pudo crear el TCB");
+        return -1;
+    }
+    */
+
+
+
+    
 
     SHOULD_REDISPATCH = 1;
 

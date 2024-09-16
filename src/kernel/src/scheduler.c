@@ -2,11 +2,16 @@
 
 t_Shared_List SHARED_LIST_NEW;
 
-t_Priority PRIORITY_COUNT = 0;
-t_Shared_List **ARRAY_LIST_READY = NULL;
 t_Drain_Ongoing_Resource_Sync READY_SYNC;
+t_Shared_List **ARRAY_LIST_READY = NULL;
+t_Priority PRIORITY_COUNT = 0;
 
 t_Shared_List SHARED_LIST_EXEC;
+
+t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP;
+
+t_Shared_List SHARED_LIST_BLOCKED_IO_READY;
+t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC;
 
 t_Shared_List SHARED_LIST_EXIT;
 
@@ -114,7 +119,7 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 			client_thread_connect_to_server(&connection_memory);
 
-				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.cb_array))[0]->pseudocode_pathname, connection_memory.fd_connection)) {
+				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.cb_array))[0]->pseudocode_filename, connection_memory.fd_connection)) {
 					// TODO
 				}
 
