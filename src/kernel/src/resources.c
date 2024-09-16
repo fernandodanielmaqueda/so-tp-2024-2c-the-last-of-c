@@ -3,9 +3,7 @@
 
 #include "resources.h"
 
-int RESOURCE_QUANTITY;
-t_Resource *RESOURCES;
-
+/*
 int resources_read_module_config(t_config *module_config) {
 	char **resource_names = config_get_array_value(module_config, "RECURSOS");
 	char **resource_instances = config_get_array_value(module_config, "INSTANCIAS_RECURSOS");
@@ -40,20 +38,23 @@ int resources_read_module_config(t_config *module_config) {
 
 	return 0;
 }
+*/
 
-t_Resource *resource_find(char *name) {
+t_Mutex *resource_find(char *name) {
+	/*
     for(register int i = 0; i < RESOURCE_QUANTITY; i++)
         if(strcmp((RESOURCES[i]).name, name) == 0)
             return (&(RESOURCES[i]));
+	*/
 
     return NULL;
 }
 
-void resource_log(t_Resource *resource) {
-	log_trace(MODULE_LOGGER, "Recurso: %s - Instancias %ld", resource->name, resource->instances);
+void resource_log(t_Mutex *resource) {
+	//log_trace(MODULE_LOGGER, "Recurso: %s - Instancias %ld", resource->name, resource->instances);
 }
 
 void resources_free(void) {
-	free(RESOURCES);
+	//free(RESOURCES);
 	// TODO: Liberar lista de bloqueados
 }

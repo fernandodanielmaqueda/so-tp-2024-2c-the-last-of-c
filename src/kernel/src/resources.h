@@ -28,19 +28,13 @@
 #include "socket.h"
 #include "scheduler.h"
 
-typedef struct t_Resource {
-    long instances;
+typedef struct t_Mutex {
     char *name;
-    pthread_mutex_t mutex_instances;
     t_Shared_List shared_list_blocked;
-} t_Resource;
+} t_Mutex;
 
-extern int RESOURCE_QUANTITY;
-extern t_Resource *RESOURCES;
-
-int resources_read_module_config(t_config *module_config);
-t_Resource *resource_find(char *name);
-void resource_log(t_Resource *resource);
+t_Mutex *resource_find(char *name);
+void resource_log(t_Mutex *mutex);
 void resources_free(void);
 
 #endif // KERNEL_RESOURCES_H
