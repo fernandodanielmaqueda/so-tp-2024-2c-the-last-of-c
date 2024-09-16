@@ -21,31 +21,31 @@ void *client_thread_connect_to_server(t_Connection *connection) {
       sleep(RETRY_CONNECTION_IN_SECONDS);
     }
 
-    log_trace(SOCKET_LOGGER, "Conectado con [Servidor] %s en IP: %s - Puerto: %s", PORT_NAMES[connection->server_type], connection->ip, connection->port);
+    log_trace(SOCKET_LOGGER, "Conectado con [Servidor] %s en Socket [%d]", PORT_NAMES[connection->server_type], connection->fd_connection);
 
     // Handshake
 
     if(send_port_type(connection->client_type, connection->fd_connection)) {
-      log_warning(SOCKET_LOGGER, "Error al enviar Handshake a [Servidor] %s en IP: %s - Puerto: %s. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->ip, connection->port, RETRY_CONNECTION_IN_SECONDS);
+      log_warning(SOCKET_LOGGER, "Error al enviar Handshake a [Servidor] %s en Socket [%d]. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->fd_connection, RETRY_CONNECTION_IN_SECONDS);
       close(connection->fd_connection);
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
     if(receive_port_type(&port_type, connection->fd_connection)) {
-      log_warning(SOCKET_LOGGER, "Error al recibir Handshake de [Servidor] %s en IP: %s - Puerto: %s. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->ip, connection->port, RETRY_CONNECTION_IN_SECONDS);
+      log_warning(SOCKET_LOGGER, "Error al recibir Handshake de [Servidor] %s en Socket [%d]. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->fd_connection, RETRY_CONNECTION_IN_SECONDS);
       close(connection->fd_connection);
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
 
     if(port_type != connection->server_type) {
-      log_warning(SOCKET_LOGGER, "No reconocido Handshake de [Servidor] %s en IP: %s - Puerto: %s. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->ip, connection->port, RETRY_CONNECTION_IN_SECONDS);
+      log_warning(SOCKET_LOGGER, "No reconocido Handshake de [Servidor] %s en Socket [%d]. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->fd_connection, RETRY_CONNECTION_IN_SECONDS);
       close(connection->fd_connection);
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
 
-    log_debug(SOCKET_LOGGER, "OK Handshake con [Servidor] %s en IP: %s - Puerto: %s", PORT_NAMES[connection->server_type], connection->ip, connection->port);
+    log_debug(SOCKET_LOGGER, "OK Handshake con [Servidor] %s en Socket [%d]", PORT_NAMES[connection->server_type], connection->fd_connection);
     break;
   }
 
@@ -112,7 +112,7 @@ void server_start(t_Server *server) {
 
   }
 
-  log_trace(SOCKET_LOGGER, "Escuchando [Servidor] %s en Puerto: %s", PORT_NAMES[server->server_type], server->port);
+  log_trace(SOCKET_LOGGER, "Escuchando [Servidor] %s en Socket [%d]", PORT_NAMES[server->server_type], server->fd_listen);
 }
 
 int server_start_try(char* port) {
