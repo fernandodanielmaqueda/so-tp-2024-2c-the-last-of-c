@@ -252,13 +252,13 @@ void *listen_kernel(t_Client* new_client) {
                     int result = create_process(&(package->payload));
                     send_return_value_with_header(PROCESS_CREATE_HEADER, result, new_client->fd_client);
                     break;
-                /*
+                
                 case PROCESS_DESTROY_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Finalizar proceso recibido.");
                     int result = kill_process(&(package->payload));
                     send_return_value_with_header(PROCESS_DESTROY_HEADER, result, new_client->fd_client);
                     break;
-                
+                /*
                 case THREAD_CREATE_HEADER:
                     log_info(MODULE_LOGGER, "KERNEL: Creacion hilo nuevo recibido.");
                     create_thread(&(package->payload));
@@ -580,12 +580,17 @@ int kill_process(t_Payload *payload) {
 
     payload_remove(payload, &pid, sizeof(t_PID));
 
+    //Liberacion de particion
     pthread_mutex_lock(&MUTEX_PARTITION_TABLE);
     ARRAY_PROCESS_MEMORY[pid]->partition->occupied = false;
     ARRAY_PROCESS_MEMORY[pid]->partition->pid = -1;
     ARRAY_PROCESS_MEMORY[pid]->partition = NULL;
+    ARRAY_PROCESS_MEMORY[pid]->size = -1;
     if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME) result = verify_and_join_splited_partitions(pid);    
     pthread_mutex_unlock(&MUTEX_PARTITION_TABLE);
+
+    //Liberacion de threads con sus struct
+    free_threads(pid);
     
     return result;
 
@@ -978,6 +983,24 @@ void write_memory(t_Payload *payload, int socket) {
     */
 }
 
+void free_threads(int pid){
+
+    for (size_t i = ARRAY_PROCESS_MEMORY[pid]->tid_count; 0 < i; i--)
+    {
+        //Free instrucciones
+        for (size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->instructions_count; 0 < y; y--)
+        {
+            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions[y]);
+        }
+            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions);
+            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]);
+        
+    }
+    
+    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads);
+
+}
+
 void free_memory(){
 
     //Free particiones
@@ -988,20 +1011,10 @@ void free_memory(){
     }
 
 
-    for (size_t i = 0; i < PID_COUNT; i++) //Free procesos
+    for (size_t i = PID_COUNT; 0 < i; i--) //Free procesos
     {
-        for (size_t y = 0; y < ARRAY_PROCESS_MEMORY[i]->tid_count; y++) //Free threads
-        {
-            for (size_t x = 0; x < ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->instructions_count; x++) //Free Instrucciones
-            {
-                free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->array_instructions[x]);
-            }
-            free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]->array_instructions);
-            free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads[y]);
-            
-        }
+        if(ARRAY_PROCESS_MEMORY[i]->size == (-1)) free_threads(i);
         
-        free(ARRAY_PROCESS_MEMORY[i]->array_memory_threads);
         pthread_mutex_destroy(&(ARRAY_PROCESS_MEMORY[i]->mutex_array_memory_threads));
         free(ARRAY_PROCESS_MEMORY[i]);
     }
