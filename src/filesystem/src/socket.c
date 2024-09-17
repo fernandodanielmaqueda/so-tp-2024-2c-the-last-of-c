@@ -35,7 +35,7 @@ void *filesystem_thread_for_client(t_Client *new_client) {
 
 	filesystem_client_handler_for_memory(new_client->fd_client);
 
-	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s finalizado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
     close(new_client->fd_client);
 	free(new_client);
     return NULL;
