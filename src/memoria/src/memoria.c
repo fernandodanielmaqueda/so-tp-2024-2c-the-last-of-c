@@ -247,7 +247,7 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
 void listen_kernel(int fd_client) {
 
     t_Package* package;
-    int status;
+    int result;
 
     if(package_receive(&package, fd_client)) {
         
@@ -255,24 +255,26 @@ void listen_kernel(int fd_client) {
             
             case PROCESS_CREATE_HEADER:
                 log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion proceso nuevo recibido.", fd_client);
-                status = create_process(&(package->payload));
-                send_return_value_with_header(PROCESS_CREATE_HEADER, status, fd_client);
+                result = create_process(&(package->payload));
+                send_return_value_with_header(PROCESS_CREATE_HEADER, result, fd_client);
                 break;
             
             case PROCESS_DESTROY_HEADER:
                 log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar proceso recibido.", fd_client);
-                status = kill_process(&(package->payload));
-                send_return_value_with_header(PROCESS_DESTROY_HEADER, status, fd_client);
+                result = kill_process(&(package->payload));
+                send_return_value_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
                 break;
-            /*
+           
             case THREAD_CREATE_HEADER:
                 log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion hilo nuevo recibido.", fd_client);
-                create_thread(&(package->payload));
+                result = create_thread(&(package->payload));
+                send_return_value_with_header(THREAD_CREATE_HEADER, result, fd_client);
                 break;
-            
+             /*
             case THREAD_DESTROY_HEADER:
                 log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-                kill_thread(&(package->payload));
+                result = kill_thread(&(package->payload));
+                send_return_value_with_header(THREAD_DESTROY_HEADER, result, fd_client);
                 break;
 */
             default:
@@ -576,7 +578,6 @@ int split_partition(int position, size_t size){
 
 }
 
-
 int kill_process(t_Payload *payload) {
     
     int result = 0;
@@ -713,44 +714,111 @@ int verify_and_join_splited_partitions(t_PID pid){
     return 0;
 }
 
-int parse_pseudocode_file(char *path, t_list *list_instruction) {
+int create_thread(t_Payload *payload) {
 
+    t_PID pid;
+    char* path_instructions;
+    int result = 0;
+
+    t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
+    if(new_thread == NULL) {
+        // TODO
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo thread.", sizeof(t_Memory_Thread));
+        return EXIT_FAILURE;
+    }
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(new_thread->tid), sizeof(((t_Memory_Thread *)0)->tid));
+    text_deserialize(payload, &path_instructions);
+
+    new_thread->instructions_count = 0;
+    new_thread->array_instructions = NULL;
+
+    //Inicializar registros
+    new_thread->registers.PC = new_thread->instructions_count;
+    new_thread->registers.cpu_registers.AX = 0;
+    new_thread->registers.cpu_registers.BX = 0;
+    new_thread->registers.cpu_registers.CX = 0;
+    new_thread->registers.cpu_registers.DX = 0;
+    new_thread->registers.cpu_registers.EX = 0;
+    new_thread->registers.cpu_registers.FX = 0;
+    new_thread->registers.cpu_registers.GX = 0;
+    new_thread->registers.cpu_registers.HX = 0;
+
+    //inicializar instrucciones
+    result = parse_pseudocode_file(path_instructions, &(new_thread->array_instructions), &(new_thread->instructions_count));
+    if (result){
+            for (size_t i = 0; i < new_thread->instructions_count; i++) {
+                free(new_thread->array_instructions[i]);
+            }
+            free(new_thread->array_instructions);
+            free(new_thread);
+            return EXIT_FAILURE;
+    }
+
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, 
+                                                    sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count + 1)); 
+    if (ARRAY_PROCESS_MEMORY == NULL) {
+        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", 
+                                    sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count  +1));
+            for (size_t i = 0; i < new_thread->instructions_count; i++) {
+                free(new_thread->array_instructions[i]);
+            }
+            free(new_thread->array_instructions);
+            free(new_thread);
+        return EXIT_FAILURE;
+    }
+
+    ARRAY_PROCESS_MEMORY[pid]->tid_count++;
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[new_thread->tid] = new_thread;
+
+    return EXIT_SUCCESS;
+}
+
+int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
     FILE* file;
     if ((file = fopen(path, "r")) == NULL) {
         log_warning(MODULE_LOGGER, "%s: No se pudo abrir el archivo de pseudocodigo indicado.", path);
         return -1;
     }
-
     char *line = NULL, *subline;
     size_t length;
     ssize_t nread;
-
     while(1) {
-
         errno = 0;
         if((nread = getline(&line, &length, file)) == -1) {
             if(errno) {
                 log_warning(MODULE_LOGGER, "Funcion getline: %s", strerror(errno));
                 free(line);
+                fclose(file);
                 exit(EXIT_FAILURE);
             }
-
             // Se terminó de leer el archivo
             break;
         }
-
         // Ignora líneas en blanco
         subline = strip_whitespaces(line);
-
-        if(*subline) {
-            // Se leyó una línea con contenido
-            list_add(list_instruction, strdup(subline));
+        if(*subline) { // Se leyó una línea con contenido
+    
+            *array_instruction = realloc(*array_instruction, (*count + 1) * sizeof(char *));
+            if (*array_instruction == NULL) {
+                perror("[Error] realloc memory for array fallo.");
+                free(line);
+                fclose(file);
+                exit(EXIT_FAILURE);
+            }
+            (*array_instruction)[*count] = strdup(subline);
+            if ((*array_instruction)[*count] == NULL) {
+                perror("[Error] malloc memory for string fallo.");
+                free(line);
+                fclose(file);
+                exit(EXIT_FAILURE);
+            }
+            (*count)++;
         }
     }
-
     free(line);       
     fclose(file);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 void listen_cpu(void) {

@@ -141,7 +141,7 @@ void create_instruction(FILE *file, t_list *list_instruction);
  * @param path Path donde se encuentra el archivo.
  * @param list_instruction Lista a llenarse con las instrucciones del archivo.
  */
-int parse_pseudocode_file(char *path, t_list *list_instruction);
+int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count);
 
 /**
  * @brief Funcion que encapsula al hilo escucha cpu
@@ -165,5 +165,6 @@ int split_partition(int position, size_t size);
 int add_element_to_array_process (t_Memory_Process* process);
 int verify_and_join_splited_partitions(t_PID pid);
 void free_threads(int pid);
+int create_thread(t_Payload *payload);
 
 #endif // MEMORIA_H
