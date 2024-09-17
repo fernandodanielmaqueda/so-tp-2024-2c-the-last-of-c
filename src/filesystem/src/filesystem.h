@@ -38,8 +38,12 @@
 
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
-    uint32_t bits_free; // contar los bits libres (0)
+    uint32_t blocks_free; // contar los bits libres (0)
 } t_Bitmap;
+
+typedef struct t_Block {
+    char *block_data;     
+} t_Block;
 
 /*
     t_Bitmap* create_t_bitmap(): 
