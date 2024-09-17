@@ -87,11 +87,13 @@ int finish_global_variables(void);
 
 int read_module_config(t_config *module_config);
 
+int bitmap_init(t_Bitmap *bitmap);
+int bloques_init(t_Block *block);
+
 void filesystem_client_handler_for_memory(int fd_client);
 
 void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t necessary_bits_free);
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
 size_t necessary_bits(size_t bytes_size);
-int bitmap_init(t_Bitmap *bitmap);
 
 #endif // FILESYSTEM_H
