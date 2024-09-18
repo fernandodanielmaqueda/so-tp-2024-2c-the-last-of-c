@@ -276,6 +276,12 @@ void listen_kernel(int fd_client) {
                 result = kill_thread(&(package->payload));
                 send_return_value_with_header(THREAD_DESTROY_HEADER, result, fd_client);
                 break;
+                
+            case MEMORY_DUMP_HEADER:
+                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
+                //result = treat_memory_dump(&(package->payload));
+                send_return_value_with_header(MEMORY_DUMP_HEADER, result, fd_client);
+                break;
 
             default:
                 log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
