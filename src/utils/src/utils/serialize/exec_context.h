@@ -27,7 +27,7 @@ typedef uint32_t t_PC;
 
 typedef unsigned int t_Priority;
 
-typedef int64_t t_Quantum;
+typedef int64_t t_Time;
 
 typedef struct t_CPU_Registers {
     uint32_t AX;
@@ -49,7 +49,10 @@ typedef struct t_Exec_Context {
 int str_to_pc(char *string, t_PC *destination);
 
 
-int str_to_priority(char *string, t_PC *destination);
+int str_to_priority(char *string, t_Priority *destination);
+
+
+int str_to_time(char *string, t_Time *destination);
 
 /**
  * @brief Serializacion de un t_Exec_Context para ser enviado.

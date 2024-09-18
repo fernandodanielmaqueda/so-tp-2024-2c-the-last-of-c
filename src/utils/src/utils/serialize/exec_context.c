@@ -37,6 +37,23 @@ int str_to_priority(char *string, t_Priority *destination)
   return 0;
 }
 
+int str_to_time(char *string, t_Time *destination)
+{
+  if(string == NULL || destination == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  char *end;
+
+  *destination = (t_Time) strtoul(string, &end, 10);
+
+  if(!*string || *end)
+    return -1;
+
+  return 0;
+}
+
 int exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
   if(payload == NULL) {
     errno = EINVAL;
