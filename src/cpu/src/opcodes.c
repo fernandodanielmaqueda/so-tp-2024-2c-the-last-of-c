@@ -29,7 +29,7 @@ int decode_instruction(char *name, e_CPU_OpCode *destination) {
         return -1;
 
     for (register e_CPU_OpCode cpu_opcode = 0; CPU_OPCODE_NAMES[cpu_opcode] != NULL; cpu_opcode++)
-        if (strcmp(CPU_OPCODE_NAMES[cpu_opcode], name) == 0) {
+        if(strcmp(CPU_OPCODE_NAMES[cpu_opcode], name) == 0) {
             *destination = cpu_opcode;
             return 0;
         }
@@ -37,16 +37,14 @@ int decode_instruction(char *name, e_CPU_OpCode *destination) {
     return -1;
 }
 
-int set_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3) {
+int set_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: SET <REGISTRO> <VALOR>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "SET %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register destination_register;
     if(decode_register(argv[1], &destination_register)) {
@@ -71,20 +69,17 @@ int set_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int read_mem_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int read_mem_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: READ_MEM <REGISTRO DATOS> <REGISTRO DIRECCION>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "READ_MEM %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register register_data;
-    if (decode_register(argv[1], &register_data)) {
+    if(decode_register(argv[1], &register_data)) {
         log_error(MODULE_LOGGER, "%s: Registro no encontrado", argv[1]);
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
@@ -104,9 +99,17 @@ int read_mem_cpu_operation(int argc, char **argv)
 
     size_t physical_address;
     if(mmu((size_t) logical_address, bytes, &physical_address)) {
-        EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
-        return -1;
+        switch(errno) {
+            case EFAULT:
+                EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
+                return -1;
+            default:
+                EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+                return -1;
+        }
     }
+
+    log_info(MINIMAL_LOGGER, "## TID: %u - Acción: LEER - Dirección Física: %zu", TID, physical_address);
 
     void *destination = get_register_pointer(&EXEC_CONTEXT, register_data);
     read_memory(physical_address, destination, bytes);
@@ -131,17 +134,14 @@ int read_mem_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int write_mem_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int write_mem_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: WRITE_MEM <REGISTRO DIRECCION> <REGISTRO DATOS>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "WRITE_MEM %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register register_address;
     if(decode_register(argv[1], &register_address)) {
@@ -165,9 +165,17 @@ int write_mem_cpu_operation(int argc, char **argv)
 
     size_t physical_address;
     if(mmu((size_t) logical_address, bytes, &physical_address)) {
-        EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
-        return -1;
+        switch(errno) {
+            case EFAULT:
+                EVICTION_REASON = SEGMENTATION_FAULT_EVICTION_REASON;
+                return -1;
+            default:
+                EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+                return -1;
+        }
     }
+
+    log_info(MINIMAL_LOGGER, "## TID: %u - Acción: ESCRIBIR - Dirección Física: %zu", TID, physical_address);
 
     write_memory(physical_address, source, bytes);
 
@@ -178,20 +186,17 @@ int write_mem_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int sum_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int sum_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: SUM <REGISTRO DESTINO> <REGISTRO ORIGEN>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "SUM %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register register_destination;
-    if (decode_register(argv[1], &register_destination)) {
+    if(decode_register(argv[1], &register_destination)) {
         log_error(MODULE_LOGGER, "%s: Registro no encontrado", argv[1]);
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
@@ -218,20 +223,17 @@ int sum_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int sub_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int sub_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: SUB <REGISTRO DESTINO> <REGISTRO ORIGEN>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "SUB %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register register_destination;
-    if (decode_register(argv[1], &register_destination)) {
+    if(decode_register(argv[1], &register_destination)) {
         log_error(MODULE_LOGGER, "%s: Registro no encontrado", argv[1]);
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
@@ -258,17 +260,14 @@ int sub_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int jnz_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int jnz_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: JNZ <REGISTRO> <INSTRUCCION>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "JNZ %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     e_CPU_Register cpu_register;
     if(decode_register(argv[1], &cpu_register)) {
@@ -297,17 +296,14 @@ int jnz_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int log_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int log_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: LOG <REGISTRO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "LOG %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     e_CPU_Register cpu_register;
     if(decode_register(argv[1], &cpu_register)) {
@@ -328,17 +324,14 @@ int log_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int process_create_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 4)
-    {
+int process_create_cpu_operation(int argc, char **argv) {
+    if(argc != 4) {
         log_error(MODULE_LOGGER, "Uso: PROCESS_CREATE <ARCHIVO DE INSTRUCCIONES> <TAMANIO> <PRIORIDAD DEL TID 0>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "PROCESS_CREATE %s %s %s", argv[1], argv[2], argv[3]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s %s", TID, argv[0], argv[1], argv[2], argv[3]);
 
     EXEC_CONTEXT.PC++;
 
@@ -346,24 +339,31 @@ int process_create_cpu_operation(int argc, char **argv)
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
         size_t size;
-        str_to_size(argv[2], &size);
+        if(str_to_size(argv[2], &size)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[2]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
     size_serialize(&SYSCALL_INSTRUCTION, size);
-    // priority_serialize(&SYSCALL_INSTRUCTION, str_to_priority(argv[3]));
+        t_Priority priority;
+        if(str_to_priority(argv[3], &priority)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[3]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
+    payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority));
 
     return 0;
 }
 
-int process_exit_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 1)
-    {
+int process_exit_cpu_operation(int argc, char **argv) {
+    if(argc != 1) {
         log_error(MODULE_LOGGER, "Uso: PROCESS_EXIT");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "PROCESS_EXIT");
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
     EXEC_CONTEXT.PC++;
 
@@ -373,81 +373,87 @@ int process_exit_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int thread_create_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 3)
-    {
+int thread_create_cpu_operation(int argc, char **argv) {
+    if(argc != 3) {
         log_error(MODULE_LOGGER, "Uso: THREAD_CREATE <ARCHIVO DE INSTRUCCIONES> <PRIORIDAD>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_CREATE %s %s", argv[1], argv[2]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
-    // priority_serialize(&SYSCALL_INSTRUCTION, str_to_priority(argv[2]));
+        t_Priority priority;
+        if(str_to_priority(argv[2], &priority)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[2]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
+    payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority));
 
     return 0;
 }
 
-int thread_join_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int thread_join_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: THREAD_JOIN <TID>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_JOIN %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE);
-    // tid_serialize(&SYSCALL_INSTRUCTION, str_to_tid(argv[1]));
+        t_TID tid;
+        if(str_to_tid(argv[1], &tid)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
+    payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
 
     return 0;
 }
 
-int thread_cancel_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int thread_cancel_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: THREAD_CANCEL <TID>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_CANCEL %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE);
-    // tid_serialize(&SYSCALL_INSTRUCTION, str_to_tid(argv[1]));
+        t_TID tid;
+        if(str_to_tid(argv[1], &tid)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
+    payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
 
     return 0;
 }
 
-int thread_exit_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 1)
-    {
+int thread_exit_cpu_operation(int argc, char **argv) {
+    if(argc != 1) {
         log_error(MODULE_LOGGER, "Uso: THREAD_EXIT");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_EXIT");
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
     EXEC_CONTEXT.PC++;
 
@@ -457,17 +463,14 @@ int thread_exit_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int mutex_create_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int mutex_create_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: MUTEX_CREATE <RECURSO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     EXEC_CONTEXT.PC++;
 
@@ -478,17 +481,14 @@ int mutex_create_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int mutex_lock_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int mutex_lock_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: MUTEX_LOCK <RECURSO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "MUTEX_LOCK %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     EXEC_CONTEXT.PC++;
 
@@ -499,16 +499,14 @@ int mutex_lock_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int mutex_unlock_cpu_operation(int argc, char **argv)
-{
-    if (argc != 2)
-    {
+int mutex_unlock_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: MUTEX_UNLOCK <RECURSO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "MUTEX_UNLOCK");
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
     EXEC_CONTEXT.PC++;
 
@@ -519,17 +517,14 @@ int mutex_unlock_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int dump_memory_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 1)
-    {
+int dump_memory_cpu_operation(int argc, char **argv) {
+    if(argc != 1) {
         log_error(MODULE_LOGGER, "Uso: DUMP_MEMORY");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "DUMP_MEMORY");
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
     EXEC_CONTEXT.PC++;
 
@@ -539,23 +534,26 @@ int dump_memory_cpu_operation(int argc, char **argv)
     return 0;
 }
 
-int io_cpu_operation(int argc, char **argv)
-{
-
-    if (argc != 2)
-    {
+int io_cpu_operation(int argc, char **argv) {
+    if(argc != 2) {
         log_error(MODULE_LOGGER, "Uso: IO <TIEMPO>");
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
         return -1;
     }
 
-    log_trace(MODULE_LOGGER, "IO %s", argv[1]);
+    log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
     EXEC_CONTEXT.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE);
-    // time_serialize(&SYSCALL_INSTRUCTION, str_to_time(argv[1]));
+        t_Time time;
+        if(str_to_time(argv[1], &time)) {
+            log_error(MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
+            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+            return -1;
+        }
+    payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(t_Time));
 
     return 0;
 }

@@ -119,6 +119,8 @@ void instruction_cycle(void)
                 exit(EXIT_FAILURE);
             }
 
+            log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
+
             // Recibo la respuesta de memoria con el contexto de ejecución
             if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
@@ -135,7 +137,7 @@ void instruction_cycle(void)
         while(1) {
 
             // Fetch
-            log_info(MINIMAL_LOGGER,"PID: %" PRIu16 " - FETCH - Program Counter: %" PRIu32, PID, EXEC_CONTEXT.PC);
+            log_info(MINIMAL_LOGGER, "## TID: %u - FETCH - Program Counter: %u", TID, EXEC_CONTEXT.PC);
             cpu_fetch_next_instruction(&IR);
             if(IR == NULL) {
                 log_error(MODULE_LOGGER, "Error al fetchear la instruccion");
@@ -216,6 +218,8 @@ void instruction_cycle(void)
         pthread_mutex_unlock(&MUTEX_EXECUTING);
 
         pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
+            log_info(MINIMAL_LOGGER, "## TID: %u - Actualizo Contexto Ejecución", TID);
+
             if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(EXIT_FAILURE);
@@ -262,6 +266,8 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
             }
         pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
 
+        log_info(MINIMAL_LOGGER, "## Llega interrupción al puerto Interrupt");
+
         pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT);
             // Una forma de establecer prioridad entre interrupciones que se pisan, sólo va a quedar una
             if (KERNEL_INTERRUPT < kernel_interrupt)
@@ -273,42 +279,77 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
     return NULL;
 }
 
-void cpu_fetch_next_instruction(char **line) {
+int cpu_fetch_next_instruction(char **line) {
+    if(line == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
     if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(EXIT_FAILURE);
+        return -1;
     }
     if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(EXIT_FAILURE);
+        return -1;
     }
+
+    return 0;
 }
 
 int mmu(size_t logical_address, size_t bytes, size_t *destination) {
+    // Verifico que el puntero de destino no sea nulo
+    if(destination == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
 
-   return 0;
+    // Verifico que no produzca overflow
+    if(logical_address > (SIZE_MAX - BASE) || bytes > (SIZE_MAX - (BASE + logical_address))) {
+        errno = ERANGE;
+        return -1;
+    }
+
+    // Calculo la dirección física
+    size_t physical_address = BASE + logical_address;
+    // La dirección lógica es el desplazamiento desde la base
+
+    // Verifico que no haya segmentation fault
+    if((physical_address + bytes) >= LIMIT) {
+        errno = EFAULT;
+        return -1;
+    }
+
+    // Asigno la dirección física al puntero de destino
+    *destination = physical_address;
+
+    return 0;
 }
 
-void write_memory(size_t physical_address, void *source, size_t bytes) {
-    if(source == NULL)
-        return;
+int write_memory(size_t physical_address, void *source, size_t bytes) {
+    if(source == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
 
     if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(EXIT_FAILURE);
+        return -1;
     }
 
     if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.fd_connection)) {
         // TODO
-        exit(EXIT_FAILURE);
+        return -1;
     }
-    
-    log_info(MODULE_LOGGER, "(%d:%d): Accion: ESCRIBIR OK", PID, TID);
+
+    return 0;
 }
 
-void read_memory(size_t physical_address, void *destination, size_t bytes) {
-    if(destination == NULL)
-        return;
+int read_memory(size_t physical_address, void *destination, size_t bytes) {
+    if(destination == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
     
     t_Package* package;
 
@@ -324,4 +365,5 @@ void read_memory(size_t physical_address, void *destination, size_t bytes) {
     payload_remove(&(package->payload), destination, bytes);
     package_destroy(package);
 
+    return 0;
 }
