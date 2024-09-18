@@ -270,13 +270,13 @@ void listen_kernel(int fd_client) {
                 result = create_thread(&(package->payload));
                 send_return_value_with_header(THREAD_CREATE_HEADER, result, fd_client);
                 break;
-             /*
+             
             case THREAD_DESTROY_HEADER:
                 log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
                 result = kill_thread(&(package->payload));
                 send_return_value_with_header(THREAD_DESTROY_HEADER, result, fd_client);
                 break;
-*/
+
             default:
                 log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
                 break;
@@ -774,6 +774,26 @@ int create_thread(t_Payload *payload) {
     return EXIT_SUCCESS;
 }
 
+int kill_thread(t_Payload *payload) {
+    t_PID pid;
+    t_TID tid;
+
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(tid), sizeof(t_TID));
+
+    //Free instrucciones
+        if( ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] != NULL){
+            for (size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count; 0 < y; y--)
+            {
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[y]);
+            }
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions);
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]);
+        }
+
+    return EXIT_SUCCESS;
+}
+
 int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
     FILE* file;
     if ((file = fopen(path, "r")) == NULL) {
@@ -1060,13 +1080,14 @@ void free_threads(int pid){
     for (size_t i = ARRAY_PROCESS_MEMORY[pid]->tid_count; 0 < i; i--)
     {
         //Free instrucciones
-        for (size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->instructions_count; 0 < y; y--)
-        {
-            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions[y]);
+        if( ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i] != NULL){
+            for (size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->instructions_count; 0 < y; y--)
+            {
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions[y]);
+            }
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions);
+                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]);
         }
-            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions);
-            free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]);
-        
     }
     
     free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads);
@@ -1085,7 +1106,7 @@ void free_memory(){
 
     for (size_t i = PID_COUNT; 0 < i; i--) //Free procesos
     {
-        if(ARRAY_PROCESS_MEMORY[i]->size == (-1)) free_threads(i);
+        if(ARRAY_PROCESS_MEMORY[i]->size != (-1)) free_threads(i);
         
         pthread_mutex_destroy(&(ARRAY_PROCESS_MEMORY[i]->mutex_array_memory_threads));
         free(ARRAY_PROCESS_MEMORY[i]);
