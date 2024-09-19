@@ -1100,6 +1100,42 @@ void free_threads(int pid){
 
 }
 
+int treat_memory_dump(t_Payload *payload){
+    
+    t_PID pid;
+    t_TID tid;
+
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(tid), sizeof(t_TID));
+    time_t current_time = time(NULL);
+
+    char* namefile = string_new();
+    sprintf(namefile, "<%u><%u><%ld>.dmp", pid, tid, (long)current_time);
+    if (namefile == NULL) {
+        printf("No se pudo generar el nombre del archivo.");
+        free(namefile); 
+        return EXIT_FAILURE;
+    }
+    
+    void *position = (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base);
+/*
+    if(send_memory_dump(namefile, position, connection_filesystem.fd_connection)){
+        printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",pid, tid.");
+        free(namefile); 
+        return EXIT_FAILURE;
+    }
+    //Checkiar como se recibe 
+    if(receive_expected_header(MEMORY_DUMP_HEADER, connection_filesystem.fd_connection)){
+        printf("[DUMP] Filesystem no pudo resolver la peticion por el PID:<%u> TID:<%u>.",pid, tid);
+        free(namefile); 
+        return EXIT_FAILURE;
+    }
+*/
+    free(namefile);
+
+    return EXIT_SUCCESS;
+}
+
 void free_memory(){
 
     //Free particiones
