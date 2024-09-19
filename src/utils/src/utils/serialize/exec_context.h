@@ -46,6 +46,9 @@ typedef struct t_Exec_Context {
 } t_Exec_Context;
 
 
+int str_to_tid(char *string, t_TID *destination);
+
+
 int str_to_pc(char *string, t_PC *destination);
 
 
