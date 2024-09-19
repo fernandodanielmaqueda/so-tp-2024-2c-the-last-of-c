@@ -452,6 +452,9 @@ int create_process(t_Payload *payload) {
     
     pthread_mutex_unlock(&MUTEX_PARTITION_TABLE);
 
+    
+    log_info(MINIMAL_LOGGER, "## Proceso <Creado> - PID:<%u> - TAMAÑO:<%zu>.\n", new_process->pid, new_process->size);
+
     /*
     new_process->instructions_list = list_create();
     //new_process->pages_table = list_create();
@@ -588,6 +591,7 @@ int kill_process(t_Payload *payload) {
     
     int result = 0;
     t_PID pid;
+    size_t size = ARRAY_PROCESS_MEMORY[pid]->size;
 
     payload_remove(payload, &pid, sizeof(t_PID));
 
@@ -602,6 +606,8 @@ int kill_process(t_Payload *payload) {
 
     //Liberacion de threads con sus struct
     free_threads(pid);
+    
+    log_info(MINIMAL_LOGGER, "## Proceso <Destruido> - PID:<%u> - TAMAÑO:<%zu>.\n", pid, size);
     
     return result;
 
