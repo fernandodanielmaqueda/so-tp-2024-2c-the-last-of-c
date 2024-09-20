@@ -30,6 +30,7 @@ typedef unsigned int t_Priority;
 typedef int64_t t_Time;
 
 typedef struct t_CPU_Registers {
+    t_PC PC;
     uint32_t AX;
     uint32_t BX;
     uint32_t CX;
@@ -41,7 +42,6 @@ typedef struct t_CPU_Registers {
 } t_CPU_Registers;
 
 typedef struct t_Exec_Context {
-    t_PC PC;
     t_CPU_Registers cpu_registers;
     uint32_t base;
     uint32_t limit;
