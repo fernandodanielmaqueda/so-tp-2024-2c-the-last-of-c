@@ -247,7 +247,7 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
 void listen_kernel(int fd_client) {
 
     t_Package* package;
-    int result;
+    int result = 0;
 
     if(package_receive(&package, fd_client)) {
         
@@ -591,9 +591,9 @@ int kill_process(t_Payload *payload) {
     
     int result = 0;
     t_PID pid;
-    size_t size = ARRAY_PROCESS_MEMORY[pid]->size;
 
     payload_remove(payload, &pid, sizeof(t_PID));
+    size_t size = ARRAY_PROCESS_MEMORY[pid]->size;
 
     //Liberacion de particion
     pthread_mutex_lock(&MUTEX_PARTITION_TABLE);
@@ -897,6 +897,13 @@ void listen_cpu(void) {
                 write_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
+                
+            case EXEC_CONTEXT_REQUEST_HEADER:
+                log_info(MODULE_LOGGER, "CPU: Pedido de registros recibido.");
+                seek_cpu_context(&(package->payload));
+                //result = treat_memory_dump(&(package->payload));send_exec_context
+                package_destroy(package);
+                break;
             
             default:
                 log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
@@ -1140,6 +1147,21 @@ int treat_memory_dump(t_Payload *payload){
     free(namefile);
 
     return EXIT_SUCCESS;
+}
+
+void seek_cpu_context(t_Payload *payload){
+
+    t_PID pid;
+    t_TID tid;
+
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(tid), sizeof(t_TID));
+
+    //if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers == NULL) return EXIT_FAILURE;
+    
+    //send_exec_context(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers, CLIENT_CPU->fd_client);
+
+    //return EXIT_SUCCESS
 }
 
 void free_memory(){
