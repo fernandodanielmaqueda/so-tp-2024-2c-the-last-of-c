@@ -5,10 +5,10 @@
 
 char *MODULE_NAME = "cpu";
 
-t_log *MODULE_LOGGER;
+t_log *MODULE_LOGGER = NULL;
 char *MODULE_LOG_PATHNAME = "cpu.log";
 
-t_config *MODULE_CONFIG;
+t_config *MODULE_CONFIG = NULL;
 char *MODULE_CONFIG_PATHNAME = "cpu.config";
 
 t_PID PID;
@@ -17,17 +17,20 @@ t_Exec_Context EXEC_CONTEXT;
 size_t BASE;
 size_t LIMIT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
+bool IS_MUTEX_EXEC_CONTEXT_INITIALIZED = false;
 
 bool EXECUTING = 0;
 pthread_mutex_t MUTEX_EXECUTING;
+bool IS_MUTEX_EXECUTING_INITIALIZED = false;
 
 e_Eviction_Reason EVICTION_REASON;
 
 e_Kernel_Interrupt KERNEL_INTERRUPT;
 pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
+bool IS_MUTEX_KERNEL_INTERRUPT_INITIALIZED = false;
 
 bool SYSCALL_CALLED;
-t_Payload SYSCALL_INSTRUCTION;
+t_Payload SYSCALL_INSTRUCTION = {0};
 
 int module(int argc, char *argv[])
 {

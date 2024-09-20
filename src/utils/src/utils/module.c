@@ -5,42 +5,34 @@
 
 t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
 
-t_log *MINIMAL_LOGGER;
+t_log *MINIMAL_LOGGER = NULL;
 char *MINIMAL_LOG_PATHNAME = "minimal.log";
 
-t_log *SOCKET_LOGGER;
+t_log *SOCKET_LOGGER = NULL;
 char *SOCKET_LOG_PATHNAME = "socket.log";
 
-t_log *SERIALIZE_LOGGER;
+t_log *SERIALIZE_LOGGER = NULL;
 char *SERIALIZE_LOG_PATHNAME = "serialize.log";
-
-void initialize_loggers(void) {
-	MINIMAL_LOGGER = log_create(MINIMAL_LOG_PATHNAME, "Minimal", true, LOG_LEVEL);
-	MODULE_LOGGER = log_create(MODULE_LOG_PATHNAME, MODULE_NAME, true, LOG_LEVEL);
-	SOCKET_LOGGER = log_create(SOCKET_LOG_PATHNAME, "Socket", true, LOG_LEVEL);
-	SERIALIZE_LOGGER = log_create(SERIALIZE_LOG_PATHNAME, "Serialize", true, LOG_LEVEL);
-}
-
-void finish_loggers(void) {
-	log_destroy(MINIMAL_LOGGER);
-	log_destroy(MODULE_LOGGER);
-	log_destroy(SOCKET_LOGGER);
-	log_destroy(SERIALIZE_LOGGER);
-}
 
 int initialize_configs(char *pathname) {
 	MODULE_CONFIG = config_create(pathname);
-
 	if(MODULE_CONFIG == NULL) {
 		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", pathname);
         return -1;
 	}
 
-	return read_module_config(MODULE_CONFIG);
+	if(read_module_config(MODULE_CONFIG)) {
+		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", pathname);
+		config_destroy(MODULE_CONFIG);
+		return -1;
+	}
+
+	return 0;
 }
 
 void finish_configs(void) {
-	config_destroy(MODULE_CONFIG);
+	if(MODULE_CONFIG != NULL)
+		config_destroy(MODULE_CONFIG);
 }
 
 bool config_has_properties(t_config *config, ...) {
@@ -60,6 +52,51 @@ bool config_has_properties(t_config *config, ...) {
 
     va_end(args);
     return result;
+}
+
+int initialize_loggers(void) {
+	MINIMAL_LOGGER = log_create(MINIMAL_LOG_PATHNAME, "Minimal", true, LOG_LEVEL);
+	if(MINIMAL_LOGGER == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el log\n", MINIMAL_LOG_PATHNAME);
+		goto failure;
+	}
+
+	MODULE_LOGGER = log_create(MODULE_LOG_PATHNAME, MODULE_NAME, true, LOG_LEVEL);
+	if(MODULE_LOGGER == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el log\n", MODULE_LOG_PATHNAME);
+		goto failure;
+	}
+
+	SOCKET_LOGGER = log_create(SOCKET_LOG_PATHNAME, "Socket", true, LOG_LEVEL);
+	if(SOCKET_LOGGER == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el log\n", SOCKET_LOG_PATHNAME);
+		goto failure;
+	}
+
+	SERIALIZE_LOGGER = log_create(SERIALIZE_LOG_PATHNAME, "Serialize", true, LOG_LEVEL);
+	if(SERIALIZE_LOGGER == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el log\n", SERIALIZE_LOG_PATHNAME);
+		goto failure;
+	}
+
+	return 0;
+
+	failure:
+		finish_loggers();
+		return -1;
+}
+
+void finish_loggers(void) {
+	finish_logger(SERIALIZE_LOGGER);
+	finish_logger(SOCKET_LOGGER);
+	finish_logger(MODULE_LOGGER);
+	finish_logger(MINIMAL_LOGGER);
+}
+
+void finish_logger(t_log *logger) {
+	if(logger != NULL) {
+		log_destroy(logger);
+	}
 }
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {

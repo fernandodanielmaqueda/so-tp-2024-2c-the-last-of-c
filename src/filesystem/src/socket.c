@@ -5,7 +5,7 @@
 
 t_Server SERVER_FILESYSTEM;
 
-t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
+t_Shared_List SHARED_LIST_CLIENTS_MEMORY = { .list = NULL };
 
 void initialize_sockets(void) {
 

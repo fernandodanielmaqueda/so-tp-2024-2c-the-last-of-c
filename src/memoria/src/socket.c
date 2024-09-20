@@ -11,8 +11,8 @@ t_Server SERVER_MEMORY;
 t_Client *CLIENT_CPU = NULL;
 pthread_mutex_t MUTEX_CLIENT_CPU;
 
-t_Shared_List SHARED_LIST_CLIENTS_KERNEL;
-t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM;
+t_Shared_List SHARED_LIST_CLIENTS_KERNEL = { .list = NULL };
+t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM = { .list = NULL };
 
 void initialize_sockets(void) {
 

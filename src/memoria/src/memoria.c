@@ -6,10 +6,10 @@
 
 char *MODULE_NAME = "memoria";
 
-t_log *MODULE_LOGGER;
+t_log *MODULE_LOGGER = NULL;
 char *MODULE_LOG_PATHNAME = "memoria.log";
 
-t_config *MODULE_CONFIG;
+t_config *MODULE_CONFIG = NULL;
 char *MODULE_CONFIG_PATHNAME = "memoria.config";
 
 size_t MEMORY_SIZE;

@@ -22,6 +22,7 @@ typedef struct t_Drain_Ongoing_Resource_Sync {
 	pthread_cond_t cond_drain_requests;
 	unsigned int ongoing_count;
 	pthread_cond_t cond_ongoing;
+	bool initialized;
 } t_Drain_Ongoing_Resource_Sync;
 
 extern char *MODULE_NAME;
@@ -43,12 +44,15 @@ extern char *SERIALIZE_LOG_PATHNAME;
 extern t_config *MODULE_CONFIG;
 extern char *MODULE_CONFIG_PATHNAME;
 
-void initialize_loggers(void);
-void finish_loggers(void);
 int initialize_configs(char *pathname);
 void finish_configs(void);
 bool config_has_properties(t_config *config, ...);
-extern int read_module_config(t_config *);
+extern int read_module_config(t_config *); // Se debe implementar en cada módulo
+
+int initialize_loggers(void);
+
+void finish_loggers(void);
+void finish_logger(t_log *logger);
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
