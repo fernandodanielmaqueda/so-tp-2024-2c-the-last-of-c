@@ -744,7 +744,7 @@ int create_thread(t_Payload *payload) {
 
     new_thread->instructions_count = 0;
     new_thread->array_instructions = NULL;
-
+//FIX REQUIRED BASE LIMIT
     //Inicializar registros
     new_thread->registers.PC = new_thread->instructions_count;
     new_thread->registers.cpu_registers.AX = 0;
@@ -1132,6 +1132,7 @@ int treat_memory_dump(t_Payload *payload){
     
     void *position = (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base);
 /*
+FIX REQUIRED
     if(send_memory_dump(namefile, position, connection_filesystem.fd_connection)){
         printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",pid, tid.");
         free(namefile); 
@@ -1157,6 +1158,7 @@ void seek_cpu_context(t_Payload *payload){
     payload_remove(payload, &(pid), sizeof(t_PID));
     payload_remove(payload, &(tid), sizeof(t_TID));
 
+//FIX REQUIRED
     //if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers == NULL) return EXIT_FAILURE;
     
     //send_exec_context(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers, CLIENT_CPU->fd_client);
