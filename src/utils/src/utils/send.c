@@ -327,17 +327,9 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
 // CPU - Memoria
 
-int send_exec_context(t_Exec_Context exec_context, size_t base, size_t limit, int fd_socket) {
+int send_exec_context(t_Exec_Context exec_context, int fd_socket) {
   t_Package *package = package_create_with_header(EXEC_CONTEXT_REQUEST_HEADER);
   if(exec_context_serialize(&(package->payload), exec_context)) {
-    package_destroy(package);
-    return -1;
-  }
-  if(size_serialize(&(package->payload), base)) {
-    package_destroy(package);
-    return -1;
-  }
-  if(size_serialize(&(package->payload), limit)) {
     package_destroy(package);
     return -1;
   }
@@ -349,7 +341,7 @@ int send_exec_context(t_Exec_Context exec_context, size_t base, size_t limit, in
   return 0;
 }
 
-int receive_exec_context(t_Exec_Context *exec_context, size_t *base, size_t *limit, int fd_socket) {
+int receive_exec_context(t_Exec_Context *exec_context, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return -1;
@@ -359,14 +351,6 @@ int receive_exec_context(t_Exec_Context *exec_context, size_t *base, size_t *lim
     return -1;
   }
   if(exec_context_deserialize(&(package->payload), exec_context)) {
-    package_destroy(package);
-    return -1;
-  }
-  if(size_deserialize(&(package->payload), base)) {
-    package_destroy(package);
-    return -1;
-  }
-  if(size_deserialize(&(package->payload), limit)) {
     package_destroy(package);
     return -1;
   }

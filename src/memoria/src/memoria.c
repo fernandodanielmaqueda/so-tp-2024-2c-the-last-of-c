@@ -747,14 +747,14 @@ int create_thread(t_Payload *payload) {
 //FIX REQUIRED BASE LIMIT
     //Inicializar registros
     new_thread->registers.PC = new_thread->instructions_count;
-    new_thread->registers.cpu_registers.AX = 0;
-    new_thread->registers.cpu_registers.BX = 0;
-    new_thread->registers.cpu_registers.CX = 0;
-    new_thread->registers.cpu_registers.DX = 0;
-    new_thread->registers.cpu_registers.EX = 0;
-    new_thread->registers.cpu_registers.FX = 0;
-    new_thread->registers.cpu_registers.GX = 0;
-    new_thread->registers.cpu_registers.HX = 0;
+    new_thread->registers.AX = 0;
+    new_thread->registers.BX = 0;
+    new_thread->registers.CX = 0;
+    new_thread->registers.DX = 0;
+    new_thread->registers.EX = 0;
+    new_thread->registers.FX = 0;
+    new_thread->registers.GX = 0;
+    new_thread->registers.HX = 0;
 
     //inicializar instrucciones
     result = parse_pseudocode_file(path_instructions, &(new_thread->array_instructions), &(new_thread->instructions_count));

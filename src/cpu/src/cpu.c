@@ -14,8 +14,6 @@ char *MODULE_CONFIG_PATHNAME = "cpu.config";
 t_PID PID;
 t_TID TID;
 t_Exec_Context EXEC_CONTEXT;
-size_t BASE;
-size_t LIMIT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
 bool IS_MUTEX_EXEC_CONTEXT_INITIALIZED = false;
 
@@ -125,7 +123,7 @@ void instruction_cycle(void)
             log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
 
             // Recibo la respuesta de memoria con el contexto de ejecución
-            if(receive_exec_context(&EXEC_CONTEXT, &BASE, &LIMIT, CONNECTION_MEMORY.fd_connection)) {
+            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
                 // TODO
                 exit(EXIT_FAILURE);
             }
@@ -140,7 +138,7 @@ void instruction_cycle(void)
         while(1) {
 
             // Fetch
-            log_info(MINIMAL_LOGGER, "## TID: %u - FETCH - Program Counter: %u", TID, EXEC_CONTEXT.PC);
+            log_info(MINIMAL_LOGGER, "## TID: %u - FETCH - Program Counter: %u", TID, EXEC_CONTEXT.cpu_registers.PC);
             cpu_fetch_next_instruction(&IR);
             if(IR == NULL) {
                 log_error(MODULE_LOGGER, "Error al fetchear la instruccion");
@@ -288,7 +286,7 @@ int cpu_fetch_next_instruction(char **line) {
         return -1;
     }
 
-    if(send_instruction_request(PID, TID, EXEC_CONTEXT.PC, CONNECTION_MEMORY.fd_connection)) {
+    if(send_instruction_request(PID, TID, EXEC_CONTEXT.cpu_registers.PC, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         return -1;
     }
@@ -308,17 +306,17 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     }
 
     // Verifico que no produzca overflow
-    if(logical_address > (SIZE_MAX - BASE) || bytes > (SIZE_MAX - (BASE + logical_address))) {
+    if(logical_address > (SIZE_MAX - EXEC_CONTEXT.base) || bytes > (SIZE_MAX - (EXEC_CONTEXT.base + logical_address))) {
         errno = ERANGE;
         return -1;
     }
 
     // Calculo la dirección física
-    size_t physical_address = BASE + logical_address;
+    size_t physical_address = EXEC_CONTEXT.base + logical_address;
     // La dirección lógica es el desplazamiento desde la base
 
     // Verifico que no haya segmentation fault
-    if((physical_address + bytes) >= LIMIT) {
+    if((physical_address + bytes) >= EXEC_CONTEXT.limit) {
         errno = EFAULT;
         return -1;
     }

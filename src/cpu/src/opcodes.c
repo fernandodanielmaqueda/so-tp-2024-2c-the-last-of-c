@@ -62,7 +62,7 @@ int set_cpu_operation(int argc, char **argv) {
 
     set_register_value(&EXEC_CONTEXT, destination_register, value);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -127,7 +127,7 @@ int read_mem_cpu_operation(int argc, char **argv) {
     free(source);
     */
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -179,7 +179,7 @@ int write_mem_cpu_operation(int argc, char **argv) {
 
     write_memory(physical_address, source, bytes);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -216,7 +216,7 @@ int sum_cpu_operation(int argc, char **argv) {
 
     set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination + value_register_origin));
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -253,7 +253,7 @@ int sub_cpu_operation(int argc, char **argv) {
 
     set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination - value_register_origin));
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -287,9 +287,9 @@ int jnz_cpu_operation(int argc, char **argv) {
     get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register);
 
     if(value_cpu_register)
-        EXEC_CONTEXT.PC = instruction;
+        EXEC_CONTEXT.cpu_registers.PC = instruction;
     else
-        EXEC_CONTEXT.PC++;
+        EXEC_CONTEXT.cpu_registers.PC++;
     
     SYSCALL_CALLED = 0;
 
@@ -317,7 +317,7 @@ int log_cpu_operation(int argc, char **argv) {
 
     log_info(MODULE_LOGGER, "Registro %s: %d", argv[1], (int) value_cpu_register);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
 
@@ -333,7 +333,7 @@ int process_create_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s %s", TID, argv[0], argv[1], argv[2], argv[3]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
@@ -365,7 +365,7 @@ int process_exit_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_EXIT_CPU_OPCODE);
@@ -382,7 +382,7 @@ int thread_create_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s %s", TID, argv[0], argv[1], argv[2]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE);
@@ -407,7 +407,7 @@ int thread_join_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE);
@@ -431,7 +431,7 @@ int thread_cancel_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE);
@@ -455,7 +455,7 @@ int thread_exit_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_EXIT_CPU_OPCODE);
@@ -472,7 +472,7 @@ int mutex_create_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_CREATE_CPU_OPCODE);
@@ -490,7 +490,7 @@ int mutex_lock_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_LOCK_CPU_OPCODE);
@@ -508,7 +508,7 @@ int mutex_unlock_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_UNLOCK_CPU_OPCODE);
@@ -526,7 +526,7 @@ int dump_memory_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s", TID, argv[0]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, DUMP_MEMORY_CPU_OPCODE);
@@ -543,7 +543,7 @@ int io_cpu_operation(int argc, char **argv) {
 
     log_info(MINIMAL_LOGGER, "## TID: %u - Ejecutando: %s %s", TID, argv[0], argv[1]);
 
-    EXEC_CONTEXT.PC++;
+    EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE);

@@ -73,7 +73,7 @@ int exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
     return -1;
   }
 
-  if(payload_add(payload, &(source.PC), sizeof(((t_Exec_Context *)0)->PC)))
+  if(payload_add(payload, &(source.cpu_registers.PC), sizeof(((t_Exec_Context *)0)->cpu_registers.PC)))
     return -1;
   if(payload_add(payload, &(source.cpu_registers.AX), sizeof(((t_Exec_Context *)0)->cpu_registers.AX)))
     return -1;
@@ -91,6 +91,10 @@ int exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
     return -1;
   if(payload_add(payload, &(source.cpu_registers.HX), sizeof(((t_Exec_Context *)0)->cpu_registers.HX)))
     return -1;
+  if(payload_add(payload, &(source.base), sizeof(((t_Exec_Context *)0)->base)))
+    return -1;
+  if(payload_add(payload, &(source.limit), sizeof(((t_Exec_Context *)0)->limit)))
+    return -1;
 
   exec_context_log(source);
   return 0;
@@ -102,7 +106,7 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
     return -1;
   }
 
-  if(payload_remove(payload, &(destination->PC), sizeof(((t_Exec_Context *)0)->PC)))
+  if(payload_remove(payload, &(destination->cpu_registers.PC), sizeof(((t_Exec_Context *)0)->cpu_registers.PC)))
     return -1;
   if(payload_remove(payload, &(destination->cpu_registers.AX), sizeof(((t_Exec_Context *)0)->cpu_registers.AX)))
     return -1;
@@ -120,6 +124,10 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
     return -1;
   if(payload_remove(payload, &(destination->cpu_registers.HX), sizeof(((t_Exec_Context *)0)->cpu_registers.HX)))
     return -1;
+  if(payload_remove(payload, &(destination->base), sizeof(((t_Exec_Context *)0)->base)))
+    return -1;
+  if(payload_remove(payload, &(destination->limit), sizeof(((t_Exec_Context *)0)->limit)))
+    return -1;
 
   exec_context_log(*destination);
   return 0;
@@ -128,16 +136,18 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
 int exec_context_log(t_Exec_Context source) {
   log_info(SERIALIZE_LOGGER,
     "t_Exec_Context:\n"
-    "* PC: %" PRIu32 "\n"
-    "* AX: %" PRIu32 "\n"
-    "* BX: %" PRIu32 "\n"
-    "* CX: %" PRIu32 "\n"
-    "* DX: %" PRIu32 "\n"
-    "* EX: %" PRIu32 "\n"
-    "* FX: %" PRIu32 "\n"
-    "* GX: %" PRIu32 "\n"
-    "* HX: %" PRIu32
-    , source.PC
+    "* PC: %u\n"
+    "* AX: %u\n"
+    "* BX: %u\n"
+    "* CX: %u\n"
+    "* DX: %u\n"
+    "* EX: %u\n"
+    "* FX: %u\n"
+    "* GX: %u\n"
+    "* HX: %u\n"
+    "* base: %u\n"
+    "* limit: %u"
+    , source.cpu_registers.PC
     , source.cpu_registers.AX
     , source.cpu_registers.BX
     , source.cpu_registers.CX
@@ -146,6 +156,8 @@ int exec_context_log(t_Exec_Context source) {
     , source.cpu_registers.FX
     , source.cpu_registers.GX
     , source.cpu_registers.HX
+    , source.base
+    , source.limit
     );
   
   return 0;

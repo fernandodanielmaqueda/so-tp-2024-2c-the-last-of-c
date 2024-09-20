@@ -56,7 +56,7 @@ typedef struct t_Partition {
 
 typedef struct t_Memory_Thread {
     t_TID tid;
-    t_Exec_Context registers;
+    t_CPU_Registers registers;
     t_PC instructions_count;
     char **array_instructions;
 } t_Memory_Thread;
