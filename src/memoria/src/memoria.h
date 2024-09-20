@@ -167,5 +167,8 @@ int verify_and_join_splited_partitions(t_PID pid);
 void free_threads(int pid);
 int create_thread(t_Payload *payload);
 int kill_thread(t_Payload *payload);
+int treat_memory_dump(t_Payload *payload);
+void seek_cpu_context(t_Payload *payload);
+
 
 #endif // MEMORIA_H

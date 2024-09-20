@@ -36,6 +36,8 @@
 //     uint32_t size;
 // } t_FS_File;
 
+typedef uint32_t t_Block_Pointer;
+
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
     uint32_t blocks_free; // contar los bits libres (0)
@@ -95,5 +97,6 @@ void filesystem_client_handler_for_memory(int fd_client);
 void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t necessary_bits_free);
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
 size_t necessary_bits(size_t bytes_size);
-
+void* get_pointer_to_block(char *file_ptr, size_t file_block_size, size_t file_block_pos) ;
+void block_msync(char *init_group_blocks, size_t group_blocks_size);
 #endif // FILESYSTEM_H

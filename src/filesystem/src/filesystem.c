@@ -283,3 +283,18 @@ void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t blocks_nec
 size_t necessary_bits(size_t bytes_size) {
 	return (size_t) ceil((double) bytes_size / 8);
 }
+
+// cada block es de BLOCK_SIZE
+//////////////////////////////////////////  TODO ///////////////////////////////
+void block_msync(char *init_group_blocks, size_t group_blocks_size){ 
+    // Sincroniza el archivo. SINCRONIZAR EL ARCHIVO BLOQUES.DAT ACTUALIZADO EN RAM COMPLETO EN DISCO
+    if (msync(init_group_blocks, group_blocks_size, MS_SYNC) == -1) {
+        log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
+    }
+}
+
+void* get_pointer_to_block(char *file_ptr, size_t file_block_size, size_t file_block_pos) {
+    // Calcular la dirección del bloque deseado
+    void *block_ptr = (char *)file_ptr + (file_block_size * file_block_pos);
+    return block_ptr;
+}

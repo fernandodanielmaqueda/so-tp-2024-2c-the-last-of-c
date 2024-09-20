@@ -43,6 +43,8 @@ typedef struct t_CPU_Registers {
 typedef struct t_Exec_Context {
     t_PC PC;
     t_CPU_Registers cpu_registers;
+    uint32_t base;
+    uint32_t limit;
 } t_Exec_Context;
 
 
