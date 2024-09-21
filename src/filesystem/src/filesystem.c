@@ -215,12 +215,13 @@ void filesystem_client_handler_for_memory(int fd_client) {
     void *memory_dump;
     size_t dump_size;
     size_t blocks_necessary;
-	t_list* list_bit_index = list_create();
 
     receive_memory_dump(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
 
-    blocks_necessary = (size_t) ceil((double) dump_size / BLOCK_SIZE) + 1 ;
-	
+    blocks_necessary = (size_t) ceil((double) dump_size / BLOCK_SIZE) + 1 ; // datos: 2 indice: 1 = 3 bloques 
+
+    t_Block_Pointer array[blocks_necessary]; // array[3]: 0,1,2 
+ 	
     // Verificar si hay suficientes bloques libres para almacenar el archivo
     pthread_mutex_lock(&MUTEX_BITMAP);
 		if( BITMAP.blocks_free < blocks_necessary){
@@ -230,7 +231,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
             return;
         }
 
-		set_bits_bitmap(&BITMAP, list_bit_index, blocks_necessary);
+		set_bits_bitmap(&BITMAP, array, blocks_necessary);
 
     pthread_mutex_unlock(&MUTEX_BITMAP);
 
@@ -253,9 +254,10 @@ void filesystem_client_handler_for_memory(int fd_client) {
     return;
 }
 
-void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t blocks_necessary){
+void set_bits_bitmap(t_Bitmap* bit_map, t_Block_Pointer* array,size_t blocks_necessary){
 
 	bit_map->blocks_free -= blocks_necessary; 
+    size_t array_pos = 0;
 
     for (int bit_index = 0; blocks_necessary > 0; bit_index++) { //5,4,3,2,1,0
             
@@ -269,6 +271,8 @@ void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t blocks_nec
             bitarray_set_bit(bit_map->bits_blocks, bit_index); 
 
             // guardar sus posiciones (nro indice) en lista.
+            array[array_pos]= bit_index
+            array_pos++;
             //list_add(list_bit_index, bit_index); Fer: Van a tener que hacer mallocs si quieren guardar los indices en una lista
         }
     }
@@ -383,8 +387,12 @@ void write_block(t_Block_Pointer nro_bloque, char* ptro_datos, size_t desplazami
 
 
 void write_indice(){
+
+    
+    t_Block_Pointer array[6];
+    
     t_Block_Pointer nro_bloque = array[0];
-    char* ptro_datos = array->datos;
+    char* ptro_datos = array;
     size_t  cantidad_bloques = array->size;
     size_t desplazamiento = cantidad_bloques * size(t_Block_Pointer);
 
