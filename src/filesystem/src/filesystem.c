@@ -25,6 +25,7 @@ t_Bitmap BITMAP;
 pthread_mutex_t MUTEX_BITMAP;
 
 char *PTRO_BLOCKS;
+char *PTRO_MAP_DATOS_MDUMP;
 size_t BLOCKS_TOTAL_SIZE;
 
 int module(int argc, char *argv[]) {
@@ -286,15 +287,122 @@ size_t necessary_bits(size_t bytes_size) {
 
 // cada block es de BLOCK_SIZE
 //////////////////////////////////////////  TODO ///////////////////////////////
-void block_msync(char *init_group_blocks, size_t group_blocks_size){ 
+
+void* get_pointer_to_block(char *file_ptr, size_t file_block_size, t_Block_Pointer file_block_pos) {
+    // Calcular la dirección del bloque deseado
+    void *block_ptr = (char *)file_ptr + (file_block_size * file_block_pos);
+    return block_ptr;
+}
+
+
+// array[0]=2 (t_Block_Pointer), arry[1]=0, array[2]=null : bytes: INDICE t_Block_Pointer(4bytes),t_Block_Pointer 
+
+
+/*
+
+    ----
+    memoria Array: 3 (4 bytes), 4 (4 bytes), 5 (4 bytes)
+    copia  memoria Array  --> memoria indice: x1 (4 bytes), x2 (4 bytes), x3 (4 bytes) 
+    ---
+    block ocupados pos: 0 (1), 1 (1), 2 (1), 3 (0), 4 (0), 5 (0), 6 (0), ...
+    dos bloques + block indice = 3 block -->  3 (0), 4 (0), 5 (0),
+    array[0]=3  // (OK) Q POSICION LE ASIGNAMOS AL BLOQUE INDICE ?? SIEMPRE EL DE LA POSICION 0 ??
+    array[1]=4
+    array[3]=5  // Q POSICION LE ASIGNAMOS AL BLOQUE INDICE ?? SIEMPRE EL DE LA POSICION FINAL SIZE-1 ??
+
+   write_block(nro_bloque, ptro_datos, desplazamiento)
+      1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
+        
+        // apuntar a la posicion del index del bloquest.dat donde vamos a copiar
+        char* ptro_bloque_indice = get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, nro_bloque)
+      
+      2) copiar los datos al bloque respectivo
+        
+        // ptro donde vas a copiar, puntero donde esta los bytes a copiar, cantidad de bytes a copiar  
+        copy_in_block(ptro_bloque_indice, ptro_datos, desplazamiento)
+
+
+   write_indice() 
+
+        t_Block_Pointer nro_bloque = array[0]
+        char* ptro_datos = array->datos
+        size_t  cantidad_bloques = array->size
+        size_t desplazamiento = cantidad_bloques * size(t_Block_Pointer)
+
+        write_block(nro_bloque, ptro_datos, desplazamiento)
+    
+   
+   write_data()
+      
+        for(size_t pos_index=1, pos_index =< cantidad_bloques, pos_index++){
+
+                t_Block_Pointer nro_bloque = array[pos_index]
+
+                // apuntar a la posicion de los datos del memory dump desde donde vamos a copiar
+                char* ptro_memory_dump_block = get_pointer_to_block(PTRO_MAP_DATOS_MDUMP, BLOCK_SIZE, nro_bloque)
+
+                write_block(nro_bloque, ptro_datos, BLOCK_SIZE)
+        }
+
+
+
+
+
+*/
+
+
+// t_Block_Pointer file_block_pos = get_block_pos();
+// get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, file_block_pos);
+
+void block_msync(char* map_ptro, size_t group_blocks_size){ 
+    char *init_group_blocks = get_pointer_to_block(PTRO_BITMAP, BLOCK_SIZE, file_block_pos);
+
     // Sincroniza el archivo. SINCRONIZAR EL ARCHIVO BLOQUES.DAT ACTUALIZADO EN RAM COMPLETO EN DISCO
     if (msync(init_group_blocks, group_blocks_size, MS_SYNC) == -1) {
         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
     }
 }
 
-void* get_pointer_to_block(char *file_ptr, size_t file_block_size, size_t file_block_pos) {
-    // Calcular la dirección del bloque deseado
-    void *block_ptr = (char *)file_ptr + (file_block_size * file_block_pos);
-    return block_ptr;
+void copy_in_block(char* ptro_bloque_indice,char*  ptro_datos, size_t  desplazamiento){
+
+}
+
+void write_block(t_Block_Pointer nro_bloque, char* ptro_datos, size_t desplazamiento){
+  
+    // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
+        
+        // apuntar a la posicion del index del bloquest.dat donde vamos a copiar
+        char* ptro_bloque_indice = get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, nro_bloque);
+      
+    //  2) copiar los datos al bloque respectivo
+        
+        // ptro donde vas a copiar, puntero donde esta los bytes a copiar, cantidad de bytes a copiar  
+        copy_in_block(ptro_bloque_indice, ptro_datos, desplazamiento);
+}
+    
+
+
+void write_indice(){
+    t_Block_Pointer nro_bloque = array[0];
+    char* ptro_datos = array->datos;
+    size_t  cantidad_bloques = array->size;
+    size_t desplazamiento = cantidad_bloques * size(t_Block_Pointer);
+
+    write_block(nro_bloque, ptro_datos, desplazamiento);
+} 
+
+    
+   
+void write_data(){
+    size_t  cantidad_bloques = array->size;
+
+    for(size_t pos_index=1; cantidad_bloques <= pos_index; pos_index++){
+
+            t_Block_Pointer nro_bloque = array[pos_index];
+
+            // apuntar a la posicion de los datos del memory dump desde donde vamos a copiar
+            char* ptro_memory_dump_block = get_pointer_to_block(PTRO_MAP_DATOS_MDUMP, BLOCK_SIZE, nro_bloque);
+
+            write_block(nro_bloque, ptro_memory_dump_block, BLOCK_SIZE);
+    }
 }
