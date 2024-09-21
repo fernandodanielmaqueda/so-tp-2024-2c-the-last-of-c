@@ -43,10 +43,6 @@ typedef struct t_Bitmap {
     uint32_t blocks_free; // contar los bits libres (0)
 } t_Bitmap;
 
-typedef struct t_Block {
-    char *block_data;     
-} t_Block;
-
 /*
     t_Bitmap* create_t_bitmap(): 
             crear esta estructura y arrancar en cero, free_bits =  cantida de bloques
@@ -79,8 +75,10 @@ extern size_t BITMAP_SIZE;
 extern t_Bitmap BITMAP;
 extern pthread_mutex_t MUTEX_BITMAP;
 
-extern char *PTRO_BLOCKS;
+extern void *PTRO_BLOCKS;
 extern size_t BLOCKS_TOTAL_SIZE;
+
+#define BLOCKS_TOTAL_SIZE (BLOCK_COUNT * BLOCK_SIZE) // cantidad de bloques * tamaño de bloque
 
 int module(int, char*[]);
 
@@ -90,13 +88,13 @@ int finish_global_variables(void);
 int read_module_config(t_config *module_config);
 
 int bitmap_init(t_Bitmap *bitmap);
-int bloques_init(t_Block *block);
+int bloques_init(void); // void ** &PTRO_BLOCKS
 
 void filesystem_client_handler_for_memory(int fd_client);
 
-void set_bits_bitmap(t_Bitmap* bit_map, t_list* list_bit_index,size_t necessary_bits_free);
+void set_bits_bitmap(t_Bitmap* bit_map, t_Block_Pointer *list_bit_index,size_t necessary_bits_free);
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
 size_t necessary_bits(size_t bytes_size);
-void* get_pointer_to_block(char *file_ptr, size_t file_block_size, size_t file_block_pos) ;
-void block_msync(char *init_group_blocks, size_t group_blocks_size);
+void* get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Pointer file_block_pos) ;
+void block_msync(t_Block_Pointer block_number);
 #endif // FILESYSTEM_H
