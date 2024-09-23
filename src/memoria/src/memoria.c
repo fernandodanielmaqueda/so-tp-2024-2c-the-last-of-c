@@ -744,7 +744,7 @@ int create_thread(t_Payload *payload) {
 
     new_thread->instructions_count = 0;
     new_thread->array_instructions = NULL;
-    
+
     //Inicializar registros
     new_thread->registers.PC = 0;
     new_thread->registers.AX = 0;
@@ -951,6 +951,8 @@ void seek_instruccion(t_Payload *payload) {
         log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d.\n", pid);
         return;
     }
+    //FIX REQUIRED --> <> de instruccion
+    log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:<%u>) - (TID:<%u>) - Instruccion: <%s>.\n", pid, tid, instruccionBuscada);
 
     return;
 }
