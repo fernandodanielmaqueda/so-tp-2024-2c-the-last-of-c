@@ -894,7 +894,8 @@ void listen_cpu(void) {
                 
             case WRITE_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de escritura recibido.");
-                write_memory(&(package->payload), CLIENT_CPU->fd_client);
+                int result_write = write_memory(&(package->payload));
+                send_return_value_with_header(WRITE_REQUEST_HEADER, result_write, CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
@@ -1027,16 +1028,42 @@ void read_memory(t_Payload *payload, int socket) {
     */
 }
 
-void write_memory(t_Payload *payload, int socket) {
-    /*
-    t_PID pid;
-    t_list *list_physical_addresses = list_create();
-    size_t bytes;
+int write_memory(t_Payload *payload) {
     
-    payload_remove(payload, &pid, sizeof(pid));
-    list_deserialize(payload, list_physical_addresses, size_deserialize_element);
-    size_deserialize(payload, &bytes);
+    usleep(RESPONSE_DELAY * 1000);
+    
+    t_PID pid;
+    t_TID tid;
+    size_t physical_address;
+    size_t bytes = 4;
+    
+    payload_remove(payload, &pid, sizeof(t_PID));
+    payload_remove(payload, &tid, sizeof(t_TID));
+    size_deserialize(payload, &physical_address);
+    //size_deserialize(payload, &bytes);
+    //t_list *list_physical_addresses = list_create();
+    //list_deserialize(payload, list_physical_addresses, size_deserialize_element);
+    
+    void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
+    if(bytes > 4){
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        return EXIT_FAILURE;
+    }
+    
+    if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)){
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        return EXIT_FAILURE;
+    }
+
+    data_deserialize(payload, posicion, &bytes);
+
+//FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
+    log_info(MINIMAL_LOGGER, "## <Escritura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);
+
+    return EXIT_SUCCESS;
+    
+/*
     size_t physical_address = *((size_t *) list_get(list_physical_addresses, 0));
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
     
@@ -1152,6 +1179,8 @@ FIX REQUIRED
     }
 */
     free(namefile);
+    
+    log_info(MINIMAL_LOGGER, "## Memory dump solicitado - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
 
     return EXIT_SUCCESS;
 }
