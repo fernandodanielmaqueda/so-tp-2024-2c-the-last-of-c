@@ -93,6 +93,9 @@ int receive_exec_context(t_Exec_Context *exec_context, int fd_socket);
 int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket);
 
 
+int send_instruction(t_PID pid, t_TID tid, char* instruction, int fd_socket);
+
+
 int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *data, size_t bytes, int fd_socket);
 
 

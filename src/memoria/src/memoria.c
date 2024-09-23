@@ -744,9 +744,9 @@ int create_thread(t_Payload *payload) {
 
     new_thread->instructions_count = 0;
     new_thread->array_instructions = NULL;
-//FIX REQUIRED BASE LIMIT
+    
     //Inicializar registros
-    new_thread->registers.PC = new_thread->instructions_count;
+    new_thread->registers.PC = 0;
     new_thread->registers.AX = 0;
     new_thread->registers.BX = 0;
     new_thread->registers.CX = 0;
@@ -901,7 +901,12 @@ void listen_cpu(void) {
             case EXEC_CONTEXT_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de registros recibido.");
                 seek_cpu_context(&(package->payload));
-                //result = treat_memory_dump(&(package->payload));send_exec_context
+                package_destroy(package);
+                break;
+                
+            case EXEC_CONTEXT_UPDATE_HEADER:
+                log_info(MODULE_LOGGER, "CPU: Actualizacion de registros recibido.");
+                update_cpu_context(&(package->payload));
                 package_destroy(package);
                 break;
             
@@ -914,41 +919,40 @@ void listen_cpu(void) {
 }
 
 void seek_instruccion(t_Payload *payload) {
-    /*
-    t_PID PID;
-    t_PC PC;
-
-    payload_remove(payload, &PID, sizeof(PID));
-    payload_remove(payload, &PC, sizeof(PC));
     
-    t_Process *procesoBuscado = list_find_by_condition_with_comparation(LIST_PROCESSES, (bool (*)(void *, void *)) process_matches_pid, (void *) &PID);
-
-    char* instruccionBuscada = NULL;
-    if(PC < list_size(procesoBuscado->instructions_list)) {
-        instruccionBuscada = list_get(procesoBuscado->instructions_list, PC);
-    }
-
     usleep(RESPONSE_DELAY * 1000);
-    if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruccionBuscada, CLIENT_CPU->fd_client)) {
-        // TODO
+    
+    t_PID pid;
+    t_TID tid;
+    t_PC pc;
 
-        pthread_cancel(SERVER_MEMORY.thread_server);
-        pthread_join(SERVER_MEMORY.thread_server, NULL);
-        close(SERVER_MEMORY.fd_listen);
+    payload_remove(payload, &pid, sizeof(t_PID));
+    payload_remove(payload, &tid, sizeof(t_TID));
+    payload_remove(payload, &pc, sizeof(t_PC));
 
-        pthread_cancel(CLIENT_KERNEL->thread_client_handler);
-        pthread_join(CLIENT_KERNEL->thread_client_handler, NULL);
-        close(CLIENT_KERNEL->fd_client);
-
-        
-        // ES ESTE HILO
-        // pthread_cancel(CLIENT_CPU->thread_client_handler);
-        // pthread_join(CLIENT_CPU->thread_client_handler, NULL);
-        close(CLIENT_CPU->fd_client);
-        exit(EXIT_FAILURE);
+    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL){
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+        return;
     }
-    log_info(MODULE_LOGGER, "Instruccion enviada.");¨
-    */
+    
+    if(pc > ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count) {
+        log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo PID-TID: %d-%d.\n", pid, tid);
+        return;
+    }
+
+    if(pc < 0) {
+        log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter es invalido para el hilo PID-TID: %d-%d.\n", pid, tid);
+        return;
+    }
+
+    char* instruccionBuscada = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
+    
+    if(send_instruction(pid, tid, instruccionBuscada, CLIENT_CPU->fd_client) == (-1)){
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d.\n", pid);
+        return;
+    }
+
+    return;
 }
 
 void read_memory(t_Payload *payload, int socket) {
@@ -1152,18 +1156,56 @@ FIX REQUIRED
 
 void seek_cpu_context(t_Payload *payload){
 
+    usleep(RESPONSE_DELAY * 1000);
+
     t_PID pid;
     t_TID tid;
 
     payload_remove(payload, &(pid), sizeof(t_PID));
     payload_remove(payload, &(tid), sizeof(t_TID));
 
-//FIX REQUIRED
-    //if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers == NULL) return EXIT_FAILURE;
-    
-    //send_exec_context(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers, CLIENT_CPU->fd_client);
+    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL){
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+        return;
+    }
 
-    //return EXIT_SUCCESS
+    t_Exec_Context context;
+    context.cpu_registers = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers;
+    context.base = ARRAY_PROCESS_MEMORY[pid]->partition->base;
+    context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
+
+    if(send_exec_context(context, CLIENT_CPU->fd_client) == (-1)){
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar el contexto del proceso %d.\n", pid);
+        return;
+    }
+    
+    log_info(MINIMAL_LOGGER, "## Contexto <Solicitado> - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
+
+    return;
+}
+
+void update_cpu_context(t_Payload *payload){
+
+    usleep(RESPONSE_DELAY * 1000);
+
+    t_Exec_Context context;
+    t_PID pid;
+    t_TID tid;
+
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(tid), sizeof(t_TID));
+    exec_context_deserialize(payload, &(context));
+    
+    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL){
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+        return;
+    }
+
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers = context.cpu_registers;
+    
+    log_info(MINIMAL_LOGGER, "## Contexto <Actualizado> - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
+
+    return;
 }
 
 void free_memory(){

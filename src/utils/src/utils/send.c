@@ -380,6 +380,28 @@ int send_instruction_request(t_PID pid, t_TID tid, t_PC pc, int fd_socket) {
   return 0;
 }
 
+int send_instruction(t_PID pid, t_TID tid, char* instruction, int fd_socket) {
+  t_Package *package = package_create_with_header(INSTRUCTION_REQUEST_HEADER);
+  if(payload_add(&(package->payload), &pid, sizeof(pid))) {
+    package_destroy(package);
+    return -1;
+  }
+  if(payload_add(&(package->payload), &tid, sizeof(tid))) {
+    package_destroy(package);
+    return -1;
+  }
+  if(text_serialize(&(package->payload), instruction)) {
+    package_destroy(package);
+    return -1;
+  }
+  if(package_send(package, fd_socket)) {
+    package_destroy(package);
+    return -1;
+  }
+  package_destroy(package);
+  return 0;
+}
+
 int send_write_request(t_PID pid, t_TID tid, size_t physical_address, void *data, size_t bytes, int fd_socket) {
   t_Package *package = package_create_with_header(WRITE_REQUEST_HEADER);
   if(payload_add(&(package->payload), &pid, sizeof(pid))) {
