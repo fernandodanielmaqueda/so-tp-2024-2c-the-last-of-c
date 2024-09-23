@@ -157,7 +157,7 @@ void listen_kernel(int fd_client);
 
 int write_memory(t_Payload *socketRecibido);
 
-void read_memory(t_Payload *socketRecibido, int socket);
+int read_memory(t_Payload *socketRecibido, int socket);
 
 void free_memory();
 

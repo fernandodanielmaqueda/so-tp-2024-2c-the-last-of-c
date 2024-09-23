@@ -888,7 +888,8 @@ void listen_cpu(void) {
                 
             case READ_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de lectura recibido.");
-                read_memory(&(package->payload), CLIENT_CPU->fd_client);
+                if(read_memory(&(package->payload), CLIENT_CPU->fd_client))send_return_value_with_header(READ_REQUEST_HEADER, 1, CLIENT_CPU->fd_client);
+                //read_memory(&(package->payload), CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
@@ -958,24 +959,61 @@ void seek_instruccion(t_Payload *payload) {
     return;
 }
 
-void read_memory(t_Payload *payload, int socket) {
-    /*
+int read_memory(t_Payload *payload, int socket) {
+    
+    usleep(RESPONSE_DELAY * 1000);
+    
     t_PID pid;
-    t_list *list_physical_addresses = list_create();
-    size_t bytes;
-
-    payload_remove(payload, &pid, sizeof(pid));
-    list_deserialize(payload, list_physical_addresses, size_deserialize_element);
-    size_deserialize(payload, &bytes);
-
-    size_t physical_address = *((size_t *) list_get(list_physical_addresses, 0));
+    t_TID tid;
+    size_t physical_address;
+    size_t bytes = 4;
+    
+    payload_remove(payload, &pid, sizeof(t_PID));
+    payload_remove(payload, &tid, sizeof(t_TID));
+    size_deserialize(payload, &physical_address);
+    
+    if(bytes > 4){
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        return EXIT_FAILURE;
+    }
+    
+    if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)){
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        return EXIT_FAILURE;
+    }
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
-    log_info(MINIMAL_LOGGER, "PID: <%" PRIu16 "> - Accion: <LEER> - Direccion fisica: <%zd> - Tamaño <%zd>", pid, physical_address, bytes);
+    t_Package *package = package_create_with_header(READ_REQUEST_HEADER);
+    if(payload_add(&(package->payload), &pid, sizeof(pid))) {
+        package_destroy(package);
+        return EXIT_FAILURE;
+    }
+    if(payload_add(&(package->payload), &tid, sizeof(tid))) {
+        package_destroy(package);
+        return EXIT_FAILURE;
+    }
+    if(payload_add(&(package->payload), posicion, bytes)) {
+        package_destroy(package);
+        return EXIT_FAILURE;
+    }
+    if(size_serialize(&(package->payload), bytes)) {
+        package_destroy(package);
+        return EXIT_FAILURE;
+    }
+    if(package_send(package, socket)) {
+        package_destroy(package);
+        return EXIT_FAILURE;
+    }
+    package_destroy(package);
 
-    size_t current_frame = physical_address / PAGE_SIZE;
+    
+//FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
+    log_info(MINIMAL_LOGGER, "## <Lectura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);
 
+    return EXIT_SUCCESS;
+
+    /*
     t_Package *package = package_create_with_header(READ_REQUEST_HEADER);
 
     if(list_size(list_physical_addresses) == 1) { //En caso de que sea igual a una página
