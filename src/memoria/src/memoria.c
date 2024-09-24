@@ -948,11 +948,12 @@ void seek_instruccion(t_Payload *payload) {
     }
 
     char* instruccionBuscada = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
-    
-    if(send_instruction(pid, tid, instruccionBuscada, CLIENT_CPU->fd_client) == (-1)){
+
+    if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruccionBuscada, CLIENT_CPU->fd_client)){
         log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d.\n", pid);
         return;
     }
+
     //FIX REQUIRED --> <> de instruccion
     log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:<%u>) - (TID:<%u>) - Instruccion: <%s>.\n", pid, tid, instruccionBuscada);
 

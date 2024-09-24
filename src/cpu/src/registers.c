@@ -5,7 +5,6 @@
 
 const t_CPU_Register_Info CPU_REGISTERS[] = {
     [PC_REGISTER] = {.name = "PC" , .dataType = UINT32_DATATYPE},
-
     [AX_REGISTER] = {.name = "AX" , .dataType = UINT32_DATATYPE},
     [BX_REGISTER] = {.name = "BX" , .dataType = UINT32_DATATYPE},
     [CX_REGISTER] = {.name = "CX" , .dataType = UINT32_DATATYPE},
@@ -13,8 +12,7 @@ const t_CPU_Register_Info CPU_REGISTERS[] = {
     [EX_REGISTER] = {.name = "EX" , .dataType = UINT32_DATATYPE},
     [FX_REGISTER] = {.name = "FX" , .dataType = UINT32_DATATYPE},
     [GX_REGISTER] = {.name = "GX" , .dataType = UINT32_DATATYPE},
-    [HX_REGISTER] = {.name = "HX" , .dataType = UINT32_DATATYPE}    
-    
+    [HX_REGISTER] = {.name = "HX" , .dataType = UINT32_DATATYPE}
 };
 
 int decode_register(char *name, e_CPU_Register *destination) {

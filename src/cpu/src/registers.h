@@ -7,7 +7,6 @@
 
 typedef enum e_CPU_Register {
     PC_REGISTER,
-    
 	AX_REGISTER,
 	BX_REGISTER,
 	CX_REGISTER,

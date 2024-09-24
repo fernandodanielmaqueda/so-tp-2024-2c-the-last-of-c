@@ -52,7 +52,7 @@ extern pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
 extern bool SYSCALL_CALLED;
 extern t_Payload SYSCALL_INSTRUCTION;
 
-#define MAX_CPU_INSTRUCTION_ARGUMENTS 1 + 5
+#define MAX_CPU_INSTRUCTION_ARGUMENTS 1 + 3
 
 int module(int, char*[]);
 
