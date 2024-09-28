@@ -4,6 +4,7 @@
 #ifndef UTILS_MODULE_H
 #define UTILS_MODULE_H
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <semaphore.h>
@@ -18,10 +19,11 @@ typedef struct t_Shared_List {
 
 typedef struct t_Drain_Ongoing_Resource_Sync {
 	pthread_mutex_t mutex_resource;
+	unsigned int ongoing_count;
 	unsigned int drain_requests_count;
 	pthread_cond_t cond_drain_requests;
-	unsigned int ongoing_count;
-	pthread_cond_t cond_ongoing;
+	unsigned int drain_go_requests_count;
+	pthread_cond_t cond_go_requests;
 	bool initialized;
 } t_Drain_Ongoing_Resource_Sync;
 
@@ -50,9 +52,10 @@ bool config_has_properties(t_config *config, ...);
 extern int read_module_config(t_config *); // Se debe implementar en cada módulo
 
 int initialize_loggers(void);
+int finish_loggers(void);
 
-void finish_loggers(void);
-void finish_logger(t_log *logger);
+int initialize_logger(t_log **logger, char *pathname, char *module_name);
+int finish_logger(t_log **logger);
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);

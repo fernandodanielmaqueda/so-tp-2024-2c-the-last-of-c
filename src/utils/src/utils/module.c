@@ -55,186 +55,266 @@ bool config_has_properties(t_config *config, ...) {
 }
 
 int initialize_loggers(void) {
-	MINIMAL_LOGGER = log_create(MINIMAL_LOG_PATHNAME, "Minimal", true, LOG_LEVEL);
-	if(MINIMAL_LOGGER == NULL) {
-		fprintf(stderr, "%s: No se pudo crear el log\n", MINIMAL_LOG_PATHNAME);
-		goto failure;
-	}
-
-	MODULE_LOGGER = log_create(MODULE_LOG_PATHNAME, MODULE_NAME, true, LOG_LEVEL);
-	if(MODULE_LOGGER == NULL) {
-		fprintf(stderr, "%s: No se pudo crear el log\n", MODULE_LOG_PATHNAME);
-		goto failure;
-	}
-
-	SOCKET_LOGGER = log_create(SOCKET_LOG_PATHNAME, "Socket", true, LOG_LEVEL);
-	if(SOCKET_LOGGER == NULL) {
-		fprintf(stderr, "%s: No se pudo crear el log\n", SOCKET_LOG_PATHNAME);
-		goto failure;
-	}
-
-	SERIALIZE_LOGGER = log_create(SERIALIZE_LOG_PATHNAME, "Serialize", true, LOG_LEVEL);
-	if(SERIALIZE_LOGGER == NULL) {
-		fprintf(stderr, "%s: No se pudo crear el log\n", SERIALIZE_LOG_PATHNAME);
-		goto failure;
-	}
+	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal"))
+		goto error;
+	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME))
+		goto error;
+	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket"))
+		goto error;
+	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize"))
+		goto error;
 
 	return 0;
 
-	failure:
+	error:
 		finish_loggers();
 		return -1;
 }
 
-void finish_loggers(void) {
-	finish_logger(SERIALIZE_LOGGER);
-	finish_logger(SOCKET_LOGGER);
-	finish_logger(MODULE_LOGGER);
-	finish_logger(MINIMAL_LOGGER);
+int finish_loggers(void) {
+	int status = 0;
+
+	if(finish_logger(&SERIALIZE_LOGGER))
+		status = -1;
+	if(finish_logger(&SOCKET_LOGGER))
+		status = -1;
+	if(finish_logger(&MODULE_LOGGER))
+		status = -1;
+	if(finish_logger(&MINIMAL_LOGGER))
+		status = -1;
+
+	return status;
 }
 
-void finish_logger(t_log *logger) {
-	if(logger != NULL) {
-		log_destroy(logger);
+int initialize_logger(t_log **logger, char *pathname, char *module_name) {
+	if(logger == NULL || pathname == NULL || module_name == NULL) {
+		return -1;
 	}
+
+	*logger = log_create(pathname, module_name, true, LOG_LEVEL);
+	if(*logger == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el logger\n", pathname);
+		return -1;
+	}
+
+	return 0;
+}
+
+int finish_logger(t_log **logger) {
+	if(logger == NULL) {
+		return -1;
+	}
+
+	if(*logger != NULL) {
+		log_destroy(*logger);
+		*logger = NULL;
+	}
+
+	return 0;
 }
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
+	resource_sync->ongoing_count = 0;
+
 	if(pthread_mutex_init(&(resource_sync->mutex_resource), NULL))
-		return -1;
+		goto error;
 	
 	resource_sync->drain_requests_count = 0;
+
 	if(pthread_cond_init(&(resource_sync->cond_drain_requests), NULL))
-		return -1;
+		goto error_mutex_resource;
 	
-	resource_sync->ongoing_count = 0;
+	resource_sync->drain_go_requests_count = 0;
+
+	if(pthread_cond_init(&(resource_sync->cond_go_requests), NULL))
+		goto error_cond_drain_requests;
 	
-	if(pthread_cond_init(&(resource_sync->cond_ongoing), NULL))
-		return -1;
-	
+	resource_sync->initialized = true;
+
 	return 0;
+
+	error_cond_drain_requests:
+		pthread_cond_destroy(&(resource_sync->cond_drain_requests));
+	error_mutex_resource:
+		pthread_mutex_destroy(&(resource_sync->mutex_resource));
+	error:
+		return -1;
 }
 
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	
-	if(pthread_mutex_destroy(&(resource_sync->mutex_resource)))
+	if(resource_sync == NULL) {
+		errno = EINVAL;
 		return -1;
-	
-	resource_sync->drain_requests_count = 0;
-	
+	}
+
+	if(!resource_sync->initialized)
+		return 0;
+
+	int status = 0;
+
+	resource_sync->initialized = false;
+
+	if(pthread_cond_destroy(&(resource_sync->cond_go_requests)))
+		status = -1;
 	if(pthread_cond_destroy(&(resource_sync->cond_drain_requests)))
-		return -1;
-	
-	resource_sync->ongoing_count = 0;
-	
-	if(pthread_cond_destroy(&(resource_sync->cond_ongoing)))
-		return -1;
+		status = -1;
+	if(pthread_mutex_destroy(&(resource_sync->mutex_resource)))
+		status = -1;
 
-	return 0;
+	return status;
 }
 
-int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
     if(wait_ongoing_locking(resource_sync))
-		return -1;
-    
+		goto error;
+
 	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
-		return -1;
+		goto error;
 
 	return 0;
+
+	error:
+		return -1;
 }
 
-int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
 	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
-		return -1;
+		goto error;
 	}
 
 		resource_sync->drain_requests_count--;
 
-		// Acá se podría agregar un if para hacer el broadcast sólo si el semáforo efectivamente quedó en 0
-		if(pthread_cond_broadcast(&(resource_sync->cond_drain_requests))) {
-			return -1;
+		// TODO: Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
+		if(resource_sync->drain_requests_count == 0) {
+			if(pthread_cond_broadcast(&(resource_sync->cond_drain_requests)))
+				goto error;
 		}
-	
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
-		return -1;
-	}
+
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		goto error;
 
 	return 0;
+
+	error:
+		return -1;
 }
 
-int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
 	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
-		return -1;
+		goto error;
 	}
 
 		resource_sync->drain_requests_count++;
 
 		while(1) {
-			
-			if(!(resource_sync->ongoing_count))
+
+			if((resource_sync->ongoing_count) == 0)
 				break;
-			
-			if(pthread_cond_wait(&(resource_sync->cond_ongoing), &(resource_sync->mutex_resource))) {
-				return -1;
-			}
+
+			if(pthread_cond_wait(&(resource_sync->cond_go_requests), &(resource_sync->mutex_resource)))
+				goto error;
 		}
 
 	return 0;
+
+	error:
+		return -1;
 }
 
-int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	
-	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
-		return -1;
+int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
 	}
 
-	if(signal_ongoing(resource_sync)) {
-		return -1;
-	}
+	if(pthread_mutex_unlock(&(resource_sync->mutex_resource)))
+		goto error;
+
+	if(signal_ongoing(resource_sync))
+		goto error;
 
 	return 0;
+
+	error:
+		return -1;
 }
 
-int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-    if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
-		return -1;
+int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
+	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
+		goto error;
 	}
 
 		while(1) {
-			if(!(resource_sync->drain_requests_count))
+			if((resource_sync->drain_requests_count) == 0)
 				break;
 
 			if(pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource))) {
-				return -1;
+				goto error;
 			}
 		}
 
 		resource_sync->ongoing_count++;
     
 	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
-		return -1;
+		goto error;
 	}
 
 	return 0;
+
+	error:
+		return -1;
 }
 
-int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
+	if(resource_sync == NULL) {
+		errno = EINVAL;
+		goto error;
+	}
+
 	if(pthread_mutex_lock(&(resource_sync->mutex_resource))) {
-		return -1;
+		goto error;
 	}
 	
 		resource_sync->ongoing_count--;
 		
 		// Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
-		if(pthread_cond_signal(&(resource_sync->cond_ongoing))) {// podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
-			return -1;
+		if(pthread_cond_signal(&(resource_sync->cond_go_requests))) {// podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
+			goto error;
 		}
 	
 	if(pthread_mutex_unlock(&(resource_sync->mutex_resource))) {
-		return -1;
+		goto error;
 	}
 
 	return 0;
+
+	error:
+		return -1;
 }
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
