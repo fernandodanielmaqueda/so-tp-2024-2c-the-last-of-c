@@ -58,15 +58,19 @@ int finish_loggers(void);
 int initialize_logger(t_log **logger, char *pathname, char *module_name);
 int finish_logger(t_log **logger);
 
-void log_error_pthread_mutex_init(int status);
-void log_error_pthread_mutex_destroy(int status);
-void log_error_pthread_mutex_lock(int statusoid);
-void log_error_pthread_mutex_unlock(int status);
+void log_error_close(void);
+
+void log_error_fclose(void);
 
 void log_error_sem_init(void);
 void log_error_sem_destroy(void);
 void log_error_sem_wait(void);
 void log_error_sem_post(void);
+
+void log_error_pthread_mutex_init(int status);
+void log_error_pthread_mutex_destroy(int status);
+void log_error_pthread_mutex_lock(int statusoid);
+void log_error_pthread_mutex_unlock(int status);
 
 void log_error_pthread_create(int status);
 void log_error_pthread_detach(int status);

@@ -32,8 +32,8 @@ extern t_Server SERVER_FILESYSTEM;
 
 extern t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
 
-void initialize_sockets(void);
-void finish_sockets(void);
+int initialize_sockets(void);
+int finish_sockets(void);
 
 void filesystem_client_handler(t_Client *new_client);
 void *filesystem_thread_for_client(t_Client *new_client);

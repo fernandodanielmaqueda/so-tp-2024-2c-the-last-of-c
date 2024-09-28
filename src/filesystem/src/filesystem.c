@@ -100,7 +100,9 @@ int bitmap_init(t_Bitmap *bitmap) {
 	// Darle el tamaño correcto al bitmap
     if(ftruncate(fd, BITMAP_FILE_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
         log_error(MODULE_LOGGER, "Error al ajustar el tamaño del archivo bitmap.dat: %s", strerror(errno));
-        close(fd);
+        if(close(fd)) {
+            log_error_close();
+        }
         return -1;
     }
 
@@ -110,7 +112,9 @@ int bitmap_init(t_Bitmap *bitmap) {
     
 	if(PTRO_BITMAP == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
-        close(fd);
+        if(close(fd)) {
+            log_error_close();
+        }
         return -1;
     }
 	
@@ -119,7 +123,9 @@ int bitmap_init(t_Bitmap *bitmap) {
     if(bit_array == NULL) {
         log_error(MODULE_LOGGER, "Error al crear la estructura del bitmap");
         munmap(PTRO_BITMAP, BITMAP_FILE_SIZE);//liberar la memoria reservada
-        close(fd);
+        if(close(fd)) {
+            log_error_close();
+        }
         return -1;
     }
 
@@ -171,7 +177,9 @@ int bloques_init(void) {
     // Darle el tamaño correcto al bitmap
     if(ftruncate(fd, BLOCKS_TOTAL_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
         log_error(MODULE_LOGGER, "Error al ajustar el tamaño del archivo bloques.dat: %s", strerror(errno));
-        close(fd);
+        if(close(fd)) {
+            log_error_close();
+        }
         return -1;
     }
 
@@ -181,7 +189,9 @@ int bloques_init(void) {
 
     if(PTRO_BLOCKS == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bloques.dat a memoria: %s", strerror(errno));
-        close(fd);
+        if(close(fd)) {
+            log_error_close();
+        }
         return -1;
     }
 

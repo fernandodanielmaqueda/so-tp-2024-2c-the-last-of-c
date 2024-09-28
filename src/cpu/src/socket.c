@@ -52,8 +52,21 @@ int initialize_sockets(void) {
     return 0;
 }
 
-void finish_sockets(void) {
-    close(CLIENT_KERNEL_CPU_DISPATCH.fd_client);
-    close(CLIENT_KERNEL_CPU_INTERRUPT.fd_client);
-    close(CONNECTION_MEMORY.fd_connection);
+int finish_sockets(void) {
+    int retval = 0;
+
+    if(close(CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
+        log_error_close();
+        retval = -1;
+    }
+    if(close(CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
+        log_error_close();
+        retval = -1;
+    }
+    if(close(CONNECTION_MEMORY.fd_connection)) {
+        log_error_close();
+        retval = -1;
+    }
+
+    return retval;
 }

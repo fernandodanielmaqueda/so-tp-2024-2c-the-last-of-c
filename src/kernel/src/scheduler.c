@@ -137,7 +137,10 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 						// TODO
 					}
 
-					close(connection_memory.fd_connection);
+					if(close(connection_memory.fd_connection)) {
+						log_error_close();
+						// TODO
+					}
 					signal_draining_requests(&SCHEDULING_SYNC);
 					if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 						log_error_sem_post();
@@ -147,7 +150,10 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 					continue;
 				}
 
-			close(connection_memory.fd_connection);
+			if(close(connection_memory.fd_connection)) {
+				log_error_close();
+				// TODO
+			}
 
 			client_thread_connect_to_server(&connection_memory);
 
@@ -159,7 +165,10 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 					// TODO
 				}
 
-			close(connection_memory.fd_connection);
+			if(close(connection_memory.fd_connection)) {
+				log_error_close();
+				// TODO
+			}
 
 			switch_process_state(((t_TCB **) (pcb->thread_manager.cb_array))[0], READY_STATE);
 		signal_draining_requests(&SCHEDULING_SYNC);

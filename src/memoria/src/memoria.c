@@ -696,9 +696,11 @@ int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
         errno = 0;
         if((nread = getline(&line, &length, file)) == -1) {
             if(errno) {
-                log_warning(MODULE_LOGGER, "Funcion getline: %s", strerror(errno));
+                log_warning(MODULE_LOGGER, "getline: %s", strerror(errno));
                 free(line);
-                fclose(file);
+                if(fclose(file)) {
+                    log_error_fclose();
+                }
                 exit(EXIT_FAILURE);
             }
             // Se terminó de leer el archivo
@@ -712,21 +714,28 @@ int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
             if(*array_instruction == NULL) {
                 perror("[Error] realloc memory for array fallo.");
                 free(line);
-                fclose(file);
+                if(fclose(file)) {
+                    log_error_fclose();
+                }
                 exit(EXIT_FAILURE);
             }
             (*array_instruction)[*count] = strdup(subline);
             if((*array_instruction)[*count] == NULL) {
                 perror("[Error] malloc memory for string fallo.");
                 free(line);
-                fclose(file);
+                if(fclose(file)) {
+                    log_error_fclose();
+                }
                 exit(EXIT_FAILURE);
             }
             (*count)++;
         }
     }
     free(line);       
-    fclose(file);
+    if(fclose(file)) {
+        log_error_fclose();
+        return -1;
+    }
     return 0;
 }
 
@@ -749,9 +758,15 @@ void listen_cpu(void) {
                 // TODO
             }
 
-            close(SERVER_MEMORY.fd_listen);
+            if(close(SERVER_MEMORY.fd_listen)) {
+                log_error_close();
+                // TODO
+            }
 
-            close(CLIENT_CPU->fd_client);
+            if(close(CLIENT_CPU->fd_client)) {
+                log_error_close();
+                // TODO
+            }
             exit(EXIT_FAILURE);
         }
 

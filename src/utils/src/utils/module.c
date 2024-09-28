@@ -122,20 +122,12 @@ int finish_logger(t_log **logger) {
 	return 0;
 }
 
-void log_error_pthread_mutex_init(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_init: %s", strerror(status));
+void log_error_close(void) {
+	log_error(MODULE_LOGGER, "close: %s", strerror(errno));
 }
 
-void log_error_pthread_mutex_destroy(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_destroy: %s", strerror(status));
-}
-
-void log_error_pthread_mutex_lock(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
-}
-
-void log_error_pthread_mutex_unlock(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+void log_error_fclose(void) {
+	log_error(MODULE_LOGGER, "fclose: %s", strerror(errno));
 }
 
 void log_error_sem_init(void) {
@@ -151,6 +143,22 @@ void log_error_sem_wait(void) {
 }
 void log_error_sem_post(void) {
 	log_error(MODULE_LOGGER, "sem_post: %s", strerror(errno));
+}
+
+void log_error_pthread_mutex_init(int status) {
+	log_error(MODULE_LOGGER, "pthread_mutex_init: %s", strerror(status));
+}
+
+void log_error_pthread_mutex_destroy(int status) {
+	log_error(MODULE_LOGGER, "pthread_mutex_destroy: %s", strerror(status));
+}
+
+void log_error_pthread_mutex_lock(int status) {
+	log_error(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
+}
+
+void log_error_pthread_mutex_unlock(int status) {
+	log_error(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 }
 
 void log_error_pthread_create(int status) {

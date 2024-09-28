@@ -25,7 +25,9 @@ void *server_thread_for_client(t_Client *new_client) {
     log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", new_client->server->fd_listen, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE], new_client->fd_client);
 
     if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->fd_client)) {
-      close(new_client->fd_client);
+      if(close(new_client->fd_client)) {
+        log_error_close();
+      }
       continue;
     }
     
@@ -33,7 +35,9 @@ void *server_thread_for_client(t_Client *new_client) {
   }
 
   log_debug(SOCKET_LOGGER, "[%d] Cierre de [Servidor] %s para Cliente [%s] en Puerto: %s", new_client->server->fd_listen, PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type], new_client->server->port);
-  close(new_client->server->fd_listen);
+  if(close(new_client->server->fd_listen)) {
+    log_error_close();
+  }
 
   return NULL;
 }
@@ -57,7 +61,9 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 		new_client = malloc(sizeof(t_Client));
 		if(new_client == NULL) {
 			log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo cliente", sizeof(t_Client));
-			close(fd_new_client);
+			if(close(fd_new_client)) {
+        log_error_close();
+      }
 			continue;
 		}
 
@@ -100,7 +106,7 @@ int server_start_try(char *port) {
 
 	int status = getaddrinfo(NULL, port, &hints, &result);
   if(status) {
-    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
+    log_warning(SOCKET_LOGGER, "getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
 
@@ -114,20 +120,24 @@ int server_start_try(char *port) {
     );
 
     if(fd_server == -1) {
-      log_warning(SOCKET_LOGGER, "Funcion socket: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "socket: %s\n", strerror(errno));
       continue; // This one failed
     }
 
     // Permite reutilizar el puerto inmediatamente después de cerrar el socket
     if(setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &(int){1}, (socklen_t) sizeof(int)) == -1) {
         log_warning(SOCKET_LOGGER, "Function setsockopt: %s\n", strerror(errno));
-        close(fd_server);
+        if(close(fd_server)) {
+          log_error_close();
+        }
         continue; // This one failed
     }
 
     if(bind(fd_server, rp->ai_addr, rp->ai_addrlen) == -1) {
-      log_warning(SOCKET_LOGGER, "Funcion bind: %s\n", strerror(errno));
-      close(fd_server);
+      log_warning(SOCKET_LOGGER, "bind: %s\n", strerror(errno));
+      if(close(fd_server)) {
+        log_error_close();
+      }
       continue; // This one failed
     }
     
@@ -142,7 +152,7 @@ int server_start_try(char *port) {
 
 	// Escuchamos las conexiones entrantes
 	if(listen(fd_server, SOMAXCONN) == -1) {
-		log_warning(SOCKET_LOGGER, "Funcion listen: %s\n", strerror(errno));
+		log_warning(SOCKET_LOGGER, "listen: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -154,7 +164,7 @@ int server_accept(int fd_server) {
 	int fd_client = accept(fd_server, NULL, NULL);
 
 	if(fd_client == -1) {
-      log_warning(SOCKET_LOGGER, "Funcion accept: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "accept: %s\n", strerror(errno));
   }
 
 	return fd_client;
@@ -211,20 +221,26 @@ void *client_thread_connect_to_server(t_Connection *connection) {
 
     if(send_port_type(connection->client_type, connection->fd_connection)) {
       log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      close(connection->fd_connection);
+      if(close(connection->fd_connection)) {
+        log_error_close();
+      }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
     if(receive_port_type(&port_type, connection->fd_connection)) {
       log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      close(connection->fd_connection);
+      if(close(connection->fd_connection)) {
+        log_error_close();
+      }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
 
     if(port_type != connection->server_type) {
       log_warning(SOCKET_LOGGER, "[%d] No reconocido Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      close(connection->fd_connection);
+      if(close(connection->fd_connection)) {
+        log_error_close();
+      }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
@@ -249,7 +265,7 @@ int client_start_try(char *ip, char *port) {
 
 	int status = getaddrinfo(ip, port, &hints, &result);
   if(status) {
-    log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
+    log_warning(SOCKET_LOGGER, "getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
 
@@ -264,15 +280,17 @@ int client_start_try(char *ip, char *port) {
     );
 
     if(fd_client == -1) {
-      log_warning(SOCKET_LOGGER, "Funcion socket: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "socket: %s\n", strerror(errno));
       continue; /* This one failed */
     }
 
     if(connect(fd_client, rp->ai_addr, rp->ai_addrlen) == 0)
       break; /* Until one succeeds */
 
-    log_warning(SOCKET_LOGGER, "Funcion connect: %s\n", strerror(errno));
-    close(fd_client);
+    log_warning(SOCKET_LOGGER, "connect: %s\n", strerror(errno));
+    if(close(fd_client)) {
+      log_error_close();
+    }
   }
 	
   freeaddrinfo(result); /* No longer needed */

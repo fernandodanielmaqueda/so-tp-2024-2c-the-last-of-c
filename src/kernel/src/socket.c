@@ -10,7 +10,7 @@ t_Shared_List SHARED_LIST_CONNECTIONS_MEMORY = { .list = NULL };
 t_Connection CONNECTION_CPU_DISPATCH;
 t_Connection CONNECTION_CPU_INTERRUPT;
 
-void initialize_sockets(void) {
+int initialize_sockets(void) {
 	int status;
 
 	SHARED_LIST_CONNECTIONS_MEMORY.list = list_create();
@@ -43,10 +43,22 @@ void initialize_sockets(void) {
 		log_error_pthread_join(status);
 		// TODO
 	}
+
+	return 0;
 }
 
-void finish_sockets(void) {
-	close(CONNECTION_CPU_DISPATCH.fd_connection);
-	close(CONNECTION_CPU_INTERRUPT.fd_connection);
+int finish_sockets(void) {
+	int retval = 0;
+
+	if(close(CONNECTION_CPU_DISPATCH.fd_connection)) {
+		log_error_close();
+		retval = -1;
+	}
+	if(close(CONNECTION_CPU_INTERRUPT.fd_connection)) {
+		log_error_close();
+		retval = -1;
+	}
 	// TODO: Cerrar todas las conexiones con Memoria
+
+	return retval;
 }

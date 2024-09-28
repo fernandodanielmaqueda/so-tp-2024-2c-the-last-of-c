@@ -14,7 +14,7 @@ pthread_mutex_t MUTEX_CLIENT_CPU;
 t_Shared_List SHARED_LIST_CLIENTS_KERNEL = { .list = NULL };
 t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM = { .list = NULL };
 
-void initialize_sockets(void) {
+int initialize_sockets(void) {
     int status;
 
     if((status = pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL))) {
@@ -24,10 +24,19 @@ void initialize_sockets(void) {
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
     server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
+
+    return 0;
 }
 
-void finish_sockets(void) {
-	close(SERVER_MEMORY.fd_listen);
+int finish_sockets(void) {
+    int retval = 0;
+
+	if(close(SERVER_MEMORY.fd_listen)) {
+        log_error_close();
+        retval = -1;
+    }
+
+    return retval;
 }
 
 void memory_client_handler(t_Client *new_client) {
@@ -53,7 +62,9 @@ void *memory_thread_for_client(t_Client *new_client) {
 
     if(receive_port_type(&port_type, new_client->fd_client)) {
         log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
-        close(new_client->fd_client);
+        if(close(new_client->fd_client)) {
+            log_error_close();
+        }
         free(new_client);
         return NULL;
     }
@@ -127,7 +138,9 @@ void *memory_thread_for_client(t_Client *new_client) {
             break;
     }
 
-    close(new_client->fd_client);
+    if(close(new_client->fd_client)) {
+        log_error_close();
+    }
     free(new_client);
     return NULL;
 }
