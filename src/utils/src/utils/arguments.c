@@ -75,7 +75,7 @@ char *strip_whitespaces(char *string) {
   register char *start, *end;
 
   // Recorre el inicio de cadena hasta encontrar un caracter que no sea un espacio
-  for (start = string; isspace(*start); start++);
+  for(start = string; isspace(*start); start++);
 
   if(*start == '\0')
     return (start);

@@ -133,7 +133,7 @@ int bitmap_init(t_Bitmap *bitmap) {
 	bit_map->bits_blocks = bit_array;
 
 	// Inicializar cada bit del bitmap en 0
-	for (int bit_index = 0; bit_index < bitarray_get_max_bit(bit_map->bits_blocks); bit_index++) {
+	for(int bit_index = 0; bit_index < bitarray_get_max_bit(bit_map->bits_blocks); bit_index++) {
 		bitarray_clean_bit( bit_map->bits_blocks, bit_index); // Limpia el bit, lo pone en 0
 	}
 

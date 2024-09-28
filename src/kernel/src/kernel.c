@@ -109,7 +109,7 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
         return -1;
     
     size_t scheduling_algorithms_number = sizeof(SCHEDULING_ALGORITHMS) / sizeof(SCHEDULING_ALGORITHMS[0]);
-    for (register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
+    for(register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
         if(strcmp(SCHEDULING_ALGORITHMS[scheduling_algorithm], name) == 0) {
             *destination = scheduling_algorithm;
             return 0;
