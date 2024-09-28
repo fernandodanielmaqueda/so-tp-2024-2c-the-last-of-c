@@ -2,14 +2,13 @@
 /* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
 
 #include "kernel.h"
-#include <commons/memory.h>
 
 char *MODULE_NAME = "kernel";
 
-t_log *MODULE_LOGGER;
+t_log *MODULE_LOGGER = NULL;
 char *MODULE_LOG_PATHNAME = "kernel.log";
 
-t_config *MODULE_CONFIG;
+t_config *MODULE_CONFIG = NULL;
 char *MODULE_CONFIG_PATHNAME = "kernel.config";
 
 t_ID_Manager PID_MANAGER;
@@ -37,12 +36,21 @@ int module(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
-		// TODO
+	size_t process_size;
+	if(str_to_size(argv[2], &process_size)) {
+		fprintf(stderr, "%s: No es un TAMANIO_PROCESO valido\n", argv[2]);
 		exit(EXIT_FAILURE);
 	}
 
-	initialize_loggers();
+	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
+		exit(EXIT_FAILURE);
+	}
+
+	if(initialize_loggers()) {
+		finish_loggers();
+		finish_configs();
+		exit(EXIT_FAILURE);
+	}
 
 	initialize_global_variables();
 
@@ -52,101 +60,44 @@ int module(int argc, char *argv[]) {
 
 	initialize_scheduling();
 
-	finish_scheduling();
-	//finish_threads();
-	finish_sockets();
-	//finish_configs();
-	finish_loggers();
-	finish_global_variables();
+	// cleanup:
+
+		finish_scheduling();
+		//finish_threads();
+		finish_sockets();
+		finish_global_variables();
+		finish_loggers();
+		finish_configs();
 
     return EXIT_SUCCESS;
 }
 
-int initialize_global_variables(void) {
-
-	SHARED_LIST_NEW.list = list_create();
-	pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL);
-
-	init_resource_sync(&READY_SYNC);
-
-	//new_ready_list(&READY_SYNC, &ARRAY_LIST_READY[0], 0);
-
-	SHARED_LIST_EXEC.list = list_create();
-	pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL);
-
-	SHARED_LIST_EXIT.list = list_create();
-	pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL);
-
-	sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0);
-	sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0);
-	sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0);
-
-	pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPT, NULL);
-
-	return 0;
-}
-
-int finish_global_variables(void) {
-	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
-	pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex));
-	
-	destroy_resource_sync(&READY_SYNC);
-
-	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
-	pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex));
-
-	list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
-	pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex));
-
-	sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW);
-	sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT);
-	sem_destroy(&SEM_SHORT_TERM_SCHEDULER);
-
-	pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT);
-
-	return 0;
-}
-
-int assign_ready_list(t_TCB *tcb, t_Priority *result) {
-
-	//wait_ongoing_requests(sync);
-	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
-	if(new_shared_list == NULL) {
-		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
-		return -1;
-	}
-
-	new_shared_list->list = list_create();
-	pthread_mutex_init(&(new_shared_list->mutex), NULL);
-
-	ARRAY_LIST_READY = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
-	if(ARRAY_LIST_READY == NULL) {
-		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
-		return -1;
-	}
-	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
-	PRIORITY_COUNT++;
-
-	return 0;
-}
-
 int read_module_config(t_config *module_config) {
 
-    if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "IP_CPU", "PUERTO_CPU_DISPATCH", "PUERTO_CPU_INTERRUPT", "ALGORITMO_PLANIFICACION", "QUANTUM", "LOG_LEVEL", NULL)) {
+    if(!config_has_properties(MODULE_CONFIG, "IP_MEMORIA", "PUERTO_MEMORIA", "IP_CPU", "PUERTO_CPU_DISPATCH", "PUERTO_CPU_INTERRUPT", "ALGORITMO_PLANIFICACION", "LOG_LEVEL", NULL)) {
         fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
         return -1;
     }
-	
+
 	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
 	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
-	
+
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
 		fprintf(stderr, "%s: valor de la clave ALGORITMO_PLANIFICACION invalido: %s\n", MODULE_CONFIG_PATHNAME, string);
 		return -1;
 	}
 
-	QUANTUM = config_get_int_value(module_config, "QUANTUM");
+	if(SCHEDULING_ALGORITHM == MLQ_SCHEDULING_ALGORITHM) {
+		if(!config_has_property(module_config, "QUANTUM")) {
+			fprintf(stderr, "%s: El archivo de configuración no contiene la clave %s\n", module_config->path, "QUANTUM");
+			fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
+			return -1;
+		}
+
+		QUANTUM = config_get_int_value(module_config, "QUANTUM");
+	}
+
 	LOG_LEVEL = log_level_from_string(config_get_string_value(module_config, "LOG_LEVEL"));
 
 	return 0;
@@ -159,12 +110,216 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
     
     size_t scheduling_algorithms_number = sizeof(SCHEDULING_ALGORITHMS) / sizeof(SCHEDULING_ALGORITHMS[0]);
     for (register e_Scheduling_Algorithm scheduling_algorithm = 0; scheduling_algorithm < scheduling_algorithms_number; scheduling_algorithm++)
-        if (strcmp(SCHEDULING_ALGORITHMS[scheduling_algorithm], name) == 0) {
+        if(strcmp(SCHEDULING_ALGORITHMS[scheduling_algorithm], name) == 0) {
             *destination = scheduling_algorithm;
             return 0;
         }
 
     return -1;
+}
+
+int initialize_global_variables(void) {
+	int status;
+
+	if((status = pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error;
+	}
+
+	SHARED_LIST_NEW.list = list_create();
+	if(SHARED_LIST_NEW.list == NULL) {
+		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
+		goto error_mutex_new;
+	}
+
+	if(init_resource_sync(&READY_SYNC)) {
+		goto error_list_new;
+	}
+
+	//new_ready_list(&READY_SYNC, &ARRAY_LIST_READY[0], 0);
+
+	if((status = pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error_ready_sync;
+	}
+
+	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error_list_exec;
+	}
+
+	SHARED_LIST_EXEC.list = list_create();
+	if(SHARED_LIST_EXEC.list == NULL) {
+		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en EXEC");
+		goto error_mutex_exec;
+	}
+
+	SHARED_LIST_EXIT.list = list_create();
+	if(SHARED_LIST_EXIT.list == NULL) {
+		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en EXIT");
+		goto error_mutex_exit;
+	}
+
+	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
+		log_error_sem_init();
+		goto error_list_exit;
+	}
+
+	if(sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0)) {
+		log_error_sem_init();
+		goto error_sem_long_term_scheduler_new;
+	}
+
+	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
+		log_error_sem_init();
+		goto error_sem_long_term_scheduler_exit;
+	}
+
+	if((status = pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPT, NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error_sem_short_term_scheduler;
+	}
+
+	return 0;
+
+	error_sem_short_term_scheduler:
+		if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
+			log_error_sem_destroy();
+		}
+	error_sem_long_term_scheduler_exit:
+		if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
+			log_error_sem_destroy();
+		}
+	error_sem_long_term_scheduler_new:
+		if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW)) {
+			log_error_sem_destroy();
+		}
+	error_list_exit:
+		list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
+	error_mutex_exit:
+		if((status = pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex)))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	error_list_exec:
+		list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
+	error_mutex_exec:
+		if((status = pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex)))) {
+
+		}
+	error_ready_sync:
+		destroy_resource_sync(&READY_SYNC);
+	error_list_new:
+		list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
+	error_mutex_new:
+		if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	error:
+		return -1;
+}
+
+int finish_global_variables(void) {
+	int status;
+
+	if((status = pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT))) {
+		log_error_pthread_mutex_destroy(status);
+	}
+
+	if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
+		log_error_sem_destroy();
+	}
+
+	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
+		log_error_sem_destroy();
+	}
+
+	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW)) {
+		log_error_sem_destroy();
+	}
+
+	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+	}
+
+	list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
+
+	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+	}
+
+	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
+
+	destroy_resource_sync(&READY_SYNC);
+
+	if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+	}
+
+	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
+
+	return 0;
+}
+
+int assign_ready_list(t_TCB *tcb, t_Priority *result) {
+	int status;
+
+	//wait_ongoing_requests(sync);
+	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
+	if(new_shared_list == NULL) {
+		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
+		return -1;
+	}
+
+	new_shared_list->list = list_create();
+	if((status = pthread_mutex_init(&(new_shared_list->mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		// TODO
+	}
+
+	ARRAY_LIST_READY = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
+	if(ARRAY_LIST_READY == NULL) {
+		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
+		return -1;
+	}
+	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
+	PRIORITY_COUNT++;
+
+	return 0;
+}
+
+int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
+	int status;
+
+	t_PCB *pcb = pcb_create(size);
+	if(pcb == NULL) {
+		log_error(MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
+		return -1;
+	}
+
+	t_TCB *tcb = tcb_create(pcb, pseudocode_filename, priority);
+	if(tcb == NULL) {
+		log_error(MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
+		pcb_destroy(pcb);
+		return -1;
+	}
+
+	if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
+		log_error_pthread_mutex_lock(status);
+		// TODO
+	}
+		list_add(SHARED_LIST_NEW.list, pcb);
+	if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
+		log_error_pthread_mutex_unlock(status);
+		// TODO
+	}
+
+	log_info(MINIMAL_LOGGER, "## (<%u>:%u) Se crea el proceso - Estado: NEW", pcb->PID, tcb->TID);
+
+	if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
+		log_error_sem_post();
+	}
+
+	return 0;
 }
 
 t_PCB *pcb_create(size_t size) {
@@ -178,12 +333,8 @@ t_PCB *pcb_create(size_t size) {
 	pcb->size = size;
 
 	id_manager_init(&(pcb->thread_manager), THREAD_ID_MANAGER_TYPE);
-	
-	//pcb->list_mutexes = list_create();
 
-	//pcb->exec_context.quantum = QUANTUM;
-
-	//payload_init(&(pcb->syscall_instruction));
+	pcb->dictionary_mutexes = dictionary_create();
 
 	pid_assign(&PID_MANAGER, pcb, &(pcb->PID));
 
@@ -193,18 +344,17 @@ t_PCB *pcb_create(size_t size) {
 void pcb_destroy(t_PCB *pcb) {
 	pid_release(&PID_MANAGER, pcb->PID);
 
-	//list_destroy(pcb->assigned_resources);
-
-	//payload_destroy(&(pcb->syscall_instruction));
+	dictionary_destroy_and_destroy_elements(pcb->dictionary_mutexes, (void (*)(void *)) resource_destroy);
 
 	free(pcb);
 }
 
-t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {	
+t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
+	int status;
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_TCB));
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
 		return NULL;
 	}
 
@@ -221,7 +371,12 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 	payload_init(&(tcb->syscall_instruction));
 
 	tcb->shared_list_blocked_thread_join.list = list_create();
-	pthread_mutex_init(&(tcb->shared_list_blocked_thread_join.mutex), NULL);
+	if((status = pthread_mutex_init(&(tcb->shared_list_blocked_thread_join.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		// TODO
+	}
+
+	tcb->dictionary_assigned_mutexes = dictionary_create();
 
 	tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID));
 
@@ -229,6 +384,8 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 }
 
 void tcb_destroy(t_TCB *tcb) {
+	int status;
+
 	tid_release(&(tcb->pcb->thread_manager), tcb->TID);
 	
 	free(tcb->pseudocode_filename);
@@ -236,14 +393,21 @@ void tcb_destroy(t_TCB *tcb) {
 	payload_destroy(&(tcb->syscall_instruction));
 
 	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) pcb_destroy);
-	pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex));
+
+	if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+		// TODO
+	}
+
+	dictionary_destroy(tcb->dictionary_assigned_mutexes);
 
 	free(tcb);
 }
 
 int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
+	/*
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_manager_init: el ID_Manager pasado por parametro es NULL");
+		log_error(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
 		errno = EINVAL;
 		return -1;
 	}
@@ -252,58 +416,71 @@ int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type) {
 
 	id_manager->id_data_type = id_data_type;
 
+	if(status = pthread_mutex_init(&(id_manager->mutex_cb_array), NULL)) {
+		free(id_manager->id_counter);
+		errno = status;
+		return -1;
+	}
+
 	id_manager->id_counter = malloc(get_id_size(id_data_type));
 	if(id_manager->id_counter == NULL) {
 		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el contador de IDs", get_id_size(id_data_type));
 		errno = ENOMEM;
-		return -1;
+		goto error;
 	}
 	size_to_id(id_data_type, id_manager->id_counter, &(size_t){0});
 
 	id_manager->cb_array = NULL;
 
-	status = pthread_mutex_init(&(id_manager->mutex_cb_array), NULL);
-	if(status) {
-		free(id_manager->id_counter);
-		errno = status;
-		return -1;
-	}
-
 	id_manager->list_released_ids = list_create();
 
-	status = pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL);
-	if(status) {
+	if(status = _pthread_mutex_init(&(id_manager->mutex_list_released_ids), NULL)) {
 		free(id_manager->id_counter);
 		free(id_manager->cb_array);
-		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
+		if(status = pthread_mutex_destroy(&(id_manager->mutex_cb_array))) {
+			log_error_pthread_mutex_destroy(status);
+			// TODO
+		}
 		errno = status;
 		return -1;
 	}
 
-	status = pthread_cond_init(&(id_manager->cond_list_released_ids), NULL);
-	if(status) {
+	if(status = _pthread_cond_init(&(id_manager->cond_list_released_ids), NULL)) {
 		free(id_manager->id_counter);
 		free(id_manager->cb_array);
-		pthread_mutex_destroy(&(id_manager->mutex_cb_array));
+		if(status = _pthread_mutex_destroy(&(id_manager->mutex_cb_array));
 		list_destroy_and_destroy_elements(id_manager->list_released_ids, free);
-		pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
+		if(status = _pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
 		errno = status;
 		return -1;
 	}
+	*/
 
 	return 0;
+
+	/*
+	error_mutex_cb_array:
+		if(status = _pthread_mutex_destroy(&(id_manager->mutex_cb_array))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	error:
+		return -1;
+	*/
 }
 
 void id_manager_destroy(t_ID_Manager *id_manager) {
+	/*
 	free(id_manager->id_counter);
 	free(id_manager->cb_array);
-	pthread_mutex_destroy(&(id_manager->mutex_cb_array));
+	if(status = _pthread_mutex_destroy(&(id_manager->mutex_cb_array));
 	list_destroy_and_destroy_elements(id_manager->list_released_ids, free);
-	pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
-	pthread_cond_destroy(&(id_manager->cond_list_released_ids));
+	if(status = _pthread_mutex_destroy(&(id_manager->mutex_list_released_ids));
+	if(status = _pthread_cond_destroy(&(id_manager->cond_list_released_ids));
+	*/
 }
 
 int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
+	/*
 	if(id_manager == NULL || result == NULL) {
 		errno = EINVAL;
 		return -1;
@@ -312,30 +489,27 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 	int status;
 	size_t id_generic;
 
-	status = pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
+	status = if(status = _pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
 	if(status) {
-		log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
 		errno = status;
 		return -1;
 	}
 		// Convierto el tipo de dato del ID a uno genérico (size_t) para poder operar con él en la función
 		if(id_to_size(id_manager->id_data_type, id_manager->id_counter, &id_generic)) {
-			pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+			if(status = _pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
 			return -1;
 		}
 
 		// Si no se alcanzó el máximo de ID (sin fijarse si hay o no ID liberados), se asigna un nuevo ID
 		if(id_generic <= get_id_max(id_manager->id_data_type)) {
-			status = pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+			status = if(status = _pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
 			if(status) {
-				log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 				errno = status;
 				return -1;
 			}
 
-			status = pthread_mutex_lock(&(id_manager->mutex_cb_array));
+			status = if(status = _pthread_mutex_lock(&(id_manager->mutex_cb_array));
 			if(status) {
-				log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
 				errno = status;
 				return -1;
 			}
@@ -343,7 +517,7 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 				void **new_cb_array = realloc(id_manager->cb_array, sizeof(void *) * (id_generic + 1));
 				if(new_cb_array == NULL) {
 					log_warning(MODULE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el array dinamico de bloques de control", sizeof(void *) * (id_generic + 1));
-					pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+					if(status = _pthread_mutex_unlock(&(id_manager->mutex_cb_array));
 					errno = ENOMEM;
 					return -1;
 				}
@@ -351,9 +525,8 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 
 				(id_manager->cb_array)[id_generic] = data;
 				
-			status = pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+			status = if(status = _pthread_mutex_unlock(&(id_manager->mutex_cb_array));
 			if(status) {
-				log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 				errno = status;
 				return -1;
 			}
@@ -375,9 +548,8 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 
 		// En caso contrario, se espera hasta que haya algún ID liberado para reutilizarlo
 		while(id_manager->list_released_ids->head == NULL) {
-			status = pthread_cond_wait(&(id_manager->cond_list_released_ids), &(id_manager->mutex_list_released_ids));
+			status = if(status = _pthread_cond_wait(&(id_manager->cond_list_released_ids), &(id_manager->mutex_list_released_ids));
 			if(status) {
-				log_warning(MODULE_LOGGER, "pthread_cond_wait: %s", strerror(status));
 				errno = status;
 				return -1;
 			}
@@ -388,9 +560,8 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 		id_manager->list_released_ids->head = element->next;
 		id_manager->list_released_ids->elements_count--;
 	
-	status = pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+	status = if(status = _pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
 	if(status) {
-		log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 		errno = status;
 		return -1;
 	}
@@ -407,21 +578,20 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 	free(element->data);
 	free(element);
 
-	status = pthread_mutex_lock(&(id_manager->mutex_cb_array));
+	status = if(status = _pthread_mutex_lock(&(id_manager->mutex_cb_array));
 	if(status) {
-		log_warning(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
 		errno = status;
 		return -1;
 	}
 
 		(id_manager->cb_array)[id_generic] = data;
 
-	status = pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+	status = if(status = _pthread_mutex_unlock(&(id_manager->mutex_cb_array));
 	if(status) {
-		log_warning(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 		errno = status;
 		return -1;
 	}
+	*/
 
 	return 0;
 }
@@ -435,9 +605,10 @@ int tid_assign(t_ID_Manager *id_manager, t_TCB *tcb, t_TID *result) {
 }
 
 int _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
-	pthread_mutex_lock(&(id_manager->mutex_cb_array));
+	/*
+	if(status = _pthread_mutex_lock(&(id_manager->mutex_cb_array));
 		(id_manager->cb_array)[id] = NULL;
-	pthread_mutex_unlock(&(id_manager->mutex_cb_array));
+	if(status = _pthread_mutex_unlock(&(id_manager->mutex_cb_array));
 
 	t_link_element *element = malloc(sizeof(t_link_element));
 	if(element == NULL) {
@@ -447,12 +618,13 @@ int _id_release(t_ID_Manager *id_manager, size_t id, void *data) {
 
 	element->data = data;
 
-	pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
+	if(status = _pthread_mutex_lock(&(id_manager->mutex_list_released_ids));
 		element->next = id_manager->list_released_ids->head;
 		id_manager->list_released_ids->head = element;
-	pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
+	if(status = _pthread_mutex_unlock(&(id_manager->mutex_list_released_ids));
 
-	pthread_cond_signal(&(id_manager->cond_list_released_ids));
+	if(status = _pthread_cond_signal(&(id_manager->cond_list_released_ids));
+	*/
 
 	return 0;
 }
@@ -507,6 +679,7 @@ size_t get_id_size(e_ID_Manager_Type id_manager_type) {
 
 int id_to_size(e_ID_Manager_Type id_data_type, void *source, size_t *destination) {
 	if(destination == NULL || source == NULL) {
+		log_error(MODULE_LOGGER, "id_to_size: %s", strerror(EINVAL));
 		errno = EINVAL;
 		return -1;
 	}
@@ -523,6 +696,7 @@ int id_to_size(e_ID_Manager_Type id_data_type, void *source, size_t *destination
 
 int size_to_id(e_ID_Manager_Type id_data_type, size_t *source, void *destination) {
 	if(destination == NULL || source == NULL) {
+		log_error(MODULE_LOGGER, "size_to_id: %s", strerror(EINVAL));
 		errno = EINVAL;
 		return -1;
 	}

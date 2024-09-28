@@ -21,7 +21,7 @@ int decode_register(char *name, e_CPU_Register *destination) {
     
     size_t cpu_registers_number = sizeof(CPU_REGISTERS) / sizeof(CPU_REGISTERS[0]);
     for (register e_CPU_Register cpu_register = 0; cpu_register < cpu_registers_number; cpu_register++)
-        if (strcmp(CPU_REGISTERS[cpu_register].name, name) == 0) {
+        if(strcmp(CPU_REGISTERS[cpu_register].name, name) == 0) {
             *destination = cpu_register;
             return 0;
         }

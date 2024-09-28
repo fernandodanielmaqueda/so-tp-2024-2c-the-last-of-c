@@ -12,7 +12,7 @@
 #include "utils/serialize/kernel_interrupt.h"
 #include "utils/serialize/list.h"
 #include "utils/serialize/port_type.h"
-#include "utils/serialize/return_value.h"
+#include "utils/serialize/result.h"
 #include "utils/serialize/size.h"
 #include "utils/serialize/subheader.h"
 #include "utils/serialize/subpayload.h"
@@ -42,10 +42,10 @@ int send_text_with_header(e_Header header, char *text, int fd_socket);
 int receive_text_with_expected_header(e_Header header, char **text, int fd_socket);
 
 
-int send_return_value_with_header(e_Header header, t_Return_Value return_value, int fd_socket);
+int send_result_with_header(e_Header header, int result, int fd_socket);
 
 
-int receive_return_value_with_expected_header(e_Header expected_header, t_Return_Value *return_value, int fd_socket);
+int receive_result_with_expected_header(e_Header expected_header, int *result, int fd_socket);
 
 
 int send_pid_and_tid_with_header(e_Header header, t_PID pid, t_TID tid, int fd_socket);

@@ -77,7 +77,7 @@ char *strip_whitespaces(char *string) {
   // Recorre el inicio de cadena hasta encontrar un caracter que no sea un espacio
   for (start = string; isspace(*start); start++);
 
-  if (*start == '\0')
+  if(*start == '\0')
     return (start);
 
   // Busca el fin de la cadena arrancando desde s para mayor optimización por menor recorrido

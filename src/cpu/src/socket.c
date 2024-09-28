@@ -13,18 +13,41 @@ t_Connection CONNECTION_MEMORY;
 
 int initialize_sockets(void) {
     pthread_t thread_cpu_connect_to_memory;
+    int status;
 
     // [Server] CPU (Dispatch) <- [Cliente] Kernel
-    pthread_create(&(SERVER_CPU_DISPATCH.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_DISPATCH);
+    if((status = pthread_create(&(SERVER_CPU_DISPATCH.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_DISPATCH))) {
+        log_error_pthread_create(status);
+        // TODO
+    }
+
     // [Server] CPU (Interrupt) <- [Cliente] Kernel
-    pthread_create(&(SERVER_CPU_INTERRUPT.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_INTERRUPT);
+    if((status = pthread_create(&(SERVER_CPU_INTERRUPT.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_INTERRUPT))) {
+        log_error_pthread_create(status);
+        // TODO
+    }
+
     // [Client] CPU -> [Server] Memoria
-    pthread_create(&thread_cpu_connect_to_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_MEMORY);
+    if((status = pthread_create(&thread_cpu_connect_to_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_MEMORY))) {
+        log_error_pthread_create(status);
+        // TODO
+    }
 
     // Se bloquea hasta que se realicen todas las conexiones
-    pthread_join(SERVER_CPU_DISPATCH.thread_server, NULL);
-    pthread_join(SERVER_CPU_INTERRUPT.thread_server, NULL);
-    pthread_join(thread_cpu_connect_to_memory, NULL);
+    if((status = pthread_join(SERVER_CPU_DISPATCH.thread_server, NULL))) {
+        log_error_pthread_join(status);
+        // TODO
+    }
+
+    if((status = pthread_join(SERVER_CPU_INTERRUPT.thread_server, NULL))) {
+        log_error_pthread_join(status);
+        // TODO
+    }
+
+    if((status = pthread_join(thread_cpu_connect_to_memory, NULL))) {
+        log_error_pthread_join(status);
+        // TODO
+    }
 
     return 0;
 }

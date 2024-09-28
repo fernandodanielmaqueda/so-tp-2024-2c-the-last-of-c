@@ -15,8 +15,12 @@ t_Shared_List SHARED_LIST_CLIENTS_KERNEL = { .list = NULL };
 t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM = { .list = NULL };
 
 void initialize_sockets(void) {
+    int status;
 
-    pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL);
+    if((status = pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL))) {
+        log_error_pthread_mutex_init(status);
+        // TODO
+    }
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
     server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
@@ -27,8 +31,17 @@ void finish_sockets(void) {
 }
 
 void memory_client_handler(t_Client *new_client) {
-	pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client);
-	pthread_detach(new_client->thread_client_handler);
+    int status;
+
+	if((status = pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
+        log_error_pthread_create(status);
+        // TODO
+    }
+
+	if((status = pthread_detach(new_client->thread_client_handler))) {
+        log_error_pthread_detach(status);
+        // TODO
+    }
 }
 
 void *memory_thread_for_client(t_Client *new_client) {
@@ -36,6 +49,7 @@ void *memory_thread_for_client(t_Client *new_client) {
     log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
     e_Port_Type port_type;
+    int status;
 
     if(receive_port_type(&port_type, new_client->fd_client)) {
         log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
@@ -55,9 +69,15 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
-            pthread_mutex_lock(&(SHARED_LIST_CLIENTS_KERNEL.mutex));
+            if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS_KERNEL.mutex)))) {
+                log_error_pthread_mutex_lock(status);
+                // TODO
+            }
                 list_add(SHARED_LIST_CLIENTS_KERNEL.list, new_client);
-            pthread_mutex_unlock(&(SHARED_LIST_CLIENTS_KERNEL.mutex));
+            if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS_KERNEL.mutex)))) {
+                log_error_pthread_mutex_unlock(status);
+                // TODO
+            }
 
             listen_kernel(new_client->fd_client);
             break;
@@ -65,17 +85,26 @@ void *memory_thread_for_client(t_Client *new_client) {
         case CPU_PORT_TYPE:
             new_client->client_type = CPU_PORT_TYPE;
 
-            pthread_mutex_lock(&MUTEX_CLIENT_CPU);
+            if((status = pthread_mutex_lock(&MUTEX_CLIENT_CPU)) ){
+                log_error_pthread_mutex_lock(status);
+                // TODO
+            }
 
                 if(CLIENT_CPU != NULL) {
-                    pthread_mutex_unlock(&MUTEX_CLIENT_CPU);
+                    if((status = pthread_mutex_unlock(&MUTEX_CLIENT_CPU))) {
+                        log_error_pthread_mutex_unlock(status);
+                        // TODO
+                    }
                     log_warning(SOCKET_LOGGER, "[%d] Ya conectado un [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
                     send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client);
                     break;
                 }
 
                 if(send_port_type(MEMORY_PORT_TYPE, new_client->fd_client)) {
-                    pthread_mutex_unlock(&MUTEX_CLIENT_CPU);
+                    if((status = pthread_mutex_unlock(&MUTEX_CLIENT_CPU))) {
+                        log_error_pthread_mutex_unlock(status);
+                        // TODO
+                    }
                     log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
                     break;
                 }
@@ -84,7 +113,10 @@ void *memory_thread_for_client(t_Client *new_client) {
 
                 CLIENT_CPU = new_client;
 
-            pthread_mutex_unlock(&MUTEX_CLIENT_CPU);
+            if((status = pthread_mutex_unlock(&MUTEX_CLIENT_CPU))) {
+                log_error_pthread_mutex_unlock(status);
+                // TODO
+            }
 
             listen_cpu();
             break;

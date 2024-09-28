@@ -48,7 +48,7 @@ t_Package *package_create_with_header(e_Header header) {
 }
 
 void package_destroy(t_Package *package) {
-  if (package == NULL)
+  if(package == NULL)
     return;
   payload_destroy(&(package->payload));
   free(package);
@@ -83,11 +83,11 @@ int package_send(t_Package *package, int fd_socket) {
 
   payload_seek(&(package->payload), previous_offset, SEEK_CUR);
 
-  if (bytes == -1) {
+  if(bytes == -1) {
       log_warning(SOCKET_LOGGER, "send: %s\n", strerror(errno));
       return -1;
   }
-  if (bytes != bufferSize) {
+  if(bytes != bufferSize) {
       log_warning(SOCKET_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", bufferSize, bytes);
       return -1;
   }
@@ -152,15 +152,15 @@ int package_receive_payload(t_Package *package, int fd_socket) {
 int receive(int fd_socket, void *destination, size_t expected_bytes) {
 
   ssize_t bytes = recv(fd_socket, destination, expected_bytes, 0); // MSG_WAITALL
-  if (bytes == 0) {
+  if(bytes == 0) {
       log_warning(SOCKET_LOGGER, "recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n");
       return -1;
   }
-  if (bytes == -1) {
+  if(bytes == -1) {
       log_warning(SOCKET_LOGGER, "recv: %s\n", strerror(errno));
       return -1;
   }
-  if (bytes != expected_bytes) {
+  if(bytes != expected_bytes) {
       log_warning(SOCKET_LOGGER, "recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", expected_bytes, bytes);
       return -1;
   }

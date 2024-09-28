@@ -93,9 +93,9 @@ int receive_text_with_expected_header(e_Header expected_header, char **text, int
   return 0;
 }
 
-int send_return_value_with_header(e_Header header, t_Return_Value return_value, int fd_socket) {
+int send_result_with_header(e_Header header, int result, int fd_socket) {
   t_Package *package = package_create_with_header(header);
-  if(return_value_serialize(&(package->payload), return_value)) {
+  if(result_serialize(&(package->payload), result)) {
     package_destroy(package);
     return -1;
   }
@@ -107,7 +107,7 @@ int send_return_value_with_header(e_Header header, t_Return_Value return_value, 
   return 0;
 }
 
-int receive_return_value_with_expected_header(e_Header expected_header, t_Return_Value *return_value, int fd_socket) {
+int receive_result_with_expected_header(e_Header expected_header, int *result, int fd_socket) {
   t_Package *package;
   if(package_receive(&package, fd_socket))
     return -1;
@@ -116,7 +116,7 @@ int receive_return_value_with_expected_header(e_Header expected_header, t_Return
     package_destroy(package);
     return -1;
   }
-  if(return_value_deserialize(&(package->payload), return_value)) {
+  if(result_deserialize(&(package->payload), result)) {
     package_destroy(package);
     return -1;
   }

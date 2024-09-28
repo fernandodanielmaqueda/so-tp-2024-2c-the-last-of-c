@@ -22,13 +22,12 @@ int syscall_execute(t_Payload *syscall_instruction) {
     if(SYSCALLS[syscall_opcode].function == NULL) {
         payload_destroy(syscall_instruction);
         log_error(MODULE_LOGGER, "Funcion de syscall no encontrada");
-        //SYSCALL_PCB->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
         return -1;
     }
 
-    int status = SYSCALLS[syscall_opcode].function(syscall_instruction);
+    int retval = SYSCALLS[syscall_opcode].function(syscall_instruction);
     payload_destroy(syscall_instruction);
-    return status;
+    return retval;
 }
 
 int process_create_kernel_syscall(t_Payload *syscall_arguments) {
@@ -42,7 +41,12 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
     size_deserialize(syscall_arguments, &size);
 
     t_Priority priority;
-    // priority_deserialize(syscall_arguments, &priority);
+    payload_remove(syscall_arguments, &priority, sizeof(t_Priority));
+
+    if(new_process(size, pseudocode_filename, priority)) {
+        log_warning(MODULE_LOGGER, "PROCESS_CREATE: No se pudo crear el proceso");
+        return -1;
+    }
 
     SHOULD_REDISPATCH = 1;
 
@@ -52,6 +56,8 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
 int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_EXIT");
+
+    // TODO
 
     SHOULD_REDISPATCH = 0;
 
@@ -66,7 +72,9 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     text_deserialize(syscall_arguments, &pseudocode_filename);
 
     t_Priority priority;
-    // priority_deserialize(syscall_arguments, &priority);
+    payload_remove(syscall_arguments, &priority, sizeof(t_Priority));
+   
+    // TODO
 
     /*
     t_TCB *new_tcb = tcb_create(EXEC_TCB->pcb);
@@ -75,10 +83,6 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         return -1;
     }
     */
-
-
-
-    
 
     SHOULD_REDISPATCH = 1;
 
@@ -90,7 +94,9 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "THREAD_JOIN");
 
     t_TID tid;
-    // tid_deserialize(syscall_arguments, &tid);
+    payload_remove(syscall_arguments, &tid, sizeof(t_TID));
+
+    // TODO
 
     SHOULD_REDISPATCH = 0;
 
@@ -102,7 +108,9 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "THREAD_CANCEL");
 
     t_TID tid;
-    // tid_deserialize(syscall_arguments, &tid);
+    payload_remove(syscall_arguments, &tid, sizeof(t_TID));
+
+    // TODO
 
     // Si es suicida (se cancela a sí mismo)
     SHOULD_REDISPATCH = 0;
@@ -116,6 +124,8 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_EXIT");
 
+    // TODO
+
     SHOULD_REDISPATCH = 0;
 
     return 0;
@@ -128,17 +138,22 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
 
+    // TODO
+
     SHOULD_REDISPATCH = 1;
 
     return 0;
 }
 
 int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
+    int status;
 
     char *resource_name;
     text_deserialize(syscall_arguments, &resource_name);
 
     log_trace(MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
+
+    // TODO
 
     /*
     t_Resource *resource = resource_find(resource_name);
@@ -148,24 +163,39 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
         return -1;
     }
 
-    pthread_mutex_lock(&(resource->mutex_instances));
+    if(status = pthread_mutex_lock(&(resource->mutex_instances))) {
+        log_error_pthread_mutex_lock(status);
+        // TODO
+    }
 
     resource->instances--;
 
     if(resource->instances < 0) {
-        pthread_mutex_unlock(&(resource->mutex_instances));
+        if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         switch_process_state(SYSCALL_PCB, BLOCKED_STATE);
 
-        pthread_mutex_lock(&(resource->shared_list_blocked.mutex));
+        if(status = pthread_mutex_lock(&(resource->shared_list_blocked.mutex))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             list_add(resource->shared_list_blocked.list, SYSCALL_PCB);
             log_info(MINIMAL_LOGGER, "PID: <%d> - Bloqueado por: <%s>", (int) SYSCALL_PCB->PID, resource_name);
             SYSCALL_PCB->shared_list_state = &(resource->shared_list_blocked);
-        pthread_mutex_unlock(&(resource->shared_list_blocked.mutex));
+        if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         EXEC_PCB = 0;
     } else {
-        pthread_mutex_unlock(&(resource->mutex_instances));
+        if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         list_add(SYSCALL_PCB->assigned_resources, resource);
 
@@ -185,6 +215,8 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
 
+    // TODO
+
     /*
     t_Resource *resource = resource_find(resource_name);
     if(resource == NULL) {
@@ -199,30 +231,48 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
     list_remove_by_condition_with_comparation(SYSCALL_PCB->assigned_resources, (bool (*)(void *, void *)) pointers_match, (void *) resource);
 
-    pthread_mutex_lock(&(resource->mutex_instances));
+    if(status = pthread_mutex_lock(&(resource->mutex_instances))) {
+        log_error_pthread_mutex_lock(status);
+        // TODO
+    }
 
     resource->instances++;
 
     if(resource->instances <= 0) {
-        pthread_mutex_unlock(&(resource->mutex_instances));
+        if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
-        pthread_mutex_unlock(&(resource->shared_list_blocked.mutex));
+        if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
             if((resource->shared_list_blocked.list)->head == NULL) {
-                pthread_mutex_unlock(&(resource->shared_list_blocked.mutex));
+                if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
+                    log_error_pthread_mutex_unlock(status);
+                    // TODO
+                }
                 return 0;
             }
 
             t_PCB *pcb = (t_PCB *) list_remove(resource->shared_list_blocked.list, 0);
 
-        pthread_mutex_unlock(&(resource->shared_list_blocked.mutex));
+        if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         list_add(pcb->assigned_resources, resource);
       
         switch_process_state(pcb, READY_STATE);
     }
     else {
-        pthread_mutex_unlock(&(resource->mutex_instances));
+        if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
     }
     */
 
@@ -233,6 +283,8 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
+    // TODO
+
     SHOULD_REDISPATCH = 0;
 
     return 0;
@@ -240,8 +292,10 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
 int io_kernel_syscall(t_Payload *syscall_arguments) {
 
-    // t_Time time;
-    // time_deserialize(syscall_arguments, &time);  
+        t_Time time;
+    payload_remove(syscall_arguments, &time, sizeof(t_Time));
+
+    // TODO
 
     log_trace(MODULE_LOGGER, "IO");
 

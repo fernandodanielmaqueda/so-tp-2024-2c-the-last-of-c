@@ -26,15 +26,13 @@
 #include "utils/serialize/exec_context.h"
 #include "utils/socket.h"
 #include "socket.h"
-#include "scheduler.h"
 
-typedef struct t_Mutex {
-    char *name;
+typedef struct t_Resource {
+    // char *name;
     t_Shared_List shared_list_blocked;
-} t_Mutex;
+} t_Resource;
 
-t_Mutex *resource_find(char *name);
-void resource_log(t_Mutex *mutex);
-void resources_free(void);
+t_Resource *resource_create(void);
+void resource_destroy(t_Resource *resource);
 
 #endif // KERNEL_RESOURCES_H

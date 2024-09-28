@@ -24,7 +24,7 @@ void payload_destroy(t_Payload *payload) {
 }
 
 int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
-  if (payload == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
+  if(payload == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
     errno = EINVAL;
     return -1;
   }
@@ -86,7 +86,7 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 }
 
 int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
-  if (payload == NULL || sourceSize == 0) {
+  if(payload == NULL || sourceSize == 0) {
     errno = EINVAL;
     return -1;
   }
@@ -118,7 +118,7 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
 }
 
 int payload_read(t_Payload *payload, void *destination, size_t destinationSize) {
-  if (payload == NULL || payload->stream == NULL || destination == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset)) {
+  if(payload == NULL || payload->stream == NULL || destination == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset)) {
     errno = EINVAL;
     return -1;
   }

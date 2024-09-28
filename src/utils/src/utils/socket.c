@@ -99,7 +99,7 @@ int server_start_try(char *port) {
 	hints.ai_flags = AI_PASSIVE;
 
 	int status = getaddrinfo(NULL, port, &hints, &result);
-  if (status) {
+  if(status) {
     log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
@@ -136,12 +136,12 @@ int server_start_try(char *port) {
 	
   freeaddrinfo(result); // No longer needed
 
-  if (rp == NULL) { // No address succeeded
+  if(rp == NULL) { // No address succeeded
     return -1;
   }
 
 	// Escuchamos las conexiones entrantes
-	if (listen(fd_server, SOMAXCONN) == -1) {
+	if(listen(fd_server, SOMAXCONN) == -1) {
 		log_warning(SOCKET_LOGGER, "Funcion listen: %s\n", strerror(errno));
 		return -1;
 	}
@@ -248,7 +248,7 @@ int client_start_try(char *ip, char *port) {
 	hints.ai_socktype = SOCK_STREAM;
 
 	int status = getaddrinfo(ip, port, &hints, &result);
-  if (status) {
+  if(status) {
     log_warning(SOCKET_LOGGER, "Funcion getaddrinfo: %s\n", gai_strerror(status));
     return -1;
   }
@@ -277,7 +277,7 @@ int client_start_try(char *ip, char *port) {
 	
   freeaddrinfo(result); /* No longer needed */
 
-  if (rp == NULL) { /* No address succeeded */
+  if(rp == NULL) { /* No address succeeded */
     return -1;
   }
 	

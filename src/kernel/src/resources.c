@@ -3,58 +3,32 @@
 
 #include "resources.h"
 
-/*
-int resources_read_module_config(t_config *module_config) {
-	char **resource_names = config_get_array_value(module_config, "RECURSOS");
-	char **resource_instances = config_get_array_value(module_config, "INSTANCIAS_RECURSOS");
+t_Resource *resource_create(void) {
+	int status;
 
-	for(RESOURCE_QUANTITY = 0; (resource_names[RESOURCE_QUANTITY] != NULL) && (resource_instances[RESOURCE_QUANTITY] != NULL); RESOURCE_QUANTITY++);
-	
-	if((resource_names[RESOURCE_QUANTITY] != NULL) || (resource_instances[RESOURCE_QUANTITY] != NULL)) {
-		fprintf(stderr, "La cantidad de recursos y de instancias de recursos no coinciden\n");
-		exit(EXIT_FAILURE);
+	t_Resource *resource = malloc(sizeof(t_Resource));
+	if(resource == NULL) {
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
+		return NULL;
 	}
 
-	if(RESOURCE_QUANTITY > 0) {
-		RESOURCES = malloc(sizeof(t_Resource) * RESOURCE_QUANTITY);
-		if(RESOURCES == NULL) {
-			fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para el array de recursos\n", sizeof(t_Resource) * RESOURCE_QUANTITY);
-			exit(EXIT_FAILURE);
-		}
+	resource->shared_list_blocked.list = list_create();
+	if((status = pthread_mutex_init(&(resource->shared_list_blocked.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		// TODO
 	}
 
-	char *end;
-	for(register int i = 0; i < RESOURCE_QUANTITY; i++) {
-		RESOURCES[i].instances = strtol(resource_instances[i], &end, 10);
-		if(!*(resource_instances[i]) || *end) {
-			fprintf(stderr, "La cantidad de instancias del recurso %s no es un número válido: %s\n", resource_names[i], resource_instances[i]);
-			exit(EXIT_FAILURE);
-		}
+	return resource;
+}
 
-		RESOURCES[i].name = resource_names[i];
-		RESOURCES[i].shared_list_blocked.list = list_create();
-		pthread_mutex_init(&(RESOURCES[i].shared_list_blocked.mutex), NULL);
+void resource_destroy(t_Resource *resource) {
+	int status;
+
+	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
+	if((status = pthread_mutex_destroy(&(resource->shared_list_blocked.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+		// TODO
 	}
 
-	return 0;
-}
-*/
-
-t_Mutex *resource_find(char *name) {
-	/*
-    for(register int i = 0; i < RESOURCE_QUANTITY; i++)
-        if(strcmp((RESOURCES[i]).name, name) == 0)
-            return (&(RESOURCES[i]));
-	*/
-
-    return NULL;
-}
-
-void resource_log(t_Mutex *resource) {
-	//log_trace(MODULE_LOGGER, "Recurso: %s - Instancias %ld", resource->name, resource->instances);
-}
-
-void resources_free(void) {
-	//free(RESOURCES);
-	// TODO: Liberar lista de bloqueados
+	free(resource);
 }

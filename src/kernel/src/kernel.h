@@ -26,6 +26,7 @@
 #include "utils/send.h"
 #include "utils/socket.h"
 #include "socket.h"
+#include "resources.h"
 
 typedef enum e_ID_Manager_Type {
     PROCESS_ID_MANAGER_TYPE,
@@ -56,9 +57,9 @@ typedef struct t_PCB {
 
     size_t size;
 
-    t_ID_Manager thread_manager;
+    t_dictionary *dictionary_mutexes;
 
-    t_Shared_List shared_list_mutexes;
+    t_ID_Manager thread_manager;
 } t_PCB;
 
 typedef struct t_TCB {
@@ -72,11 +73,13 @@ typedef struct t_TCB {
     e_Process_State current_state;
     t_Shared_List *shared_list_state;
 
-    t_Quantum quantum;
+    t_Time quantum;
 
     t_Payload syscall_instruction;
 
     t_Shared_List shared_list_blocked_thread_join;
+
+    t_dictionary *dictionary_assigned_mutexes;
 } t_TCB;
 
 typedef enum e_Scheduling_Algorithm {
@@ -109,6 +112,8 @@ int initialize_global_variables(void);
 int finish_global_variables(void);
 int read_module_config(t_config *module_config);
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
+
+int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
 
 t_PCB *pcb_create(size_t size);
 void pcb_destroy(t_PCB *pcb);

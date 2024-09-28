@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <semaphore.h>
 #include <pthread.h>
 #include "commons/log.h"
@@ -56,6 +57,28 @@ int finish_loggers(void);
 
 int initialize_logger(t_log **logger, char *pathname, char *module_name);
 int finish_logger(t_log **logger);
+
+void log_error_pthread_mutex_init(int status);
+void log_error_pthread_mutex_destroy(int status);
+void log_error_pthread_mutex_lock(int statusoid);
+void log_error_pthread_mutex_unlock(int status);
+
+void log_error_sem_init(void);
+void log_error_sem_destroy(void);
+void log_error_sem_wait(void);
+void log_error_sem_post(void);
+
+void log_error_pthread_create(int status);
+void log_error_pthread_detach(int status);
+void log_error_pthread_cancel(int status);
+void log_error_pthread_join(int status);
+
+void log_error_pthread_cond_init(int status);
+void log_error_pthread_cond_destroy(int status);
+void log_error_pthread_cond_wait(int status);
+void log_error_pthread_cond_timedwait(int status);
+void log_error_pthread_cond_signal(int status);
+void log_error_pthread_cond_broadcast(int status);
 
 int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);

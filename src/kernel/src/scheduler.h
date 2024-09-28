@@ -54,7 +54,7 @@ extern t_TCB *EXEC_TCB;
 
 extern bool SHOULD_REDISPATCH;
 
-extern t_Quantum QUANTUM;
+extern t_Time QUANTUM;
 extern pthread_t THREAD_QUANTUM_INTERRUPT;
 extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
 extern bool QUANTUM_INTERRUPT;

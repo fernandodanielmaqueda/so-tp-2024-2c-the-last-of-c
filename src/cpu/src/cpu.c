@@ -32,17 +32,21 @@ t_Payload SYSCALL_INSTRUCTION = {0};
 
 int module(int argc, char *argv[])
 {
+    int status;
 
     if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
         // TODO
-        exit(EXIT_FAILURE);
+        goto error;
     }
 
     initialize_loggers();
     initialize_global_variables();
     initialize_sockets();
 
-    pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL);
+    if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
+        log_error_pthread_create(status);
+        // TODO
+    }
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
     instruction_cycle();
@@ -54,22 +58,62 @@ int module(int argc, char *argv[])
 	finish_global_variables();
 
     return EXIT_SUCCESS;
+
+    error:
+        return EXIT_FAILURE;
 }
 
 int initialize_global_variables(void) {
-    pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL);
-    pthread_mutex_init(&MUTEX_EXECUTING, NULL);
-    pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL);
+    int status;
+
+    if((status = pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL))) {
+        log_error_pthread_mutex_init(status);
+        goto error;
+    }
+
+    if((status = pthread_mutex_init(&MUTEX_EXECUTING, NULL))) {
+        log_error_pthread_mutex_init(status);
+        goto error_mutex_exec_context;
+    }
+
+    if((status = pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL))) {
+        log_error_pthread_mutex_init(status);
+        goto error_mutex_executing;
+    }
 
     return 0;
+
+    error_mutex_executing:
+        if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_destroy(status);
+        }
+    error_mutex_exec_context:
+        if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_destroy(status);
+        }
+    error:
+        return -1;
 }
 
 int finish_global_variables(void) {
-    pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT);
-    pthread_mutex_destroy(&MUTEX_EXECUTING);
-    pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT);
+    int retval = 0, status;
 
-    return 0;
+    if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
+        log_error_pthread_mutex_destroy(status);
+        retval = -1;
+    }
+
+    if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
+        log_error_pthread_mutex_destroy(status);
+        retval = -1;
+    }
+
+    if((status = pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT))) {
+        log_error_pthread_mutex_destroy(status);
+        retval = -1;
+    }
+
+    return retval;
 }
 
 int read_module_config(t_config *MODULE_CONFIG) {
@@ -79,13 +123,13 @@ int read_module_config(t_config *MODULE_CONFIG) {
         return -1;
     }
 
-    CONNECTION_MEMORY = (t_Connection){.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+    CONNECTION_MEMORY = (t_Connection) {.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
-    SERVER_CPU_DISPATCH = (t_Server){.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
-    CLIENT_KERNEL_CPU_DISPATCH = (t_Client){.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
+    SERVER_CPU_DISPATCH = (t_Server) {.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
+    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
 
-    SERVER_CPU_INTERRUPT = (t_Server){.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
-    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client){.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
+    SERVER_CPU_INTERRUPT = (t_Server) {.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
+    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 
@@ -102,13 +146,24 @@ void instruction_cycle(void)
 
     while(1) {
 
-        pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT);
+        if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
+            
             KERNEL_INTERRUPT = NONE_KERNEL_INTERRUPT;
-        pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+        
+        if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         payload_init(&SYSCALL_INSTRUCTION);
 
-        pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
                 exit(EXIT_FAILURE);
@@ -127,11 +182,22 @@ void instruction_cycle(void)
                 // TODO
                 exit(EXIT_FAILURE);
             }
-        pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
-        pthread_mutex_lock(&MUTEX_EXECUTING);
+        if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
+
             EXECUTING = 1;
-        pthread_mutex_unlock(&MUTEX_EXECUTING);
+
+        if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         log_trace(MODULE_LOGGER, "<%d:%d> Contexto de ejecucion recibido del proceso - Ciclo de instruccion ejecutando", PID, TID);
 
@@ -147,8 +213,7 @@ void instruction_cycle(void)
             }
 
             // Decode
-            status = arguments_use(arguments, IR);
-            if(status) {
+            if((status = arguments_use(arguments, IR))) {
                 switch(errno) {
                     case E2BIG:
                         log_error(MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", IR);
@@ -192,33 +257,60 @@ void instruction_cycle(void)
                 break;
             }
 
-            pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT);
-                if (KERNEL_INTERRUPT == KILL_KERNEL_INTERRUPT) {
-                    pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+            if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+                log_error_pthread_mutex_lock(status);
+                // TODO
+            }
+                if(KERNEL_INTERRUPT == KILL_KERNEL_INTERRUPT) {
+                    if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                        log_error_pthread_mutex_unlock(status);
+                        // TODO
+                    }
                     EVICTION_REASON = KILL_KERNEL_INTERRUPT_EVICTION_REASON;
                     break;
                 }
-            pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+            if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                log_error_pthread_mutex_unlock(status);
+                // TODO
+            }
 
             if(SYSCALL_CALLED) {
                 EVICTION_REASON = SYSCALL_EVICTION_REASON;
                 break;
             }
 
-            pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT);
-                if (KERNEL_INTERRUPT == QUANTUM_KERNEL_INTERRUPT) {
-                    pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+            if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+                log_error_pthread_mutex_lock(status);
+                // TODO
+            }
+                if(KERNEL_INTERRUPT == QUANTUM_KERNEL_INTERRUPT) {
+                    if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                        log_error_pthread_mutex_unlock(status);
+                        // TODO
+                    }
                     EVICTION_REASON = QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON;
                     break;
                 }
-            pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+            if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                log_error_pthread_mutex_unlock(status);
+                // TODO
+            }
         }
 
-        pthread_mutex_lock(&MUTEX_EXECUTING);
+        if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             EXECUTING = 0;
-        pthread_mutex_unlock(&MUTEX_EXECUTING);
+        if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
-        pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             log_info(MINIMAL_LOGGER, "## TID: %u - Actualizo Contexto Ejecución", TID);
 
             if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
@@ -230,7 +322,10 @@ void instruction_cycle(void)
                 // TODO
                 exit(EXIT_FAILURE);
             }
-        pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         payload_destroy(&SYSCALL_INSTRUCTION);
     }
@@ -245,6 +340,7 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
     e_Kernel_Interrupt kernel_interrupt;
     t_PID pid;
     t_TID tid;
+    int status;
 
     while(1) {
 
@@ -253,27 +349,51 @@ void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
             exit(EXIT_FAILURE);
         }
 
-        pthread_mutex_lock(&MUTEX_EXECUTING);
+        if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             if(!EXECUTING) {
-                pthread_mutex_unlock(&MUTEX_EXECUTING);
+                if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
+                    log_error_pthread_mutex_unlock(status);
+                    // TODO
+                }
                 continue;
             }
-        pthread_mutex_unlock(&MUTEX_EXECUTING);
+        if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
-        pthread_mutex_lock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             if(pid != PID && tid != TID) {
-                pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
+                if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+                    log_error_pthread_mutex_unlock(status);
+                    // TODO
+                }
                 continue;
             }
-        pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT);
+        if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
         log_info(MINIMAL_LOGGER, "## Llega interrupción al puerto Interrupt");
 
-        pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT);
+        if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+            log_error_pthread_mutex_lock(status);
+            // TODO
+        }
             // Una forma de establecer prioridad entre interrupciones que se pisan, sólo va a quedar una
-            if (KERNEL_INTERRUPT < kernel_interrupt)
+            if(KERNEL_INTERRUPT < kernel_interrupt)
                 KERNEL_INTERRUPT = kernel_interrupt;
-        pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT);
+        if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+            log_error_pthread_mutex_unlock(status);
+            // TODO
+        }
 
     }
 
