@@ -779,8 +779,8 @@ void listen_cpu(void) {
                 
             case READ_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de lectura recibido.");
-                if(read_memory(&(package->payload), CLIENT_CPU->fd_client))send_result_with_header(READ_REQUEST_HEADER, 1, CLIENT_CPU->fd_client);
-                //read_memory(&(package->payload), CLIENT_CPU->fd_client);
+                if(read_memory(&(package->payload), CLIENT_CPU->fd_client))
+                    send_result_with_header(READ_REQUEST_HEADER, 1, CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
                 
@@ -858,52 +858,41 @@ int read_memory(t_Payload *payload, int socket) {
     t_PID pid;
     t_TID tid;
     size_t physical_address;
-    size_t bytes = 4;
+    size_t bytes;
     
     payload_remove(payload, &pid, sizeof(t_PID));
     payload_remove(payload, &tid, sizeof(t_TID));
     size_deserialize(payload, &physical_address);
+    size_deserialize(payload, &bytes);
     
     if(bytes > 4) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, socket)) {
+            // TODO
+        }
         return -1;
     }
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, socket)) {
+            // TODO
+        }
         return -1;
     }
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
-    t_Package *package = package_create_with_header(READ_REQUEST_HEADER);
-    if(payload_add(&(package->payload), &pid, sizeof(pid))) {
-        package_destroy(package);
+    if(send_data_with_header(READ_REQUEST_HEADER, posicion, bytes, socket)) {
+        // TODO
         return -1;
     }
-    if(payload_add(&(package->payload), &tid, sizeof(tid))) {
-        package_destroy(package);
-        return -1;
-    }
-    if(payload_add(&(package->payload), posicion, bytes)) {
-        package_destroy(package);
-        return -1;
-    }
-    if(size_serialize(&(package->payload), bytes)) {
-        package_destroy(package);
-        return -1;
-    }
-    if(package_send(package, socket)) {
-        package_destroy(package);
-        return -1;
-    }
-    package_destroy(package);
-
     
 //FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
     log_info(MINIMAL_LOGGER, "## <Lectura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);
 
     return 0;
+
 }
 
 int write_memory(t_Payload *payload) {
@@ -913,28 +902,34 @@ int write_memory(t_Payload *payload) {
     t_PID pid;
     t_TID tid;
     size_t physical_address;
-    size_t bytes = 4;
+    size_t bytes;
     
     payload_remove(payload, &pid, sizeof(t_PID));
     payload_remove(payload, &tid, sizeof(t_TID));
-    size_deserialize(payload, &physical_address);
-    //size_deserialize(payload, &bytes);
-    //t_list *list_physical_addresses = list_create();
-    //list_deserialize(payload, list_physical_addresses, size_deserialize_element);
+    data_deserialize(payload, &physical_address, &bytes);
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
     if(bytes > 4) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
+            // TODO
+        }
         return -1;
     }
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
+            // TODO
+        }
         return -1;
     }
 
-    data_deserialize(payload, posicion, &bytes);
+    if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
+        // TODO
+        return -1;
+    }
 
 //FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
     log_info(MINIMAL_LOGGER, "## <Escritura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);

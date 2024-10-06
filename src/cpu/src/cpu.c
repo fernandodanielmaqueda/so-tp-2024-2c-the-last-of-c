@@ -421,12 +421,14 @@ int cpu_fetch_next_instruction(char **line) {
 int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     // Verifico que el puntero de destino no sea nulo
     if(destination == NULL) {
+        log_error(MODULE_LOGGER, "mmu: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
 
     // Verifico que no produzca overflow
     if(logical_address > (SIZE_MAX - EXEC_CONTEXT.base) || bytes > (SIZE_MAX - (EXEC_CONTEXT.base + logical_address))) {
+        log_error(MODULE_LOGGER, "mmu: %s", strerror(ERANGE));
         errno = ERANGE;
         return -1;
     }
@@ -437,6 +439,7 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
 
     // Verifico que no haya segmentation fault
     if((physical_address + bytes) >= EXEC_CONTEXT.limit) {
+        log_warning(MODULE_LOGGER, "mmu: %s", strerror(EFAULT));
         errno = EFAULT;
         return -1;
     }
@@ -449,6 +452,7 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
 
 int write_memory(size_t physical_address, void *source, size_t bytes) {
     if(source == NULL) {
+        log_error(MODULE_LOGGER, "write_memory: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
@@ -468,23 +472,33 @@ int write_memory(size_t physical_address, void *source, size_t bytes) {
 
 int read_memory(size_t physical_address, void *destination, size_t bytes) {
     if(destination == NULL) {
+        log_error(MODULE_LOGGER, "read_memory: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
-    
-    t_Package* package;
 
     if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(EXIT_FAILURE);
     }
 
-    if(package_receive(&package, CONNECTION_MEMORY.fd_connection)) {
+    void *buffer;
+    size_t bufferSize;
+
+    if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.fd_connection)) {
         // TODO
         exit(EXIT_FAILURE);
     }
-    payload_remove(&(package->payload), destination, bytes);
-    package_destroy(package);
+
+    if(bufferSize != bytes) {
+        log_error(MODULE_LOGGER, "read_memory: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
+        errno = EIO;
+        free(buffer);
+        return -1;
+    }
+
+    memcpy(destination, buffer, bytes);
+    free(buffer);
 
     return 0;
 }
