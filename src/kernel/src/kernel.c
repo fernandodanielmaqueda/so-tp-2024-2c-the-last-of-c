@@ -266,7 +266,7 @@ int assign_ready_list(t_TCB *tcb, t_Priority *result) {
 	//wait_ongoing_requests(sync);
 	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
 	if(new_shared_list == NULL) {
-		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
 		return -1;
 	}
 
@@ -278,7 +278,7 @@ int assign_ready_list(t_TCB *tcb, t_Priority *result) {
 
 	ARRAY_LIST_READY = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
 	if(ARRAY_LIST_READY == NULL) {
-		log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
 		return -1;
 	}
 	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
@@ -516,7 +516,7 @@ int _id_assign(t_ID_Manager *id_manager, void *data, void *result) {
 
 				void **new_cb_array = realloc(id_manager->cb_array, sizeof(void *) * (id_generic + 1));
 				if(new_cb_array == NULL) {
-					log_warning(MODULE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el array dinamico de bloques de control", sizeof(void *) * (id_generic + 1));
+					log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_generic, sizeof(void *) * (id_generic + 1));
 					if(status = _pthread_mutex_unlock(&(id_manager->mutex_cb_array));
 					errno = ENOMEM;
 					return -1;

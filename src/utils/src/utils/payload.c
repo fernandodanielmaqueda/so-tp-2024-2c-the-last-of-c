@@ -6,7 +6,7 @@
 void payload_init(t_Payload *payload) {
   if(payload == NULL)
     return;
-  
+
   payload->size = 0;
   payload->stream = NULL;
   payload->offset = 0;
@@ -15,7 +15,7 @@ void payload_init(t_Payload *payload) {
 void payload_destroy(t_Payload *payload) {
   if(payload == NULL)
     return;
-  
+
   free(payload->stream);
 
   payload->size = 0;
@@ -24,14 +24,25 @@ void payload_destroy(t_Payload *payload) {
 }
 
 int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
-  if(payload == NULL || sourceSize == 0 || sourceSize > (SIZE_MAX - payload->size)) {
+  if(sourceSize == 0) {
+    return 0;
+  }
+
+  if(payload == NULL) {
+    log_warning(SERIALIZE_LOGGER, "payload_add: %s", strerror(EINVAL));
     errno = EINVAL;
+    return -1;
+  }
+
+  if(sourceSize > (SIZE_MAX - payload->size)) {
+    log_warning(SERIALIZE_LOGGER, "payload_add: %s", strerror(ERANGE));
+    errno = ERANGE;
     return -1;
   }
 
   void *newStream = realloc(payload->stream, payload->size + sourceSize);
   if(newStream == NULL) {
-    log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", payload->size + sourceSize);
+    log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->size + sourceSize);
     errno = ENOMEM;
     return -1;
   }
@@ -51,8 +62,19 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
 }
 
 int payload_remove(t_Payload *payload, void *destination, size_t destinationSize) {
-  if(payload == NULL || payload->stream == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset) ) {
+  if(destinationSize == 0) {
+    return 0;
+  }
+
+  if(payload == NULL || payload->stream == NULL) {
+    log_warning(SERIALIZE_LOGGER, "payload_remove: %s", strerror(EINVAL));
     errno = EINVAL;
+    return -1;
+  }
+
+  if(destinationSize > (payload->size - payload->offset)) {
+    log_warning(SERIALIZE_LOGGER, "payload_remove: %s", strerror(EDOM));
+    errno = EDOM;
     return -1;
   }
 
@@ -70,7 +92,7 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 
     void *newStream = realloc(payload->stream, newSize);
     if(newStream == NULL) {
-      log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", newSize);
+      log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, newSize);
       errno = ENOMEM;
       return -1;
     }
@@ -86,7 +108,12 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
 }
 
 int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
-  if(payload == NULL || sourceSize == 0) {
+  if(sourceSize == 0) {
+    return 0;
+  }
+
+  if(payload == NULL) {
+    log_warning(SERIALIZE_LOGGER, "payload_write: %s", strerror(EINVAL));
     errno = EINVAL;
     return -1;
   }
@@ -94,13 +121,14 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
   if(sourceSize > (payload->size - payload->offset)) {
 
     if(sourceSize > (SIZE_MAX - payload->offset)) {
-      errno = EINVAL;
+      log_warning(SERIALIZE_LOGGER, "payload_write: %s", strerror(ERANGE));
+      errno = ERANGE;
       return -1;
     }
 
     void *newStream = realloc(payload->stream, payload->offset + sourceSize);
     if(newStream == NULL) {
-      log_warning(SERIALIZE_LOGGER, "realloc: No se pudieron reservar %zu bytes para el stream del payload", payload->offset + sourceSize);
+      log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->offset + sourceSize);
       errno = ENOMEM;
       return -1;
     }
@@ -118,8 +146,19 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
 }
 
 int payload_read(t_Payload *payload, void *destination, size_t destinationSize) {
-  if(payload == NULL || payload->stream == NULL || destination == NULL || destinationSize == 0 || destinationSize > (payload->size - payload->offset)) {
+  if(destinationSize == 0) {
+    return 0;
+  }
+
+  if(payload == NULL || payload->stream == NULL || destination == NULL) {
+    log_warning(SERIALIZE_LOGGER, "payload_read: %s", strerror(EINVAL));
     errno = EINVAL;
+    return -1;
+  }
+
+  if(destinationSize > (payload->size - payload->offset)) {
+    log_warning(SERIALIZE_LOGGER, "payload_read: %s", strerror(EDOM));
+    errno = EDOM;
     return -1;
   }
 
@@ -132,6 +171,7 @@ int payload_read(t_Payload *payload, void *destination, size_t destinationSize) 
 
 int payload_seek(t_Payload *payload, long offset, int whence) {
   if(payload == NULL) {
+    log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EINVAL));
     errno = EINVAL;
     return -1;
   }
@@ -139,8 +179,14 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
   switch(whence) {
 
     case SEEK_SET:
-      if(offset < 0 || (size_t) offset > payload->size) {
+      if(offset < 0) {
+        log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EINVAL));
         errno = EINVAL;
+        return -1;
+      }
+      if((size_t) offset > payload->size) {
+        log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EDOM));
+        errno = EDOM;
         return -1;
       }
       payload->offset = (size_t) offset;
@@ -149,14 +195,21 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
     case SEEK_CUR:
       if(offset < 0) {
         if((size_t) (-offset) > payload->offset) {
-          errno = EINVAL;
+          log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EDOM));
+          errno = EDOM;
           return -1;
         }
         payload->offset -= (size_t) (-offset);
       }
       else {
-        if(((size_t) offset > (SIZE_MAX - payload->offset)) || ((payload->offset + (size_t) offset) > payload->size)) {
-          errno = EINVAL;
+        if((size_t) offset > (SIZE_MAX - payload->offset)) {
+          log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(ERANGE));
+          errno = ERANGE;
+          return -1;
+        }
+        if((payload->offset + (size_t) offset) > payload->size) {
+          log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EDOM));
+          errno = EDOM;
           return -1;
         }
         payload->offset += (size_t) offset;
@@ -164,14 +217,21 @@ int payload_seek(t_Payload *payload, long offset, int whence) {
       break;
 
     case SEEK_END:
-      if(offset > 0 || (size_t) (-offset) > payload->size) {
+      if(offset > 0) {
+        log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EINVAL));
         errno = EINVAL;
+        return -1;
+      }
+      if((size_t) (-offset) > payload->size) {
+        log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EDOM));
+        errno = EDOM;
         return -1;
       }
       payload->offset = payload->size - (size_t) (-offset);
       break;
 
     default:
+      log_warning(SERIALIZE_LOGGER, "payload_seek: %s", strerror(EINVAL));
       errno = EINVAL;
       return -1;
 

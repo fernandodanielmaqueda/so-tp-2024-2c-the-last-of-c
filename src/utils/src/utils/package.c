@@ -29,7 +29,7 @@ t_Package *package_create(void) {
 
   t_Package *package = malloc(sizeof(t_Package));
   if(package == NULL) {
-    log_error(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
+    log_error(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
     return NULL;
   }
 
@@ -40,10 +40,12 @@ t_Package *package_create(void) {
 
 t_Package *package_create_with_header(e_Header header) {
   t_Package *package = package_create();
+  if(package == NULL) {
+    return NULL;
+  }
 
-  if(package != NULL)
-    package->header = header;
-  
+  package->header = header;
+
   return package;
 }
 
@@ -63,14 +65,14 @@ int package_send(t_Package *package, int fd_socket) {
   size_t previous_offset = package->payload.offset;
   payload_seek(&(package->payload), 0, SEEK_SET);
 
-  t_EnumValue aux_header;
-  aux_header = (t_EnumValue) package->header;
+  t_EnumValue header_serialized;
+  header_serialized = (t_EnumValue) package->header;
 
-  t_Size aux_size;
-  aux_size = (t_Size) package->payload.size;
+  t_Size size_serialized;
+  size_serialized = (t_Size) package->payload.size;
 
-  payload_add(&(package->payload), &(aux_header), sizeof(aux_header));
-  payload_add(&(package->payload), &(aux_size), sizeof(aux_size));
+  payload_add(&(package->payload), &(header_serialized), sizeof(header_serialized));
+  payload_add(&(package->payload), &(size_serialized), sizeof(size_serialized));
 
   size_t bufferSize = package->payload.size;
 
@@ -78,17 +80,17 @@ int package_send(t_Package *package, int fd_socket) {
 
   payload_seek(&(package->payload), 0, SEEK_SET);
 
-  payload_remove(&(package->payload), NULL, sizeof(aux_header));
-  payload_remove(&(package->payload), NULL, sizeof(aux_size));
+  payload_remove(&(package->payload), NULL, sizeof(header_serialized));
+  payload_remove(&(package->payload), NULL, sizeof(size_serialized));
 
   payload_seek(&(package->payload), previous_offset, SEEK_CUR);
 
   if(bytes == -1) {
-      log_warning(SOCKET_LOGGER, "send: %s\n", strerror(errno));
+      log_warning(SERIALIZE_LOGGER, "send: %s\n", strerror(errno));
       return -1;
   }
   if(bytes != bufferSize) {
-      log_warning(SOCKET_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", bufferSize, bytes);
+      log_warning(SERIALIZE_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", bufferSize, bytes);
       return -1;
   }
 
@@ -100,6 +102,8 @@ int package_receive(t_Package **destination, int fd_socket) {
     return -1;
 
   *destination = package_create();
+  if(*destination == NULL)
+    return -1;
 
   if(package_receive_header(*destination, fd_socket))
     return -1;
@@ -142,7 +146,7 @@ int package_receive_payload(t_Package *package, int fd_socket) {
 
   package->payload.stream = malloc((size_t) package->payload.size);
   if(package->payload.stream == NULL) {
-    log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
+    log_error(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
     return -1;
   }
 
@@ -153,15 +157,15 @@ int receive(int fd_socket, void *destination, size_t expected_bytes) {
 
   ssize_t bytes = recv(fd_socket, destination, expected_bytes, 0); // MSG_WAITALL
   if(bytes == 0) {
-      log_warning(SOCKET_LOGGER, "recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n");
+      log_warning(SERIALIZE_LOGGER, "recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n");
       return -1;
   }
   if(bytes == -1) {
-      log_warning(SOCKET_LOGGER, "recv: %s\n", strerror(errno));
+      log_warning(SERIALIZE_LOGGER, "recv: %s\n", strerror(errno));
       return -1;
   }
   if(bytes != expected_bytes) {
-      log_warning(SOCKET_LOGGER, "recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", expected_bytes, bytes);
+      log_warning(SERIALIZE_LOGGER, "recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", expected_bytes, bytes);
       return -1;
   }
 

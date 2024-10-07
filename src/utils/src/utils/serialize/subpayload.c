@@ -25,13 +25,12 @@ int subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
 
   if(data_deserialize(payload, &(destination->stream), &(destination->size)))
     return -1;
-    
+
   subpayload_log(*destination);
   return 0;
 }
 
 int subpayload_log(t_Payload source) {
-
   char *dump_string = mem_hexstring(source.stream, source.size);
 
   log_info(SERIALIZE_LOGGER,

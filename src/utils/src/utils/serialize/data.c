@@ -9,7 +9,7 @@ int data_serialize(t_Payload *payload, void *data, size_t size) {
     return -1;
   }
   
-  if((data == NULL) || (!size)) {
+  if((data == NULL) || (size == 0)) {
     size = 0;
     t_Size size_serialized = (t_Size) size;
     
