@@ -36,6 +36,12 @@ int send_header(e_Header header, int fd_socket);
 int receive_expected_header(e_Header header, int fd_socket);
 
 
+int send_data_with_header(e_Header header, void *data, size_t bytes, int fd_socket);
+
+
+int receive_data_with_expected_header(e_Header expected_header, void **data, size_t *bytes, int fd_socket);
+
+
 int send_text_with_header(e_Header header, char *text, int fd_socket);
 
 
