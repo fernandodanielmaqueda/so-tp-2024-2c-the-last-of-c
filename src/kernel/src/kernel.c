@@ -33,43 +33,64 @@ int module(int argc, char *argv[]) {
 
 	if(argc < 3) {
 		fprintf(stderr, "Uso: %s <ARCHIVO_PSEUDOCODIGO> <TAMANIO_PROCESO> [ARGUMENTOS]\n", argv[0]);
-		exit(EXIT_FAILURE);
+		goto error;
 	}
 
 	size_t process_size;
 	if(str_to_size(argv[2], &process_size)) {
 		fprintf(stderr, "%s: No es un TAMANIO_PROCESO valido\n", argv[2]);
-		exit(EXIT_FAILURE);
+		goto error;
 	}
 
 	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
-		exit(EXIT_FAILURE);
+		goto error;
 	}
 
 	if(initialize_loggers()) {
-		finish_loggers();
-		finish_configs();
-		exit(EXIT_FAILURE);
+		goto error_configs;
 	}
 
-	initialize_global_variables();
+	if(initialize_global_variables()) {
+		goto error_loggers;
+	}
 
-	initialize_sockets();
+	if(initialize_sockets()) {
+		goto error_global_variables;
+	}
+
+	if(initialize_long_term_scheduler()) {
+		goto error_sockets;
+	}
+
+	if(create_pthread(&THREAD_CPU_INTERRUPTER, (void *(*)(void *)) cpu_interrupter, NULL)) {
+		goto error_long_term_scheduler;
+	}
+
+	if(new_process(process_size, argv[1], 0)) {
+        log_error(MODULE_LOGGER, "No se pudo crear el proceso");
+        goto error_cpu_interrupter;
+    }
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-	initialize_scheduling();
+	short_term_scheduler(NULL);
 
-	// cleanup:
+	return EXIT_SUCCESS;
 
-		finish_scheduling();
-		//finish_threads();
+	error_cpu_interrupter:
+		cancel_pthread(&THREAD_CPU_INTERRUPTER);
+	error_long_term_scheduler:
+		finish_long_term_scheduler();
+	error_sockets:
 		finish_sockets();
+	error_global_variables:
 		finish_global_variables();
+	error_loggers:
 		finish_loggers();
+	error_configs:
 		finish_configs();
-
-    return EXIT_SUCCESS;
+	error:
+		return EXIT_FAILURE;
 }
 
 int read_module_config(t_config *module_config) {
@@ -143,15 +164,15 @@ int initialize_global_variables(void) {
 		goto error_ready_sync;
 	}
 
-	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
-		goto error_list_exec;
-	}
-
 	SHARED_LIST_EXEC.list = list_create();
 	if(SHARED_LIST_EXEC.list == NULL) {
 		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en EXEC");
 		goto error_mutex_exec;
+	}
+
+	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error_list_exec;
 	}
 
 	SHARED_LIST_EXIT.list = list_create();
@@ -219,32 +240,38 @@ int initialize_global_variables(void) {
 }
 
 int finish_global_variables(void) {
-	int status;
+	int retval = 0, status;
 
 	if((status = pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT))) {
 		log_error_pthread_mutex_destroy(status);
+		retval = -1;
 	}
 
 	if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
 		log_error_sem_destroy();
+		retval = -1;
 	}
 
 	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 		log_error_sem_destroy();
+		retval = -1;
 	}
 
 	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 		log_error_sem_destroy();
+		retval = -1;
 	}
 
 	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex)))) {
 		log_error_pthread_mutex_destroy(status);
+		retval = -1;
 	}
 
 	list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
 
 	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex)))) {
 		log_error_pthread_mutex_destroy(status);
+		retval = -1;
 	}
 
 	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
@@ -253,11 +280,12 @@ int finish_global_variables(void) {
 
 	if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
 		log_error_pthread_mutex_destroy(status);
+		retval = -1;
 	}
 
 	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
 
-	return 0;
+	return retval;
 }
 
 int assign_ready_list(t_TCB *tcb, t_Priority *result) {
@@ -293,33 +321,42 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	t_PCB *pcb = pcb_create(size);
 	if(pcb == NULL) {
 		log_error(MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
-		return -1;
+		goto error;
 	}
 
 	t_TCB *tcb = tcb_create(pcb, pseudocode_filename, priority);
 	if(tcb == NULL) {
 		log_error(MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
-		pcb_destroy(pcb);
-		return -1;
+		goto error_pcb;
 	}
 
 	if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
 		log_error_pthread_mutex_lock(status);
-		// TODO
+		goto error_tcb;
 	}
+
 		list_add(SHARED_LIST_NEW.list, pcb);
+
 	if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
 		log_error_pthread_mutex_unlock(status);
-		// TODO
+		goto error_tcb;
 	}
 
 	log_info(MINIMAL_LOGGER, "## (<%u>:%u) Se crea el proceso - Estado: NEW", pcb->PID, tcb->TID);
 
 	if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 		log_error_sem_post();
+		goto error;
 	}
 
 	return 0;
+
+	error_tcb:
+		tcb_destroy(tcb);
+	error_pcb:
+		pcb_destroy(pcb);
+	error:
+		return -1;
 }
 
 t_PCB *pcb_create(size_t size) {
