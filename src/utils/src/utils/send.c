@@ -46,7 +46,6 @@ int receive_port_type(e_Port_Type *port_type, int fd_socket) {
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -87,7 +86,6 @@ int receive_expected_header(e_Header expected_header, int fd_socket) {
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -132,7 +130,6 @@ int receive_data_with_expected_header(e_Header expected_header, void **data, siz
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -177,7 +174,6 @@ int receive_text_with_expected_header(e_Header expected_header, char **text, int
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -222,7 +218,6 @@ int receive_result_with_expected_header(e_Header expected_header, int *result, i
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -273,7 +268,6 @@ int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pi
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -428,7 +422,6 @@ int receive_thread_eviction(e_Eviction_Reason *eviction_reason, t_Payload *sysca
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -485,7 +478,6 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -532,7 +524,6 @@ int receive_exec_context(t_Exec_Context *exec_context, int fd_socket) {
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
 
@@ -704,6 +695,5 @@ int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_sock
 
   error_package:
     package_destroy(package);
-  error:
     return -1;
 }
