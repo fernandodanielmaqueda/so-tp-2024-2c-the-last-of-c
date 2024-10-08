@@ -15,13 +15,19 @@ t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC = { .list = NULL };
 
 t_Shared_List SHARED_LIST_EXIT = { .list = NULL };
 
-pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
+t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_NEW = { .is_thread_running = false };
 sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 
-pthread_t THREAD_LONG_TERM_SCHEDULER_EXIT;
+t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT = { .is_thread_running = false };
 sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-pthread_t THREAD_CPU_INTERRUPTER;
+t_PThread_Controller THREAD_CPU_INTERRUPTER = { .is_thread_running = false };
+t_Time QUANTUM;
+t_PThread_Controller THREAD_QUANTUM_INTERRUPT = { .is_thread_running = false };
+bool QUANTUM_INTERRUPT;
+pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
+pthread_cond_t COND_QUANTUM_INTERRUPT;
+struct timespec TS_QUANTUM_INTERRUPT;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
 
@@ -36,47 +42,39 @@ t_TCB *EXEC_TCB = NULL;
 
 bool SHOULD_REDISPATCH = 0;
 
-t_Time QUANTUM;
-pthread_t THREAD_QUANTUM_INTERRUPT;
-bool QUANTUM_INTERRUPT;
-pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-pthread_cond_t COND_QUANTUM_INTERRUPT;
-struct timespec TS_QUANTUM_INTERRUPT;
-
 t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
-void initialize_scheduling(void) {
-	initialize_long_term_scheduler();
-	initialize_short_term_scheduler();
-}
-
-void finish_scheduling(void) {
-
-}
-
-void initialize_long_term_scheduler(void) {
+int initialize_long_term_scheduler(void) {
 	int status;
 
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_NEW, NULL, (void *(*)(void *)) long_term_scheduler_new, NULL))) {
-		log_error_pthread_create(status);
-		// TODO
+	if(create_pthread(&THREAD_LONG_TERM_SCHEDULER_NEW, (void *(*)(void *)) long_term_scheduler_new, NULL)) {
+		goto error;
 	}
 
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
-		log_error_pthread_create(status);
-		// TODO
+	if(create_pthread(&THREAD_LONG_TERM_SCHEDULER_EXIT, (void *(*)(void *)) long_term_scheduler_exit, NULL)) {
+		goto error_thread_long_term_scheduler_new;
 	}
+
+	return 0;
+
+	error_thread_long_term_scheduler_new:
+		cancel_pthread(&THREAD_LONG_TERM_SCHEDULER_NEW);
+	error:
+		return -1;
 }
 
-void initialize_short_term_scheduler(void) {
-	int status;
+int finish_long_term_scheduler(void) {
+	int retval = 0, status;
 
-	if((status = pthread_create(&THREAD_CPU_INTERRUPTER, NULL, (void *(*)(void *)) cpu_interrupter, NULL))) {
-		log_error_pthread_create(status);
-		// TODO
+	if(cancel_pthread(&THREAD_LONG_TERM_SCHEDULER_NEW)) {
+		retval = -1;
 	}
 
-	short_term_scheduler(NULL);
+	if(cancel_pthread(&THREAD_LONG_TERM_SCHEDULER_EXIT)) {
+		retval = -1;
+	}
+
+	return retval;
 }
 
 void *long_term_scheduler_new(void *NULL_parameter) {
@@ -488,18 +486,22 @@ void *short_term_scheduler(void *NULL_parameter) {
 							// TODO
 						}
 							if(!QUANTUM_INTERRUPT)
+								/*
 								if((status = pthread_cancel(THREAD_QUANTUM_INTERRUPT))) {
 									log_error_pthread_cancel(status);
 									// TODO
 								}
+								*/
 						if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT))) {
 							log_error_pthread_mutex_unlock(status);
 							// TODO
 						}
+						/*
 						if((status = pthread_join(THREAD_QUANTUM_INTERRUPT, NULL))) {
 							log_error_pthread_join(status);
 							// TODO
 						}
+						*/
 
 						break;
 

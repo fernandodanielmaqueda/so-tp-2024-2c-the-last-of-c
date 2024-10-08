@@ -33,13 +33,19 @@ extern t_Shared_List SHARED_LIST_EXEC;
 
 extern t_Shared_List SHARED_LIST_EXIT;
 
-extern pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
+extern t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_NEW;
 extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 
-extern pthread_t THREAD_LONG_TERM_SCHEDULER_EXIT;
+extern t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT;
 extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-extern pthread_t THREAD_CPU_INTERRUPTER;
+extern t_PThread_Controller THREAD_CPU_INTERRUPTER;
+extern t_Time QUANTUM;
+extern t_PThread_Controller THREAD_QUANTUM_INTERRUPT;
+extern bool QUANTUM_INTERRUPT;
+extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
+extern pthread_cond_t COND_QUANTUM_INTERRUPT;
+extern struct timespec TS_QUANTUM_INTERRUPT;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 
@@ -54,20 +60,13 @@ extern t_TCB *EXEC_TCB;
 
 extern bool SHOULD_REDISPATCH;
 
-extern t_Time QUANTUM;
-extern pthread_t THREAD_QUANTUM_INTERRUPT;
-extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-extern bool QUANTUM_INTERRUPT;
-extern pthread_cond_t COND_QUANTUM_INTERRUPT;
-extern struct timespec TS_QUANTUM_INTERRUPT;
-
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
 void initialize_scheduling(void);
 void finish_scheduling(void);
 
-void initialize_long_term_scheduler(void);
-void initialize_short_term_scheduler(void);
+int initialize_long_term_scheduler(void);
+int finish_long_term_scheduler(void);
 
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
