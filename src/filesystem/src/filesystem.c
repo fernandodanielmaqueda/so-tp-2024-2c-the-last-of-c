@@ -239,23 +239,28 @@ void filesystem_client_handler_for_memory(int fd_client) {
         // Setear los bits correspondientes en el bitmap
 		set_bits_bitmap(&BITMAP, array, blocks_necessary);
 
+
+
     if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
         log_error_pthread_mutex_unlock(status);
         // TODO
+
     }
 
+   
     // ESCRIBIR EN BLOQUES.DAT BLOQUE A BLOQUE (se armaron su lista/array dinámico auxiliar)
-        // Primero (ó a lo último, como prefieran) escribo en memoria (RAM) el bloque de índice
-            // Lógica de escritura del bloque de índice
-            // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
-        // En el medio escribo en memoria (RAM) los bloques de datos
 
-        /*
-            for(...) {
-                ... = memory_dump[i];
-                // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
-            }
-        */
+    // Primero (ó a lo último, como prefieran) escribo en memoria (RAM) el bloque de índice
+    write_block(array[0], array, blocks_necessary * sizeof(t_Block_Pointer)); //array 0 porque el primero es el indice
+    block_msync(array[0]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
+
+    // En el medio escribo en memoria (RAM) los bloques de datos
+    for(size_t i = 1; i < blocks_necessary; i++) {
+        char *ptro_memory_dump_block = get_pointer_to_block(memory_dump, BLOCK_SIZE, i - 1);
+        write_block(array[i], ptro_memory_dump_block, BLOCK_SIZE);
+        block_msync(array[i]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
+    }
+
 
     // Crear el archivo de metadata (es como escribir un config)
 
@@ -304,8 +309,9 @@ void *get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Point
     return block_ptr;
 }
 
-void *bloquesdat(t_Block_Pointer file_block_pos) {
+void *get_pointer_index_bloquesdat(t_Block_Pointer file_block_pos) { //el indice es un bloque
     if(file_block_pos >= BLOCK_COUNT) {
+         
         log_error(MODULE_LOGGER, "Error: el bloque %d no existe en bloques.dat", file_block_pos);
         return NULL;
     }
@@ -314,7 +320,6 @@ void *bloquesdat(t_Block_Pointer file_block_pos) {
 }
 
 // array[0]=2 (t_Block_Pointer), arry[1]=0, array[2]=null : bytes: INDICE t_Block_Pointer(4bytes),t_Block_Pointer 
-
 
 /*
 
@@ -373,7 +378,7 @@ void *bloquesdat(t_Block_Pointer file_block_pos) {
 // get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, file_block_pos);
 
 void block_msync(t_Block_Pointer block_number) { // 2
-    void *init_group_blocks = bloquesdat(block_number);
+    void *init_group_blocks = get_pointer_index_bloquesdat(block_number);
     if(init_group_blocks == NULL) {
         log_error(MODULE_LOGGER, "Error al obtener el puntero al bloque %d de bloques.dat", block_number);
         return;
@@ -387,16 +392,17 @@ void block_msync(t_Block_Pointer block_number) { // 2
     */
 }
 
-void copy_in_block(char* ptro_bloque_indice,char*  ptro_datos, size_t  desplazamiento) {
-
+void copy_in_block(void* ptro_bloque_indice, void* ptro_datos, size_t desplazamiento) {
+    // Copiar los datos al bloque respectivo
+    memcpy(ptro_bloque_indice, ptro_datos, desplazamiento);
 }
 
-void write_block(t_Block_Pointer nro_bloque, char* ptro_datos, size_t desplazamiento) {
+void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento) {
   
     // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
         
-        // apuntar a la posicion del index del bloquest.dat donde vamos a copiar
-        char* ptro_bloque_indice = get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, nro_bloque);
+        // apuntar a la posicion del index del bloques.dat donde vamos a copiar
+        void* ptro_bloque_indice = get_pointer_index_bloquesdat(nro_bloque);
       
     //  2) copiar los datos al bloque respectivo
         

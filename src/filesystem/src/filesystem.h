@@ -36,7 +36,7 @@
 //     uint32_t size;
 // } t_FS_File;
 
-typedef uint32_t t_Block_Pointer;
+typedef uint32_t t_Block_Pointer; //tipo array de bloques para copiar 
 
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
@@ -94,7 +94,11 @@ void filesystem_client_handler_for_memory(int fd_client);
 
 void set_bits_bitmap(t_Bitmap* bit_map, t_Block_Pointer *list_bit_index,size_t necessary_bits_free);
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
+
 size_t necessary_bits(size_t bytes_size);
 void* get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Pointer file_block_pos) ;
+void* get_pointer_to_block_from_file(t_Block_Pointer file_block_pos);
 void block_msync(t_Block_Pointer block_number);
+void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
+void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 #endif // FILESYSTEM_H
