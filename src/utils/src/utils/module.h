@@ -18,6 +18,11 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
+typedef struct t_PThread_Controller {
+    pthread_t thread;
+	bool is_thread_running;
+} t_PThread_Controller;
+
 typedef struct t_Drain_Ongoing_Resource_Sync {
 	pthread_mutex_t mutex_resource;
 	unsigned int ongoing_count;
@@ -97,5 +102,8 @@ void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);
 void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 bool pointers_match(void * ptr_1, void *ptr_2);
+
+int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg);
+int cancel_pthread(t_PThread_Controller *thread_controller);
 
 #endif // UTILS_MODULE_H

@@ -520,6 +520,41 @@ void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(vo
 	return NULL;
 }
 
-bool pointers_match(void * ptr_1, void *ptr_2) {
+bool pointers_match(void *ptr_1, void *ptr_2) {
 	return ptr_1 == ptr_2;
+}
+
+int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg) {
+	int status;
+
+	if((status = pthread_create(&(thread_controller->thread), NULL, start_routine, arg))) {
+		log_error_pthread_create(status);
+		return -1;
+	}
+
+	thread_controller->is_thread_running = true;
+
+	return 0;
+}
+
+int cancel_pthread(t_PThread_Controller *thread_controller) {
+	int status;
+
+	if(!(thread_controller->is_thread_running)) {
+		return 0;
+	}
+
+	if((status = pthread_cancel(thread_controller->thread))) {
+		log_error_pthread_cancel(status);
+		return -1;
+	}
+
+	if((status = pthread_join(thread_controller->thread, NULL))) {
+		log_error_pthread_join(status);
+		return -1;
+	}
+
+	thread_controller->is_thread_running = false;
+
+	return 0;
 }
