@@ -157,7 +157,7 @@ int initialize_global_variables(void) {
 		goto error_list_new;
 	}
 
-	//new_ready_list(&READY_SYNC, &ARRAY_LIST_READY[0], 0);
+	//new_ready_list(&READY_SYNC, &ARRAY_LIST_READY, 0);
 
 	if((status = pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL))) {
 		log_error_pthread_mutex_init(status);
