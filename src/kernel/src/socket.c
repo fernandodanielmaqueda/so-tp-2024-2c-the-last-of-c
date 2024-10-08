@@ -3,8 +3,6 @@
 
 #include "socket.h"
 
-//t_Connection TEMPORAL_CONNECTION_MEMORY;
-
 t_Shared_List SHARED_LIST_CONNECTIONS_MEMORY = { .list = NULL };
 
 t_Connection CONNECTION_CPU_DISPATCH;

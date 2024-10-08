@@ -21,8 +21,6 @@
 #include "utils/socket.h"
 #include "memoria.h"
 
-extern t_Connection TEMPORAL_CONNECTION_FILESYSTEM;
-
 extern t_Server SERVER_MEMORY;
 
 extern t_Client *CLIENT_CPU;

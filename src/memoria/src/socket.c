@@ -4,8 +4,6 @@
 
 #include "socket.h"
 
-t_Connection TEMPORAL_CONNECTION_FILESYSTEM;
-
 t_Server SERVER_MEMORY;
 
 t_Client *CLIENT_CPU = NULL;

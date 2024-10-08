@@ -64,13 +64,6 @@ int module(int argc, char* argv[]) {
 
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
-    // TEMPORAL PARA EL CHECKPOINT 1: DESPUÉS BORRAR
-    pthread_t thread_connection_filesystem;
-    if((status = pthread_create(&thread_connection_filesystem, NULL, (void *(*)(void *)) client_thread_connect_to_server, &TEMPORAL_CONNECTION_FILESYSTEM))) {
-        log_error_pthread_create(status);
-        // TODO
-    }
-
     initialize_sockets();
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
@@ -228,7 +221,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
     }
 
     SERVER_MEMORY = (t_Server) {.server_type = MEMORY_PORT_TYPE, .clients_type = TO_BE_IDENTIFIED_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
-    TEMPORAL_CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
+    // TEMPORAL_CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
     INSTRUCTIONS_PATH = config_get_string_value(MODULE_CONFIG, "PATH_INSTRUCCIONES");
         if(INSTRUCTIONS_PATH[0]) {
@@ -860,8 +853,8 @@ int read_memory(t_Payload *payload, int socket) {
     size_t physical_address;
     size_t bytes;
     
-    payload_remove(payload, &pid, sizeof(t_PID));
-    payload_remove(payload, &tid, sizeof(t_TID));
+    payload_remove(payload, &pid, sizeof(pid));
+    payload_remove(payload, &tid, sizeof(tid));
     size_deserialize(payload, &physical_address);
     size_deserialize(payload, &bytes);
     
@@ -902,11 +895,13 @@ int write_memory(t_Payload *payload) {
     t_PID pid;
     t_TID tid;
     size_t physical_address;
+    void *data;
     size_t bytes;
     
-    payload_remove(payload, &pid, sizeof(t_PID));
-    payload_remove(payload, &tid, sizeof(t_TID));
-    data_deserialize(payload, &physical_address, &bytes);
+    payload_remove(payload, &pid, sizeof(pid));
+    payload_remove(payload, &tid, sizeof(tid));
+    size_deserialize(payload, &physical_address);
+    data_deserialize(payload, &data, &bytes);
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
