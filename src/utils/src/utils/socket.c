@@ -106,7 +106,7 @@ int server_start_try(char *port) {
 
 	int status = getaddrinfo(NULL, port, &hints, &result);
   if(status) {
-    log_warning(SOCKET_LOGGER, "getaddrinfo: %s\n", gai_strerror(status));
+    log_warning(SOCKET_LOGGER, "getaddrinfo: %s", gai_strerror(status));
     return -1;
   }
 
@@ -120,13 +120,13 @@ int server_start_try(char *port) {
     );
 
     if(fd_server == -1) {
-      log_warning(SOCKET_LOGGER, "socket: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "socket: %s", strerror(errno));
       continue; // This one failed
     }
 
     // Permite reutilizar el puerto inmediatamente después de cerrar el socket
     if(setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &(int){1}, (socklen_t) sizeof(int)) == -1) {
-        log_warning(SOCKET_LOGGER, "Function setsockopt: %s\n", strerror(errno));
+        log_warning(SOCKET_LOGGER, "Function setsockopt: %s", strerror(errno));
         if(close(fd_server)) {
           log_error_close();
         }
@@ -134,7 +134,7 @@ int server_start_try(char *port) {
     }
 
     if(bind(fd_server, rp->ai_addr, rp->ai_addrlen) == -1) {
-      log_warning(SOCKET_LOGGER, "bind: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "bind: %s", strerror(errno));
       if(close(fd_server)) {
         log_error_close();
       }
@@ -152,7 +152,7 @@ int server_start_try(char *port) {
 
 	// Escuchamos las conexiones entrantes
 	if(listen(fd_server, SOMAXCONN) == -1) {
-		log_warning(SOCKET_LOGGER, "listen: %s\n", strerror(errno));
+		log_warning(SOCKET_LOGGER, "listen: %s", strerror(errno));
 		return -1;
 	}
 
@@ -164,7 +164,7 @@ int server_accept(int fd_server) {
 	int fd_client = accept(fd_server, NULL, NULL);
 
 	if(fd_client == -1) {
-      log_warning(SOCKET_LOGGER, "accept: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "accept: %s", strerror(errno));
   }
 
 	return fd_client;
@@ -265,7 +265,7 @@ int client_start_try(char *ip, char *port) {
 
 	int status = getaddrinfo(ip, port, &hints, &result);
   if(status) {
-    log_warning(SOCKET_LOGGER, "getaddrinfo: %s\n", gai_strerror(status));
+    log_warning(SOCKET_LOGGER, "getaddrinfo: %s", gai_strerror(status));
     return -1;
   }
 
@@ -280,14 +280,14 @@ int client_start_try(char *ip, char *port) {
     );
 
     if(fd_client == -1) {
-      log_warning(SOCKET_LOGGER, "socket: %s\n", strerror(errno));
+      log_warning(SOCKET_LOGGER, "socket: %s", strerror(errno));
       continue; /* This one failed */
     }
 
     if(connect(fd_client, rp->ai_addr, rp->ai_addrlen) == 0)
       break; /* Until one succeeds */
 
-    log_warning(SOCKET_LOGGER, "connect: %s\n", strerror(errno));
+    log_warning(SOCKET_LOGGER, "connect: %s", strerror(errno));
     if(close(fd_client)) {
       log_error_close();
     }
