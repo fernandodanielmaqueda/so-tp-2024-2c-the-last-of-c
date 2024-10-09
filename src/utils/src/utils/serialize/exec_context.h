@@ -5,11 +5,12 @@
 #define UTILS_SERIALIZE_EXEC_CONTEXT_H
 
 #include <inttypes.h>
+#include <limits.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <netdb.h>
 #include <string.h>
+#include <unistd.h>
 #include "commons/config.h"
 #include "commons/string.h"
 #include "utils/package.h"
@@ -26,6 +27,7 @@ typedef uint16_t t_TID;
 typedef uint32_t t_PC;
 
 typedef unsigned int t_Priority;
+#define PRIORITY_MAX UINT_MAX
 
 typedef int64_t t_Time;
 
