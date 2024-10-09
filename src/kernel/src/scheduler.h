@@ -26,7 +26,7 @@
 extern t_Shared_List SHARED_LIST_NEW;
 
 extern t_Drain_Ongoing_Resource_Sync READY_SYNC;
-extern t_Shared_List **ARRAY_LIST_READY;
+extern t_Shared_List *ARRAY_LIST_READY;
 extern t_Priority PRIORITY_COUNT;
 
 extern t_Shared_List SHARED_LIST_EXEC;

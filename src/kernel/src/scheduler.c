@@ -3,7 +3,7 @@
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
 t_Drain_Ongoing_Resource_Sync READY_SYNC = { .initialized = false };
-t_Shared_List **ARRAY_LIST_READY = NULL;
+t_Shared_List *ARRAY_LIST_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
 
 t_Shared_List SHARED_LIST_EXEC = { .list = NULL };
@@ -393,13 +393,13 @@ void *short_term_scheduler(void *NULL_parameter) {
 
 				case FIFO_SCHEDULING_ALGORITHM:
 
-					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0]->mutex)))) {
+					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
 						log_error_pthread_mutex_lock(status);
 						// TODO
 					}
-						if((ARRAY_LIST_READY[0]->list)->head != NULL)
-							EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[0]->list), 0);
-					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0]->mutex)))) {
+						if((ARRAY_LIST_READY[0].list)->head != NULL)
+							EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[0].list), 0);
+					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
 						log_error_pthread_mutex_unlock(status);
 						// TODO
 					}
@@ -410,19 +410,19 @@ void *short_term_scheduler(void *NULL_parameter) {
 				case MLQ_SCHEDULING_ALGORITHM:
 					
 					for(register t_Priority priority = 0; priority < PRIORITY_COUNT; priority++) {
-						if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority]->mutex)))) {
+						if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority].mutex)))) {
 							log_error_pthread_mutex_lock(status);
 							// TODO
 						}
-							if((ARRAY_LIST_READY[priority]->list)->head != NULL) {
-								EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[priority]->list), 0);
-								if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex)))) {
+							if((ARRAY_LIST_READY[priority].list)->head != NULL) {
+								EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[priority].list), 0);
+								if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].mutex)))) {
 									log_error_pthread_mutex_unlock(status);
 									// TODO
 								}
 								break;
 							}
-						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority]->mutex)))) {
+						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].mutex)))) {
 							log_error_pthread_mutex_unlock(status);
 							// TODO
 						}
@@ -706,13 +706,13 @@ void switch_process_state(t_TCB *tcb, e_Process_State new_state) {
 			switch(SCHEDULING_ALGORITHM) {
 
 				case FIFO_SCHEDULING_ALGORITHM:
-					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0]->mutex)))) {
+					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
 						log_error_pthread_mutex_lock(status);
 						// TODO
 					}
-						list_add((ARRAY_LIST_READY[0]->list), tcb);
-						tcb->shared_list_state = ARRAY_LIST_READY[0];
-					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0]->mutex)))) {
+						list_add((ARRAY_LIST_READY[0].list), tcb);
+						tcb->shared_list_state = &(ARRAY_LIST_READY[0]);
+					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
 						log_error_pthread_mutex_unlock(status);
 						// TODO
 					}
@@ -720,13 +720,13 @@ void switch_process_state(t_TCB *tcb, e_Process_State new_state) {
 				
 				case PRIORITIES_SCHEDULING_ALGORITHM:
 				case MLQ_SCHEDULING_ALGORITHM:
-					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority]->mutex)))) {
+					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
 						log_error_pthread_mutex_lock(status);
 						// TODO
 					}
-						list_add((ARRAY_LIST_READY[tcb->priority]->list), tcb);
-						tcb->shared_list_state = ARRAY_LIST_READY[tcb->priority];
-					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority]->mutex)))) {
+						list_add((ARRAY_LIST_READY[tcb->priority].list), tcb);
+						tcb->shared_list_state = &(ARRAY_LIST_READY[tcb->priority]);
+					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
 						log_error_pthread_mutex_unlock(status);
 						// TODO
 					}

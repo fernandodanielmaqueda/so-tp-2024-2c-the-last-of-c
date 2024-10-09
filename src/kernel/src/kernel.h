@@ -140,6 +140,10 @@ int size_to_id(e_ID_Manager_Type id_data_type, size_t *source, void *destination
 bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
+int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
+int request_ready_list(t_Priority priority);
+int assign_ready_list(t_TCB *tcb, t_Priority *result);
+
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
 
