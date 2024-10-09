@@ -168,6 +168,19 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 				// TODO
 			}
 
+			switch(SCHEDULING_ALGORITHM) {
+
+				case FIFO_SCHEDULING_ALGORITHM:
+					break;
+
+				case PRIORITIES_SCHEDULING_ALGORITHM:
+				case MLQ_SCHEDULING_ALGORITHM:
+					if(request_ready_list(tcb->priority)) {
+						// TODO
+					}
+					break;
+			}
+
 			switch_process_state(((t_TCB **) (pcb->thread_manager.cb_array))[0], READY_STATE);
 		signal_draining_requests(&SCHEDULING_SYNC);
 	}

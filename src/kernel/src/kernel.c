@@ -729,65 +729,65 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		return -1;
 }
 
-int request_ready_list(t_Priority priority) {
+int request_ready_list(t_Priority priority) { PRIORITY_MAX
 	int status;
+
+	/*
+	ARRAY_LIST_READY[0]
+	ARRAY_LIST_READY[1]
+	ARRAY_LIST_READY[2] PRIORITY_COUNT = 2 + 1
+
+	4 priority PRIORITY_MAX
+	*/
 
 	if(priority < PRIORITY_COUNT) {
 		return 0;
 	}
 
-	if(priority == PRIORITY_MAX) {
-		log_error(MODULE_LOGGER, "new_ready_list: %s", strerror(ERANGE));
-		errno = ERANGE;
-		return -1;
-	}
+	// TODO: READY_SYNC
 
-	/*
-	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
-	if(new_shared_list == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la nueva lista de procesos en READY", sizeof(t_Shared_List));
-		return -1;
-	}
+		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
+		if(new_array_list_ready == NULL) {
+			log_error(MODULE_LOGGER, "realloc: No se pudieron reservar %zu bytes para la nueva lista de procesos en READY", sizeof(t_Shared_List));
+			return -1;
+		}
+		ARRAY_LIST_READY = new_array_list_ready;
+		
+		for(t_Priority i = PRIORITY_COUNT; i < priority; i++) {
+			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[i].mutex), NULL))) {
+				log_error_pthread_mutex_init(status);
+				//goto error;
+			}
 
-	if(ARRAY_LIST_READY == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
-		return -1;
-	}
+			ARRAY_LIST_READY[i].list = list_create();
+			if(ARRAY_LIST_READY[i].list == NULL) {
+				log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
+				//goto error_mutex_new;
+			}
+		}
 
-	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
-	PRIORITY_COUNT++;
-	*/
+		// Tomo el UINT_MAX aparte
+		if(PRIORITY_COUNT == priority) {
+			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[i].mutex), NULL))) {
+				log_error_pthread_mutex_init(status);
+				//goto error;
+			}
 
-	return 0;
-}
+			ARRAY_LIST_READY[i].list = list_create();
+			if(ARRAY_LIST_READY[i].list == NULL) {
+				log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
+				//goto error_mutex_new;
+			}
+		}
 
-int assign_ready_list(t_TCB *tcb, t_Priority *result) {
-	/*
-	int status;
-
-	//wait_ongoing_requests(sync);
-	t_Shared_List *new_shared_list = malloc(sizeof(t_Shared_List));
-	if(new_shared_list == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de procesos en READY", sizeof(t_Shared_List));
-		return -1;
-	}
-
-	new_shared_list->list = list_create();
-	if((status = pthread_mutex_init(&(new_shared_list->mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
-		// TODO
-	}
-
-	ARRAY_LIST_READY = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
-	if(ARRAY_LIST_READY == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de listas de procesos en READY", sizeof(t_Shared_List *) * (PRIORITY_COUNT + 1));
-		return -1;
-	}
-	ARRAY_LIST_READY[PRIORITY_COUNT] = new_shared_list;
-	PRIORITY_COUNT++;
-	*/
+		PRIORITY_COUNT = priority + 1;
+	
+	// TODO: FIN SECCIÓN CRÍTICA
 
 	return 0;
+
+	error:
+		return -1;
 }
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
