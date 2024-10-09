@@ -175,8 +175,7 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 				case PRIORITIES_SCHEDULING_ALGORITHM:
 				case MLQ_SCHEDULING_ALGORITHM:
-					if(request_ready_list(tcb->priority)) {
-						// TODO
+					if(request_ready_list(((t_TCB **) (pcb->thread_manager.cb_array))[0]->priority)) {
 					}
 					break;
 			}

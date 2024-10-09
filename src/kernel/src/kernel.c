@@ -729,7 +729,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		return -1;
 }
 
-int request_ready_list(t_Priority priority) { PRIORITY_MAX
+int request_ready_list(t_Priority priority) {
 	int status;
 
 	/*
@@ -768,13 +768,13 @@ int request_ready_list(t_Priority priority) { PRIORITY_MAX
 
 		// Tomo el UINT_MAX aparte
 		if(PRIORITY_COUNT == priority) {
-			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[i].mutex), NULL))) {
+			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[PRIORITY_COUNT].mutex), NULL))) {
 				log_error_pthread_mutex_init(status);
 				//goto error;
 			}
 
-			ARRAY_LIST_READY[i].list = list_create();
-			if(ARRAY_LIST_READY[i].list == NULL) {
+			ARRAY_LIST_READY[PRIORITY_COUNT].list = list_create();
+			if(ARRAY_LIST_READY[PRIORITY_COUNT].list == NULL) {
 				log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
 				//goto error_mutex_new;
 			}
