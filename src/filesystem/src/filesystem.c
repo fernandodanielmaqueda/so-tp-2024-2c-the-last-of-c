@@ -85,7 +85,7 @@ int bitmap_init(t_Bitmap *bitmap) {
 
 	// ruta al archivo
 	char* path_file_bitmap = string_new();
-	string_append(&path_file_bitmap, "/");
+	string_append(&path_file_bitmap, "./");
 	string_append(&path_file_bitmap, "bitmap.dat");
 
 	//Checkeo si el file ya esta creado, sino lo elimino
@@ -162,7 +162,7 @@ int bloques_init(void) {
 
     // Ruta al archivo
     char *path_file_blocks = string_new();
-    string_append(&path_file_blocks, "/");
+    string_append(&path_file_blocks, "./");
     string_append(&path_file_blocks, "bloques.dat");
 
     // Checkeo si el file ya esta creado, sino lo elimino
@@ -215,6 +215,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     receive_memory_dump(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
 
+    // suponiendo que dump_size esta en bytes, BLOCK_SIZE suponemos es en bytes
     blocks_necessary = (size_t) ceil((double) dump_size / BLOCK_SIZE) + 1 ; // datos: 2 indice: 1 = 3 bloques 
 
     t_Block_Pointer array[blocks_necessary]; // array[3]: 0,1,2
@@ -236,11 +237,11 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
         BITMAP.blocks_free -= blocks_necessary;
 
-        // Setear los bits correspondientes en el bitmap
+        // Setear los bits correspondientes en el bitmap, completar el array de posiciones del indice de bloques.dat.
 		set_bits_bitmap(&BITMAP, array, blocks_necessary);
 
 
-
+    // dar acceso al bitmap.dat a los otros hilos.
     if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
         log_error_pthread_mutex_unlock(status);
         // TODO
@@ -250,22 +251,34 @@ void filesystem_client_handler_for_memory(int fd_client) {
    
     // ESCRIBIR EN BLOQUES.DAT BLOQUE A BLOQUE (se armaron su lista/array dinámico auxiliar)
 
-    // Primero (ó a lo último, como prefieran) escribo en memoria (RAM) el bloque de índice
+    // Primero escribo en memoria (RAM) el bloque de índice
     write_block(array[0], array, blocks_necessary * sizeof(t_Block_Pointer)); //array 0 porque el primero es el indice
     block_msync(array[0]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
 
+
     // En el medio escribo en memoria (RAM) los bloques de datos
+    // blocks_necessary es igual al tamaño del array
     for(size_t i = 1; i < blocks_necessary; i++) {
+        // ptro al inicio de cada bloque dentro de los datos del memory dump (NO INDEXADO).
         char *ptro_memory_dump_block = get_pointer_to_block(memory_dump, BLOCK_SIZE, i - 1);
+
+        // array[i]: NRO DE INDICE de cada bloque
         write_block(array[i], ptro_memory_dump_block, BLOCK_SIZE);
+
         block_msync(array[i]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
     }
 
 
     // Crear el archivo de metadata (es como escribir un config)
+    create_metadata_file();
+
 
     send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
     return;
+}
+
+void create_metadata_file(){
+    
 }
 
 void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary) { // 3 bloques: 2 de datos y 1 de índice
@@ -385,11 +398,10 @@ void block_msync(t_Block_Pointer block_number) { // 2
     }
 
     // Sincroniza el archivo. SINCRONIZAR EL ARCHIVO BLOQUES.DAT ACTUALIZADO EN RAM COMPLETO EN DISCO
-    /*
-    if(msync(init_group_blocks, group_blocks_size, MS_SYNC) == -1) {
+    if(msync(init_group_blocks, BLOCK_SIZE, MS_SYNC) == -1) {
         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
     }
-    */
+            
 }
 
 void copy_in_block(void* ptro_bloque_indice, void* ptro_datos, size_t desplazamiento) {
@@ -397,6 +409,20 @@ void copy_in_block(void* ptro_bloque_indice, void* ptro_datos, size_t desplazami
     memcpy(ptro_bloque_indice, ptro_datos, desplazamiento);
 }
 
+
+
+/*
+
+memory RAM:  datos del memory dump:  |(ptro 1) bloque_size |(ptro 2) bloque_size | ... 
+
+  
+
+memory RAM:  bloques.dat: |(index 0 --> ptro x1) bloque_size |(index 1 --> ptro x2) bloque_size | ... 
+
+
+
+
+*/
 void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento) {
   
     // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos

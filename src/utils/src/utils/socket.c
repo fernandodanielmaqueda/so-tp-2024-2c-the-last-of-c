@@ -42,6 +42,10 @@ void *server_thread_for_client(t_Client *new_client) {
   return NULL;
 }
 
+/*
+- crear server
+- por cada cliente nuevo, ejecutar en un hilo logica de FS.
+*/
 void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Client *)) {
 
 	int fd_new_client;
@@ -71,7 +75,7 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 		new_client->fd_client = fd_new_client;
 		new_client->client_type = server->clients_type;
 		new_client->server = server;
-    client_handler(new_client);
+    client_handler(new_client);//Ejecuto en hilo logica de FS: pedir bloques para guardas datos. 
 	}
 
 	return NULL;
