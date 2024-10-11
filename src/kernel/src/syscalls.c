@@ -20,13 +20,19 @@ int syscall_execute(t_Payload *syscall_instruction) {
     cpu_opcode_deserialize(syscall_instruction, &syscall_opcode);
 
     if(SYSCALLS[syscall_opcode].function == NULL) {
-        payload_destroy(syscall_instruction);
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+            payload_destroy(syscall_instruction);
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         log_error(MODULE_LOGGER, "Funcion de syscall no encontrada");
         return -1;
     }
 
     int retval = SYSCALLS[syscall_opcode].function(syscall_instruction);
-    payload_destroy(syscall_instruction);
+    /*
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        payload_destroy(syscall_instruction);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    */
     return retval;
 }
 
@@ -176,7 +182,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
             // TODO
         }
 
-        switch_process_state(SYSCALL_PCB, BLOCKED_STATE);
+        switch_process_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
 
         if(status = pthread_mutex_lock(&(resource->shared_list_blocked.mutex))) {
             log_error_pthread_mutex_lock(status);
@@ -292,10 +298,13 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
 int io_kernel_syscall(t_Payload *syscall_arguments) {
 
-        t_Time time;
-    payload_remove(syscall_arguments, &time, sizeof(t_Time));
+    switch_process_state(EXEC_TCB, BLOCKED_IO_STATE);
 
-    // TODO
+    pthread_mutex_lock(&(SHARED_LIST_IO_BLOCKED.mutex));
+        list_add(SHARED_LIST_IO_BLOCKED.list, EXEC_TCB);
+        log_debug(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", EXEC_TCB->pcb->PID, EXEC_TCB->TID);
+        EXEC_TCB->shared_list_state = &(SHARED_LIST_IO_BLOCKED);
+    pthread_mutex_unlock(&(SHARED_LIST_IO_BLOCKED.mutex));
 
     log_trace(MODULE_LOGGER, "IO");
 
