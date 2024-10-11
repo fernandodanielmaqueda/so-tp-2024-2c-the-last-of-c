@@ -270,15 +270,41 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
 
     // Crear el archivo de metadata (es como escribir un config)
-    create_metadata_file();
+    create_metadata_file( filename,dump_size, array[0]);
 
 
     send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
     return;
 }
 
-void create_metadata_file(){
-    
+void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) {
+    // Crear la ruta completa del archivo de metadata
+    char *metadata_path = string_from_format("%s/files/%s", MOUNT_DIR, filename);
+    if (metadata_path == NULL) {
+        log_error(MODULE_LOGGER, "No se pudo crear la ruta del archivo de metadata.");
+        return;
+    }
+
+    // Crear el archivo de configuración
+    t_config *metadata_config = config_create(metadata_path);
+    if (metadata_config == NULL) {
+        log_error(MODULE_LOGGER, "No se pudo crear el archivo de metadata %s.", metadata_path);
+        free(metadata_path);
+        return;
+    }
+
+    // Agregar las claves y valores al archivo de configuración
+    config_set_value(metadata_config, "SIZE", string_from_format("%zu", size));
+    config_set_value(metadata_config, "INDEX_BLOCK", string_from_format("%u", index_block));
+
+    // Guardar y destruir el archivo de configuración
+    config_save(metadata_config);
+    config_destroy(metadata_config);
+
+    // Liberar la memoria reservada para la ruta del archivo de metadata
+    free(metadata_path);
+
+    log_info(MODULE_LOGGER, "Archivo de metadata %s creado correctamente.", filename);
 }
 
 void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary) { // 3 bloques: 2 de datos y 1 de índice

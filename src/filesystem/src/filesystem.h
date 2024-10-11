@@ -100,5 +100,6 @@ void* get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Point
 void* get_pointer_to_block_from_file(t_Block_Pointer file_block_pos);
 void block_msync(t_Block_Pointer block_number);
 void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
+void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 #endif // FILESYSTEM_H
