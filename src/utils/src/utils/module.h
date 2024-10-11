@@ -5,6 +5,7 @@
 #define UTILS_MODULE_H
 
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,7 @@ typedef struct t_Shared_List {
 
 typedef struct t_PThread_Controller {
     pthread_t thread;
-	bool is_thread_running;
+	bool was_created;
 } t_PThread_Controller;
 
 typedef struct t_Drain_Ongoing_Resource_Sync {
@@ -89,8 +90,14 @@ void log_error_pthread_cond_timedwait(int status);
 void log_error_pthread_cond_signal(int status);
 void log_error_pthread_cond_broadcast(int status);
 
-int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync);
+void log_error_sigemptyset(void);
+void log_error_sigaddset(void);
+void log_error_pthread_sigmask(int status);
+void log_error_sigaction(void);
+
+
+int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync);
+int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync);
@@ -103,7 +110,11 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 bool pointers_match(void * ptr_1, void *ptr_2);
 
+int shared_list_init(t_Shared_List *shared_list);
+int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(void *));
+
 int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg);
 int cancel_pthread(t_PThread_Controller *thread_controller);
+void error_pthread(void);
 
 #endif // UTILS_MODULE_H

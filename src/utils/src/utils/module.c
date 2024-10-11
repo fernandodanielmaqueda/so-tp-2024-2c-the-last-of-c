@@ -141,6 +141,7 @@ void log_error_sem_destroy(void) {
 void log_error_sem_wait(void) {
 	log_error(MODULE_LOGGER, "sem_wait: %s", strerror(errno));
 }
+
 void log_error_sem_post(void) {
 	log_error(MODULE_LOGGER, "sem_post: %s", strerror(errno));
 }
@@ -201,7 +202,23 @@ void log_error_pthread_cond_broadcast(int status) {
 	log_error(MODULE_LOGGER, "pthread_cond_broadcast: %s", strerror(status));
 }
 
-int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+void log_error_sigemptyset(void) {
+	log_error(MODULE_LOGGER, "sigemptyset: %s", strerror(errno));
+}
+
+void log_error_sigaddset(void) {
+	log_error(MODULE_LOGGER, "sigaddset: %s", strerror(errno));
+}
+
+void log_error_pthread_sigmask(int status) {
+	log_error(MODULE_LOGGER, "pthread_sigmask: %s", strerror(status));
+}
+
+void log_error_sigaction(void) {
+	log_error(MODULE_LOGGER, "sigaction: %s", strerror(errno));
+}
+
+int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	if(resource_sync == NULL) {
 		errno = EINVAL;
 		goto error;
@@ -246,7 +263,7 @@ int init_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 		return -1;
 }
 
-int destroy_resource_sync(t_Drain_Ongoing_Resource_Sync *resource_sync) {
+int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	if(resource_sync == NULL) {
 		errno = EINVAL;
 		return -1;
@@ -524,6 +541,43 @@ bool pointers_match(void *ptr_1, void *ptr_2) {
 	return ptr_1 == ptr_2;
 }
 
+int shared_list_init(t_Shared_List *shared_list) {
+	int status;
+
+	if((status = pthread_mutex_init(&(shared_list->mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error;
+	}
+
+	shared_list->list = list_create();
+	if(shared_list->list == NULL) {
+		log_error(MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
+		goto error_mutex;
+	}
+
+	return 0;
+
+	error_mutex:
+		if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	error:
+		return -1;
+}
+
+int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(void *)) {
+	int retval = 0, status;
+
+	list_destroy_and_destroy_elements(shared_list->list, element_destroyer);
+
+	if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+		retval = -1;
+	}
+
+	return retval;
+}
+
 int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg) {
 	int status;
 
@@ -532,7 +586,7 @@ int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routin
 		return -1;
 	}
 
-	thread_controller->is_thread_running = true;
+	thread_controller->was_created = true;
 
 	return 0;
 }
@@ -540,7 +594,7 @@ int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routin
 int cancel_pthread(t_PThread_Controller *thread_controller) {
 	int status;
 
-	if(!(thread_controller->is_thread_running)) {
+	if(!(thread_controller->was_created)) {
 		return 0;
 	}
 
@@ -554,7 +608,12 @@ int cancel_pthread(t_PThread_Controller *thread_controller) {
 		return -1;
 	}
 
-	thread_controller->is_thread_running = false;
+	thread_controller->was_created = false;
 
 	return 0;
+}
+
+void error_pthread(void) {
+	pthread_kill(pthread_self(), SIGINT);
+	pthread_exit(NULL);
 }
