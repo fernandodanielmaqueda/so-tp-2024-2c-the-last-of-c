@@ -15,15 +15,15 @@ t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC = { .list = NULL };
 
 t_Shared_List SHARED_LIST_EXIT = { .list = NULL };
 
-t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_NEW = { .is_thread_running = false };
+t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_NEW = { .was_created = false };
 sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 
-t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT = { .is_thread_running = false };
+t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT = { .was_created = false };
 sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-t_PThread_Controller THREAD_CPU_INTERRUPTER = { .is_thread_running = false };
+t_PThread_Controller THREAD_CPU_INTERRUPTER = { .was_created = false };
 t_Time QUANTUM;
-t_PThread_Controller THREAD_QUANTUM_INTERRUPT = { .is_thread_running = false };
+t_PThread_Controller THREAD_QUANTUM_INTERRUPT = { .was_created = false };
 bool QUANTUM_INTERRUPT;
 pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
 pthread_cond_t COND_QUANTUM_INTERRUPT;
@@ -86,31 +86,38 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 	int status;
 
 	while(1) {
-		wait_free_memory();
+		if(wait_free_memory()) {
+			error_pthread();
+		}
+	
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 			log_error_sem_wait();
-			// TODO
+			error_pthread();
 		}
+		pthread_cleanup_push((void (*)(void *)) sem_post, &SEM_LONG_TERM_SCHEDULER_NEW);
 
-		wait_draining_requests(&SCHEDULING_SYNC);
+		if(wait_draining_requests(&SCHEDULING_SYNC)) {
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_SYNC);
+
 			if(((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex))))) {
 				log_error_pthread_mutex_lock(status);
-				// TODO
+				error_pthread();
 			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_NEW.mutex));
 
 				if((SHARED_LIST_NEW.list)->head == NULL) {
-					if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
-						log_error_pthread_mutex_unlock(status);
-						// TODO
-					}
-					continue;
+					status = -1; // Empty
+				}
+				else {
+					pcb = (t_PCB *) (SHARED_LIST_NEW.list)->head->data;
 				}
 
-				pcb = (t_PCB *) (SHARED_LIST_NEW.list)->head->data;
+			pthread_cleanup_pop(1);
 
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
-				log_error_pthread_mutex_unlock(status);
-				// TODO
+			if(status) {
+				goto cleanup;
 			}
 
 			client_thread_connect_to_server(&connection_memory);
@@ -181,10 +188,11 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 			}
 
 			switch_process_state(((t_TCB **) (pcb->thread_manager.cb_array))[0], READY_STATE);
-		signal_draining_requests(&SCHEDULING_SYNC);
-	}
 
-	return NULL;
+	cleanup:
+		pthread_cleanup_pop(1);
+		pthread_cleanup_pop(status);
+	}
 }
 
 void *long_term_scheduler_exit(void *NULL_parameter) {
@@ -588,7 +596,7 @@ void *short_term_scheduler(void *NULL_parameter) {
 						break;
 
 					case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
-						log_info(MINIMAL_LOGGER, "PID: <%d> - Desalojado por fin de Quantum", (int) EXEC_TCB->TID);
+						log_info(MINIMAL_LOGGER, "## (%u:%u) - Desalojado por fin de Quantum", EXEC_TCB->pcb->PID, EXEC_TCB->TID);
 
 						/*
 						if(status = pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS)) {
