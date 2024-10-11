@@ -28,6 +28,9 @@ typedef uint32_t t_PC;
 
 typedef unsigned int t_Priority;
 #define PRIORITY_MAX UINT_MAX
+#define PRIORITY_LIMIT ( \
+    ( (SIZE_MAX / sizeof(t_Shared_List)) + 1 ) < PRIORITY_MAX ? \
+    ( (SIZE_MAX / sizeof(t_Shared_List)) + 1 ) : PRIORITY_MAX )
 
 typedef int64_t t_Time;
 
