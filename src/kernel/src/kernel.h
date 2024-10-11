@@ -25,8 +25,6 @@
 #include "utils/module.h"
 #include "utils/send.h"
 #include "utils/socket.h"
-#include "socket.h"
-#include "resources.h"
 
 typedef enum e_ID_Manager_Type {
     PROCESS_ID_MANAGER_TYPE,
@@ -48,7 +46,12 @@ typedef enum e_Process_State {
     NEW_STATE,
     READY_STATE,
     EXEC_STATE,
-    BLOCKED_STATE,
+
+    BLOCKED_JOIN_STATE,
+    BLOCKED_MUTEX_STATE,
+    BLOCKED_DUMP_STATE,
+    BLOCKED_IO_STATE,
+
 	EXIT_STATE
 } e_Process_State;
 
@@ -88,6 +91,9 @@ typedef enum e_Scheduling_Algorithm {
     MLQ_SCHEDULING_ALGORITHM
 } e_Scheduling_Algorithm;
 
+#include "io.h"
+#include "resources.h"
+#include "socket.h"
 #include "scheduler.h"
 #include "syscalls.h"
 

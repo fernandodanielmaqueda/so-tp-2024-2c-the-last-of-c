@@ -3,6 +3,8 @@
 
 #include "kernel.h"
 
+int asd = -5;
+
 char *MODULE_NAME = "kernel";
 
 t_log *MODULE_LOGGER = NULL;
@@ -17,7 +19,12 @@ const char *STATE_NAMES[] = {
 	[NEW_STATE] = "NEW",
 	[READY_STATE] = "READY",
 	[EXEC_STATE] = "EXEC",
-	[BLOCKED_STATE] = "BLOCKED",
+
+	[BLOCKED_JOIN_STATE] = "BLOCKED",
+	[BLOCKED_MUTEX_STATE] = "BLOCKED",
+	[BLOCKED_DUMP_STATE] = "BLOCKED",
+	[BLOCKED_IO_STATE] = "BLOCKED",
+
 	[EXIT_STATE] = "EXIT"
 };
 
@@ -66,9 +73,13 @@ int module(int argc, char *argv[]) {
 		goto error_long_term_scheduler;
 	}
 
+	if(create_pthread(&THREAD_IO_DEVICE, (void *(*)(void *)) io_device, NULL)) {
+		goto error_cpu_interrupter;
+	}
+
 	if(new_process(process_size, argv[1], 0)) {
         log_error(MODULE_LOGGER, "No se pudo crear el proceso");
-        goto error_cpu_interrupter;
+        goto error_io_device;
     }
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
@@ -77,6 +88,8 @@ int module(int argc, char *argv[]) {
 
 	return EXIT_SUCCESS;
 
+	error_io_device:
+		cancel_pthread(&THREAD_IO_DEVICE);
 	error_cpu_interrupter:
 		cancel_pthread(&THREAD_CPU_INTERRUPTER);
 	error_long_term_scheduler:
@@ -142,43 +155,22 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
 int initialize_global_variables(void) {
 	int status;
 
-	if((status = pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(shared_list_init(&SHARED_LIST_NEW)) {
 		goto error;
 	}
 
-	SHARED_LIST_NEW.list = list_create();
-	if(SHARED_LIST_NEW.list == NULL) {
-		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
-		goto error_mutex_new;
-	}
-
-	if(init_resource_sync(&READY_SYNC)) {
+	if(resource_sync_init(&READY_SYNC)) {
 		goto error_list_new;
 	}
 
 	request_ready_list(0);
 
-	if((status = pthread_mutex_init(&(SHARED_LIST_EXEC.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(shared_list_init(&SHARED_LIST_EXEC)) {
 		goto error_ready_sync;
 	}
 
-	SHARED_LIST_EXEC.list = list_create();
-	if(SHARED_LIST_EXEC.list == NULL) {
-		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en EXEC");
-		goto error_mutex_exec;
-	}
-
-	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(shared_list_init(&SHARED_LIST_EXIT)) {
 		goto error_list_exec;
-	}
-
-	SHARED_LIST_EXIT.list = list_create();
-	if(SHARED_LIST_EXIT.list == NULL) {
-		log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en EXIT");
-		goto error_mutex_exit;
 	}
 
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
@@ -216,25 +208,13 @@ int initialize_global_variables(void) {
 			log_error_sem_destroy();
 		}
 	error_list_exit:
-		list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
-	error_mutex_exit:
-		if((status = pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex)))) {
-			log_error_pthread_mutex_destroy(status);
-		}
+		shared_list_destroy(&SHARED_LIST_EXIT, (void (*)(void *)) tcb_destroy);
 	error_list_exec:
-		list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
-	error_mutex_exec:
-		if((status = pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex)))) {
-
-		}
+		shared_list_destroy(&SHARED_LIST_EXEC, (void (*)(void *)) tcb_destroy);
 	error_ready_sync:
-		destroy_resource_sync(&READY_SYNC);
+		resource_sync_destroy(&READY_SYNC);
 	error_list_new:
-		list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
-	error_mutex_new:
-		if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
-			log_error_pthread_mutex_destroy(status);
-		}
+		shared_list_destroy(&SHARED_LIST_NEW, (void (*)(void *)) pcb_destroy);
 	error:
 		return -1;
 }
@@ -276,7 +256,7 @@ int finish_global_variables(void) {
 
 	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
 
-	destroy_resource_sync(&READY_SYNC);
+	resource_sync_destroy(&READY_SYNC);
 
 	if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
 		log_error_pthread_mutex_destroy(status);
@@ -732,51 +712,42 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 int request_ready_list(t_Priority priority) {
 	int status;
 
-	/*
-	ARRAY_LIST_READY[0]
-	ARRAY_LIST_READY[1]
-	ARRAY_LIST_READY[2] PRIORITY_COUNT = 2 + 1
-
-	4 priority PRIORITY_MAX
-	*/
-
+	// Si la lista de READY ya fue creada, retorna inmediatamente
 	if(priority < PRIORITY_COUNT) {
 		return 0;
 	}
 
-	// TODO: READY_SYNC
+	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
+	if(priority >= PRIORITY_LIMIT) {
+		log_error(MODULE_LOGGER, "request_ready_list: %s", strerror(ERANGE));
+		errno = ERANGE;
+		return -1;
+	}
+
+	// TODO: INICIO SECCIÓN CRÍTICA
 
 		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
 		if(new_array_list_ready == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudieron reservar %zu bytes para la nueva lista de procesos en READY", sizeof(t_Shared_List));
+			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
+			errno = ENOMEM;
 			return -1;
 		}
 		ARRAY_LIST_READY = new_array_list_ready;
 		
-		for(t_Priority i = PRIORITY_COUNT; i < priority; i++) {
-			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[i].mutex), NULL))) {
-				log_error_pthread_mutex_init(status);
-				//goto error;
-			}
+		for(t_Priority i = PRIORITY_COUNT; i <= priority; i++) {
+			if(shared_list_init(&(ARRAY_LIST_READY[i]))) {
 
-			ARRAY_LIST_READY[i].list = list_create();
-			if(ARRAY_LIST_READY[i].list == NULL) {
-				log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
-				//goto error_mutex_new;
-			}
-		}
+				// Si una de las inicializaciones falla, Se trunca el array para sólo incluir las listas de READY que se pudieron inicializar
+				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * i);
+				if(new_array_list_ready == NULL) {
+					log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
+				}
+				else {
+					ARRAY_LIST_READY = new_array_list_ready;
+					PRIORITY_COUNT = i;
+				}
 
-		// Tomo el UINT_MAX aparte
-		if(PRIORITY_COUNT == priority) {
-			if((status = pthread_mutex_init(&(ARRAY_LIST_READY[PRIORITY_COUNT].mutex), NULL))) {
-				log_error_pthread_mutex_init(status);
-				//goto error;
-			}
-
-			ARRAY_LIST_READY[PRIORITY_COUNT].list = list_create();
-			if(ARRAY_LIST_READY[PRIORITY_COUNT].list == NULL) {
-				log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de procesos en NEW");
-				//goto error_mutex_new;
+				return -1;
 			}
 		}
 
@@ -786,8 +757,6 @@ int request_ready_list(t_Priority priority) {
 
 	return 0;
 
-	error:
-		return -1;
 }
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
