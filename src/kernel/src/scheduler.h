@@ -39,15 +39,15 @@ extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 extern t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT;
 extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-extern t_PThread_Controller THREAD_CPU_INTERRUPTER;
 extern t_Time QUANTUM;
-extern t_PThread_Controller THREAD_QUANTUM_INTERRUPT;
+extern t_PThread_Controller THREAD_QUANTUM_INTERRUPTER;
+extern sem_t BINARY_QUANTUM;
 extern bool QUANTUM_INTERRUPT;
 extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-extern pthread_cond_t COND_QUANTUM_INTERRUPT;
-extern struct timespec TS_QUANTUM_INTERRUPT;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
+extern bool IS_TCB_IN_CPU;
+extern pthread_mutex_t MUTEX_IS_TCB_IN_CPU;
 
 extern bool FREE_MEMORY;
 extern pthread_mutex_t MUTEX_FREE_MEMORY;
@@ -70,7 +70,7 @@ int finish_long_term_scheduler(void);
 
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
-void *cpu_interrupter(void *NULL_parameter);
+void *quantum_interrupter(void *NULL_parameter);
 void *short_term_scheduler(void *NULL_parameter);
 
 int wait_free_memory(void);

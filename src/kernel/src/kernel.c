@@ -69,12 +69,21 @@ int module(int argc, char *argv[]) {
 		goto error_sockets;
 	}
 
-	if(create_pthread(&THREAD_CPU_INTERRUPTER, (void *(*)(void *)) cpu_interrupter, NULL)) {
-		goto error_long_term_scheduler;
+	switch(SCHEDULING_ALGORITHM) {
+
+		case FIFO_SCHEDULING_ALGORITHM:
+		case PRIORITIES_SCHEDULING_ALGORITHM:
+			break;
+
+		case MLQ_SCHEDULING_ALGORITHM:
+			if(create_pthread(&THREAD_QUANTUM_INTERRUPTER, (void *(*)(void *)) quantum_interrupter, NULL)) {
+				goto error_long_term_scheduler;
+			}
+			break;
 	}
 
 	if(create_pthread(&THREAD_IO_DEVICE, (void *(*)(void *)) io_device, NULL)) {
-		goto error_cpu_interrupter;
+		goto error_quantum_interrupter;
 	}
 
 	if(new_process(process_size, argv[1], 0)) {
@@ -90,8 +99,17 @@ int module(int argc, char *argv[]) {
 
 	error_io_device:
 		cancel_pthread(&THREAD_IO_DEVICE);
-	error_cpu_interrupter:
-		cancel_pthread(&THREAD_CPU_INTERRUPTER);
+	error_quantum_interrupter:
+		switch(SCHEDULING_ALGORITHM) {
+
+			case FIFO_SCHEDULING_ALGORITHM:
+			case PRIORITIES_SCHEDULING_ALGORITHM:
+				break;
+
+			case MLQ_SCHEDULING_ALGORITHM:
+				cancel_pthread(&THREAD_QUANTUM_INTERRUPTER);
+				break;
+		}
 	error_long_term_scheduler:
 		finish_long_term_scheduler();
 	error_sockets:

@@ -21,15 +21,15 @@ sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 t_PThread_Controller THREAD_LONG_TERM_SCHEDULER_EXIT = { .was_created = false };
 sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-t_PThread_Controller THREAD_CPU_INTERRUPTER = { .was_created = false };
 t_Time QUANTUM;
-t_PThread_Controller THREAD_QUANTUM_INTERRUPT = { .was_created = false };
+t_PThread_Controller THREAD_QUANTUM_INTERRUPTER = { .was_created = false };
+sem_t BINARY_QUANTUM;
 bool QUANTUM_INTERRUPT;
 pthread_mutex_t MUTEX_QUANTUM_INTERRUPT;
-pthread_cond_t COND_QUANTUM_INTERRUPT;
-struct timespec TS_QUANTUM_INTERRUPT;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
+bool IS_TCB_IN_CPU = false;
+pthread_mutex_t MUTEX_IS_TCB_IN_CPU;
 
 bool FREE_MEMORY = 1;
 pthread_mutex_t MUTEX_FREE_MEMORY;
@@ -291,103 +291,112 @@ void *long_term_scheduler_exit(void *NULL_parameter) {
 	return NULL;
 }
 
-void *cpu_interrupter(void *NULL_parameter) {
+void sigusr1_quantum_handler(int signal) {
+	// No hace nada; sólo la utilizo para despertarme del usleep
+}
+
+void *quantum_interrupter(void *NULL_parameter) {
+	int status;
+
+	sigset_t set_SIGUSR1, set_SIGINT;
+
+	if(sigemptyset(&set_SIGUSR1)) {
+		log_error_sigemptyset();
+		error_pthread();
+	}
+	if(sigemptyset(&set_SIGINT)) {
+		log_error_sigemptyset();
+		error_pthread();
+	}
+
+	if(sigaddset(&set_SIGUSR1, SIGUSR1)) {
+		log_error_sigaddset();
+		error_pthread();
+	}
+	if(sigaddset(&set_SIGINT, SIGINT)) {
+		log_error_sigaddset();
+		error_pthread();
+	}
+
+	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGUSR1, NULL))) {
+		log_error_pthread_sigmask(status);
+		error_pthread();
+	}
+	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+		log_error_pthread_sigmask(status);
+		error_pthread();
+	}
+
+	if(sigaction(SIGUSR1, &(struct sigaction) {.sa_handler = sigusr1_quantum_handler}, NULL)) {
+		log_error_sigaction();	
+		error_pthread();
+	}
 
 	log_trace(MODULE_LOGGER, "Hilo de interrupciones de CPU iniciado");
 
-	int status;
+	while(1) {
+		if(sem_wait(&BINARY_QUANTUM)) {
+			log_error_sem_wait();
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) sem_post, &BINARY_QUANTUM);
 
-	if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT))) {
-		log_error_pthread_mutex_lock(status);
-		// TODO
-	}
-		QUANTUM_INTERRUPT = 0;
-		status = pthread_cond_timedwait(&COND_QUANTUM_INTERRUPT, &MUTEX_QUANTUM_INTERRUPT, &TS_QUANTUM_INTERRUPT);
-		switch(status) {
-			case 0:
-				// Se cumplió la condición antes que el tiempo de espera
-				break;
-			case ETIMEDOUT:
-				QUANTUM_INTERRUPT = 1;
-				// HACER LA INTERRUPCIÓN DE QUANTUM
-				break;
-			default:
-				log_error_pthread_cond_timedwait(status);
-				// TODO
+		if((status = pthread_sigmask(SIG_UNBLOCK, &set_SIGINT, NULL))) {
+			log_error_pthread_sigmask(status);
+			error_pthread();
 		}
 
-	e_Kernel_Interrupt kernel_interrupt;
-	t_PID pid;
-	t_TID tid;
+			usleep(EXEC_TCB->quantum * 1000);
 
-	while(1) {
-		if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CONNECTION_CPU_INTERRUPT.fd_connection)) {
+		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+			log_error_pthread_sigmask(status);
+			error_pthread();
+		}
+
+		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
+			log_error_pthread_mutex_lock(status);
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
+			if(!IS_TCB_IN_CPU) {
+				status = -1;
+			}
+		pthread_cleanup_pop(1);
+
+		if(status) {
+			goto cleanup;
+		}
+
+		// Envio la interrupción solo si hay más procesos en la cola de READY
+		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
+			log_error_sem_wait();
+			error_pthread();
+		}
+		if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
+			log_error_sem_post();
+			error_pthread();
+		}
+
+		if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT))) {
+			log_error_pthread_mutex_lock(status);
+			// TODO
+		}
+			QUANTUM_INTERRUPT = 1;
+		if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT))) {
+			log_error_pthread_mutex_unlock(status);
+			// TODO
+		}
+
+		if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
 			// TODO
 			exit(EXIT_FAILURE);
 		}
 
-		switch(kernel_interrupt) {
-
-			case KILL_KERNEL_INTERRUPT:
-				/*
-				if(status = pthread_mutex_lock(&MUTEX_KILL_EXEC_PROCESS)) {
-					log_error_pthread_mutex_lock(status);
-					// TODO
-				}
-					KILL_EXEC_PROCESS = 1;
-				if(status = pthread_mutex_unlock(&MUTEX_KILL_EXEC_PROCESS)) {
-					log_error_pthread_mutex_unlock(status);
-					// TODO
-				}
-				*/
-				break;
-
-			case QUANTUM_KERNEL_INTERRUPT:
-				// TODO
-				break;
-
-			default:
-				break;
-		}
+		log_trace(MODULE_LOGGER, "(%u:%u) - Se envia interrupcion por quantum tras %li milisegundos", EXEC_TCB->pcb->PID, EXEC_TCB->TID, EXEC_TCB->quantum);
+	
+		cleanup:
+			pthread_cleanup_pop(status);
 	}
-
-	return NULL;
-}
-
-void *start_quantum(t_TCB *tcb) {
-	t_Time quantum = tcb->quantum;
-	int status;
-
-    log_trace(MODULE_LOGGER, "(%d:%d) - Hilo de interrupción por quantum de %li milisegundos iniciado", (int) tcb->pcb->PID, (int) tcb->TID, quantum);
-
-    usleep(quantum * 1000); // en milisegundos
-
-	// ENVIAR LA INTERRUPCIÓN SÓLO SI HAY MÁS PROCESOS EN READY
-	if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
-		log_error_sem_wait();
-		// TODO
-	}
-	if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-		log_error_sem_post();
-		// TODO
-	}
-
-	if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT))) {
-		log_error_pthread_mutex_lock(status);
-		// TODO
-	}
-		QUANTUM_INTERRUPT = 1;
-	if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPT))) {
-		log_error_pthread_mutex_unlock(status);
-		// TODO
-	}
-
-    if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
-		// TODO
-		exit(EXIT_FAILURE);
-	}
-
-    log_trace(MODULE_LOGGER, "(%d:%d) - Se envia interrupcion por quantum tras %li milisegundos", (int) tcb->pcb->PID, (int) tcb->TID, quantum);
 
 	return NULL;
 }
@@ -469,21 +478,20 @@ void *short_term_scheduler(void *NULL_parameter) {
 
 				signal_draining_requests(&SCHEDULING_SYNC);
 
+				IS_TCB_IN_CPU = true;
+
 				switch(SCHEDULING_ALGORITHM) {
 
 					case FIFO_SCHEDULING_ALGORITHM:
 					case PRIORITIES_SCHEDULING_ALGORITHM:
 						break;
-					
+
 					case MLQ_SCHEDULING_ALGORITHM:
 						QUANTUM_INTERRUPT = 0;
-						/*
-						cond_signal
-						if(status = pthread_create(&THREAD_QUANTUM_INTERRUPT, NULL, (void *(*)(void *)) start_quantum, (void *) tcb)) {
-							log_error_pthread_create(status);
-							// TODO
+						if(sem_post(&BINARY_QUANTUM)) {
+							log_error_sem_post();
+							error_pthread();
 						}
-						*/
 						break;
 
 				}
@@ -493,6 +501,8 @@ void *short_term_scheduler(void *NULL_parameter) {
 					exit(EXIT_FAILURE);
 				}
 
+				IS_TCB_IN_CPU = false;
+
 				switch(SCHEDULING_ALGORITHM) {
 
 					case FIFO_SCHEDULING_ALGORITHM:
@@ -500,12 +510,14 @@ void *short_term_scheduler(void *NULL_parameter) {
 						break;
 
 					case MLQ_SCHEDULING_ALGORITHM:
+						pthread_kill(THREAD_QUANTUM_INTERRUPTER.thread, SIGUSR1);
 
 						if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPT))) {
 							log_error_pthread_mutex_lock(status);
 							// TODO
 						}
 							if(!QUANTUM_INTERRUPT)
+								pthread_kill(THREAD_QUANTUM_INTERRUPTER.thread, SIGUSR1);
 								/*
 								if((status = pthread_cancel(THREAD_QUANTUM_INTERRUPT))) {
 									log_error_pthread_cancel(status);
