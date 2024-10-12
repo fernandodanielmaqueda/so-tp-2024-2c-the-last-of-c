@@ -553,7 +553,7 @@ int io_cpu_operation(int argc, char **argv) {
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(t_Time));
+    payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(time));
 
     return 0;
 }

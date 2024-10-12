@@ -97,18 +97,14 @@ int package_send(t_Package *package, int fd_socket) {
   return 0;
 }
 
-int package_receive(t_Package **destination, int fd_socket) {
-  if(destination == NULL)
+int package_receive(t_Package *package, int fd_socket) {
+  if(package == NULL)
     return -1;
 
-  *destination = package_create();
-  if(*destination == NULL)
+  if(package_receive_header(package, fd_socket))
     return -1;
 
-  if(package_receive_header(*destination, fd_socket))
-    return -1;
-
-  if(package_receive_payload(*destination, fd_socket))
+  if(package_receive_payload(package, fd_socket))
     return -1;
 
   return 0;

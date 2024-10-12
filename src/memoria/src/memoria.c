@@ -277,10 +277,14 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
 
 void listen_kernel(int fd_client) {
 
-    t_Package* package;
+    t_Package* package = package_create();
+    if(package == NULL) {
+        // TODO
+        return;
+    }
     int result;
 
-    if(package_receive(&package, fd_client)) {
+    if(package_receive(package, fd_client)) {
         
         switch(package->header) {
             
@@ -468,7 +472,7 @@ int add_element_to_array_process (t_Memory_Process* process) {
 
     ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT + 1));    
     if(ARRAY_PROCESS_MEMORY == NULL) {
-        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de procesos", sizeof(t_Memory_Process *) * (PID_COUNT +1));
+        log_warning(MODULE_LOGGER, "malloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Memory_Process *) * PID_COUNT, sizeof(t_Memory_Process *) * (PID_COUNT +1));
         return -1;
     }
 
@@ -733,12 +737,16 @@ int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
 }
 
 void listen_cpu(void) {
-    t_Package *package;
+    t_Package *package = package_create();
+    if(package == NULL) {
+        // TODO
+        return;
+    }
     int status;
 
     while(1) {
 
-        if(package_receive(&package, CLIENT_CPU->fd_client)) {
+        if(package_receive(package, CLIENT_CPU->fd_client)) {
             // TODO
 
             if((status = pthread_cancel(SERVER_MEMORY.thread_server))) {

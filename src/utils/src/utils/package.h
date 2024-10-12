@@ -69,7 +69,7 @@ void package_destroy(t_Package *package);
  */
 int package_send(t_Package *package, int fd_socket);
 
-int package_receive(t_Package **destination, int fd_socket);
+int package_receive(t_Package *package, int fd_socket);
 
 /**
  * @brief Obtiene el codigo de operacion de un paquete

@@ -40,23 +40,25 @@ int payload_add(t_Payload *payload, void *source, size_t sourceSize) {
     return -1;
   }
 
-  void *newStream = realloc(payload->stream, payload->size + sourceSize);
-  if(newStream == NULL) {
-    log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->size + sourceSize);
-    errno = ENOMEM;
-    return -1;
-  }
-  payload->stream = newStream;
+  pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    void *newStream = realloc(payload->stream, payload->size + sourceSize);
+    if(newStream == NULL) {
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->size + sourceSize);
+      errno = ENOMEM;
+      return -1;
+    }
+    payload->stream = newStream;
+    payload->size += sourceSize;
+  pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-  if(payload->offset < payload->size)
-    memmove((void *) (((uint8_t *) payload->stream) + payload->offset + sourceSize), (void *) (((uint8_t *) payload->stream) + payload->offset), payload->size - payload->offset);
+  if(payload->offset < (payload->size - sourceSize))
+    memmove((void *) (((uint8_t *) payload->stream) + payload->offset + sourceSize), (void *) (((uint8_t *) payload->stream) + payload->offset), payload->size - sourceSize - payload->offset);
 
   if(source != NULL)
     memcpy((void *) (((uint8_t *) payload->stream) + payload->offset), source, sourceSize);
   
   payload->offset += sourceSize;
-
-  payload->size += sourceSize;
 
   return 0;
 }
@@ -90,18 +92,23 @@ int payload_remove(t_Payload *payload, void *destination, size_t destinationSize
       payload->size - payload->offset - destinationSize
     );
 
-    void *newStream = realloc(payload->stream, newSize);
-    if(newStream == NULL) {
-      log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, newSize);
-      errno = ENOMEM;
-      return -1;
-    }
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+      void *newStream = realloc(payload->stream, newSize);
+      if(newStream == NULL) {
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, newSize);
+        errno = ENOMEM;
+        return -1;
+      }
 
-    payload->stream = newStream;
-    payload->size = newSize;
+      payload->stream = newStream;
+      payload->size = newSize;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   }
   else {
-    payload_destroy(payload);
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+      payload_destroy(payload);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   }
 
   return 0;
@@ -126,15 +133,18 @@ int payload_write(t_Payload *payload, void *source, size_t sourceSize) {
       return -1;
     }
 
-    void *newStream = realloc(payload->stream, payload->offset + sourceSize);
-    if(newStream == NULL) {
-      log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->offset + sourceSize);
-      errno = ENOMEM;
-      return -1;
-    }
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+      void *newStream = realloc(payload->stream, payload->offset + sourceSize);
+      if(newStream == NULL) {
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        log_warning(SERIALIZE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", payload->size, payload->offset + sourceSize);
+        errno = ENOMEM;
+        return -1;
+      }
 
-    payload->stream = newStream;
-    payload->size = payload->offset + sourceSize;
+      payload->stream = newStream;
+      payload->size = payload->offset + sourceSize;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   }
 
   if(source != NULL)

@@ -327,7 +327,9 @@ void instruction_cycle(void)
             // TODO
         }
 
-        payload_destroy(&SYSCALL_INSTRUCTION);
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+            payload_destroy(&SYSCALL_INSTRUCTION);
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     }
 
     arguments_destroy(arguments);
