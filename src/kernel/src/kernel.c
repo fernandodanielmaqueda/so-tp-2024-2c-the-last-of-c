@@ -181,14 +181,28 @@ int initialize_global_variables(void) {
 		goto error_list_new;
 	}
 
-	request_ready_list(0);
-
-	if(shared_list_init(&SHARED_LIST_EXEC)) {
+	if(request_ready_list(0)) {
 		goto error_ready_sync;
 	}
 
-	if(shared_list_init(&SHARED_LIST_EXIT)) {
+	if(shared_list_init(&SHARED_LIST_EXEC)) {
+		goto error_request_ready_list;
+	}
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_MEMORY_DUMP)) {
 		goto error_list_exec;
+	}
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_READY)) {
+		goto error_list_blocked_memory_dump;
+	}
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_EXEC)) {
+		goto error_list_blocked_io_ready;
+	}
+
+	if(shared_list_init(&SHARED_LIST_EXIT)) {
+		goto error_list_blocked_io_exec;
 	}
 
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
@@ -201,21 +215,66 @@ int initialize_global_variables(void) {
 		goto error_sem_long_term_scheduler_new;
 	}
 
-	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
-		log_error_sem_init();
+	if((status = pthread_mutex_init(&MUTEX_IS_TCB_IN_CPU, NULL))) {
+		log_error_pthread_mutex_init(status);
 		goto error_sem_long_term_scheduler_exit;
 	}
 
-	if((status = pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPT, NULL))) {
-		log_error_pthread_mutex_init(status);
+	if((status = pthread_cond_init(&COND_IS_TCB_IN_CPU, NULL))) {
+		log_error_pthread_cond_init(status);
+		goto error_mutex_is_tcb_in_cpu;
+	}
+
+	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
+		log_error_sem_init();
+		goto error_cond_is_tcb_in_cpu;
+	}
+
+	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
+		log_error_sem_init();
+		goto error_binary_quantum_interrupter;
+	}
+
+	if(sem_init(&BINARY_SHORT_TERM_SCHEDULER, 0, 0)) {
+		log_error_sem_init();
 		goto error_sem_short_term_scheduler;
+	}
+
+	if((status = pthread_mutex_init(&MUTEX_FREE_MEMORY, NULL))) {
+		log_error_pthread_mutex_init(status);
+		goto error_binary_short_term_scheduler;
+	}
+
+	if((status = pthread_cond_init(&COND_FREE_MEMORY, NULL))) {
+		log_error_pthread_cond_init(status);
+		goto error_mutex_free_memory;
 	}
 
 	return 0;
 
+	error_mutex_free_memory:
+		if((status = pthread_mutex_destroy(&MUTEX_FREE_MEMORY))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	error_binary_short_term_scheduler:
+		if(sem_destroy(&BINARY_SHORT_TERM_SCHEDULER)) {
+			log_error_sem_destroy();
+		}
 	error_sem_short_term_scheduler:
 		if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
 			log_error_sem_destroy();
+		}
+	error_binary_quantum_interrupter:
+		if(sem_destroy(&BINARY_QUANTUM_INTERRUPTER)) {
+			log_error_sem_destroy();
+		}
+	error_cond_is_tcb_in_cpu:
+		if((status = pthread_cond_destroy(&COND_IS_TCB_IN_CPU))) {
+			log_error_pthread_cond_destroy(status);
+		}
+	error_mutex_is_tcb_in_cpu:
+		if((status = pthread_mutex_destroy(&MUTEX_IS_TCB_IN_CPU))) {
+			log_error_pthread_mutex_destroy(status);
 		}
 	error_sem_long_term_scheduler_exit:
 		if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
@@ -227,8 +286,16 @@ int initialize_global_variables(void) {
 		}
 	error_list_exit:
 		shared_list_destroy(&SHARED_LIST_EXIT, (void (*)(void *)) tcb_destroy);
+	error_list_blocked_io_exec:
+		shared_list_destroy(&SHARED_LIST_BLOCKED_IO_EXEC, (void (*)(void *)) tcb_destroy);
+	error_list_blocked_io_ready:
+		shared_list_destroy(&SHARED_LIST_BLOCKED_IO_READY, (void (*)(void *)) tcb_destroy);
+	error_list_blocked_memory_dump:
+		shared_list_destroy(&SHARED_LIST_BLOCKED_MEMORY_DUMP, (void (*)(void *)) tcb_destroy);
 	error_list_exec:
 		shared_list_destroy(&SHARED_LIST_EXEC, (void (*)(void *)) tcb_destroy);
+	error_request_ready_list:
+		// TODO
 	error_ready_sync:
 		resource_sync_destroy(&READY_SYNC);
 	error_list_new:
@@ -240,15 +307,19 @@ int initialize_global_variables(void) {
 int finish_global_variables(void) {
 	int retval = 0, status;
 
+	/*
 	if((status = pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT))) {
 		log_error_pthread_mutex_destroy(status);
 		retval = -1;
 	}
+	*/
 
+	/*
 	if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
 		log_error_sem_destroy();
 		retval = -1;
 	}
+	*/
 
 	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 		log_error_sem_destroy();
