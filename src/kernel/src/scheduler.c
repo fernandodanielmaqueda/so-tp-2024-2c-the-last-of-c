@@ -316,7 +316,7 @@ void *quantum_interrupter(void *NULL_parameter) {
 
 	log_trace(MODULE_LOGGER, "Hilo de interrupciones de CPU iniciado");
 
-	struct timespec ts_quantum_interrupter;
+	struct timespec ts_now, ts_quantum, ts_abstime;
 
 	while(1) {
 		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
@@ -325,9 +325,10 @@ void *quantum_interrupter(void *NULL_parameter) {
 		}
 		pthread_cleanup_push((void (*)(void *)) sem_post, &BINARY_QUANTUM_INTERRUPTER);
 
-		clock_gettime(CLOCK_REALTIME, &ts_quantum_interrupter);
-		ts_quantum_interrupter.tv_sec += QUANTUM / 1000;
-		ts_quantum_interrupter.tv_nsec += (QUANTUM % 1000) * 1000000;
+		clock_gettime(CLOCK_REALTIME, &ts_now); // CLOCK_MONOTONIC_RAW
+		ts_quantum = timespec_from_ms(EXEC_TCB->quantum);
+
+		ts_abstime = timespec_add(ts_now, ts_quantum);
 
 		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
 			log_error_pthread_mutex_lock(status);
@@ -335,16 +336,17 @@ void *quantum_interrupter(void *NULL_parameter) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 
-			while(IS_TCB_IN_CPU)
+			while(!IS_TCB_IN_CPU && status == 0) {
+				status = pthread_cond_timedwait(&COND_IS_TCB_IN_CPU, &MUTEX_IS_TCB_IN_CPU, &ts_abstime);
+			}
 
-			switch((status = pthread_cond_timedwait(&COND_IS_TCB_IN_CPU, &MUTEX_IS_TCB_IN_CPU, &ts_quantum_interrupter))) {
+			switch(status) {
 				case 0:
-
-					// Se cumplió la condición antes que el tiempo de espera
+					// El hilo fue desalojado antes de que se agote el quantum
 					status = -1;
 					break;
 				case ETIMEDOUT:
-					// HACER LA INTERRUPCIÓN DE QUANTUM
+					// Se agotó el quantum
 					break;
 				default:
 					log_error_pthread_cond_timedwait(status);

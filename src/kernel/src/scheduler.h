@@ -21,6 +21,7 @@
 #include "commons/collections/dictionary.h"
 #include "utils/module.h"
 #include "utils/socket.h"
+#include "utils/timespec.h"
 #include "kernel.h"
 
 extern t_Shared_List SHARED_LIST_NEW;
