@@ -92,7 +92,7 @@ int bloques_init(void); // void ** &PTRO_BLOCKS
 
 void filesystem_client_handler_for_memory(int fd_client);
 
-void set_bits_bitmap(t_Bitmap* bit_map, t_Block_Pointer *list_bit_index,size_t necessary_bits_free);
+void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary, char* filename);
 bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
 
 size_t necessary_bits(size_t bytes_size);

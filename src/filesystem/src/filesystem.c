@@ -80,7 +80,7 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
 int bitmap_init(t_Bitmap *bitmap) {
 
-    // cantidad bits = cantidad de bloques (bytes) sobre 8.
+    // cantidad de Bytes del archivo bitmap.dat.  Nota: cantidad bits = cantidad de bloques (bytes) sobre 8.
 	BITMAP_FILE_SIZE = necessary_bits(BLOCK_COUNT);
 
 	// ruta al archivo
@@ -151,8 +151,7 @@ int bitmap_init(t_Bitmap *bitmap) {
         log_error(MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
         return -1;
     }
-
-    log_info(MODULE_LOGGER, "Bitmap creado y mapeado correctamente.");
+    log_trace(MODULE_LOGGER," Archivo Creado y sincronizado: bitmap.dat. Tamaño: <%zu>", BITMAP_FILE_SIZE);
 
 	return 0;
 }
@@ -235,10 +234,18 @@ void filesystem_client_handler_for_memory(int fd_client) {
             return;
         }
 
-        BITMAP.blocks_free -= blocks_necessary;
+        //BITMAP.blocks_free -= blocks_necessary;
+
+        /* a) directa:   bloques libres: 50, necesitamos: 5 bloques, queda: 45 bloques libres
+           b) paso a paso:  bloques libres: 50, necesitamos: 5 bloques
+                            --> asignas 1 bloque, queda: 49 bloques libres
+                            --> asignas 1 bloque, queda: 48 bloques libres 
+                            ...
+                            --> asignas 1 bloque, queda: 48 bloques libres 
+        */  
 
         // Setear los bits correspondientes en el bitmap, completar el array de posiciones del indice de bloques.dat.
-		set_bits_bitmap(&BITMAP, array, blocks_necessary);
+		set_bits_bitmap(&BITMAP, array, blocks_necessary, filename);
 
 
     // dar acceso al bitmap.dat a los otros hilos.
@@ -248,11 +255,19 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     }
 
-   
+    // Crear el archivo de metadata (es como escribir un config)
+    create_metadata_file( filename,dump_size, array[0]);
+
+
     // ESCRIBIR EN BLOQUES.DAT BLOQUE A BLOQUE (se armaron su lista/array dinámico auxiliar)
 
     // Primero escribo en memoria (RAM) el bloque de índice
     write_block(array[0], array, blocks_necessary * sizeof(t_Block_Pointer)); //array 0 porque el primero es el indice
+    // Log de acceso a bloque.
+    log_info(MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <INDICE> - Bloque File System  <%u>", filename, array[0]);
+    
+    usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
+
     block_msync(array[0]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
 
 
@@ -265,15 +280,17 @@ void filesystem_client_handler_for_memory(int fd_client) {
         // array[i]: NRO DE INDICE de cada bloque
         write_block(array[i], ptro_memory_dump_block, BLOCK_SIZE);
 
+        // Log de acceso a bloque.
+        log_info(MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <DATOS> - Bloque File System  <%u>", filename, array[i]);
+
+        usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
+
         block_msync(array[i]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
     }
 
-
-    // Crear el archivo de metadata (es como escribir un config)
-    create_metadata_file( filename,dump_size, array[0]);
-
-
     send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
+    // Log de fin de petición
+    log_info(MODULE_LOGGER, "## Fin de solicitud - Archivo: <%s>", filename);
     return;
 }
 
@@ -304,13 +321,15 @@ void create_metadata_file(const char *filename, size_t size, t_Block_Pointer ind
     // Liberar la memoria reservada para la ruta del archivo de metadata
     free(metadata_path);
 
-    log_info(MODULE_LOGGER, "Archivo de metadata %s creado correctamente.", filename);
+    // path completo (metadata_path) o solo filename??
+    log_info(MODULE_LOGGER, "## Archivo Creado: <%s> - Tamaño: <%zu>", filename, size);
 }
 
-void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary) { // 3 bloques: 2 de datos y 1 de índice
+void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary, char* filename) { // 3 bloques: 2 de datos y 1 de índice
 
     // Ya sabemos de antemano que hay suficientes bloques libres para almacenar el archivo
     register size_t block_index = 0, logic_index = 0;
+
     for(; blocks_necessary > 0; block_index++) {
 
         bool bit = bitarray_test_bit(bit_map->bits_blocks, block_index);
@@ -322,7 +341,13 @@ void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_ne
             array[logic_index] = block_index;
 
             logic_index++;
+
             blocks_necessary--; // restar después de confirmar que hay un bit libre
+
+            bit_map->blocks_free--;
+
+            // Log de asignación de bloque
+            log_info(MODULE_LOGGER, "## Bloque asignado: <%zu> - Archivo: <%s> - Bloques Libres: <%zu>", block_index, filename, bit_map->blocks_free);
         }
     }
 
