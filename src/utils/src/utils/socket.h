@@ -63,6 +63,8 @@ void *client_thread_connect_to_server(t_Connection *connection);
 
 int client_start_try(char *ip, char *port);
 
+int wrapper_close(int *fd);
+
 bool client_matches_pthread(t_Client *client, pthread_t *thread);
 
 #endif // UTILS_SOCKET_H

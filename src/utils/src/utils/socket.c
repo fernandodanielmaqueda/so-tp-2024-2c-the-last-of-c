@@ -306,6 +306,19 @@ int client_start_try(char *ip, char *port) {
   return fd_client;
 }
 
+int wrapper_close(int *fd) {
+	if(*fd == -1) {
+		return 0;
+	}
+
+	if(close(*fd)) {
+		log_error_close();
+		return -1;
+	}
+
+	return 0;
+}
+
 bool client_matches_pthread(t_Client *client, pthread_t *thread) {
     return pthread_equal(client->thread_client_handler, *thread);
 }
