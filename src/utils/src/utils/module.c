@@ -14,6 +14,68 @@ char *SOCKET_LOG_PATHNAME = "socket.log";
 t_log *SERIALIZE_LOGGER = NULL;
 char *SERIALIZE_LOG_PATHNAME = "serialize.log";
 
+void *signal_manager(pthread_t *thread_to_cancel) {
+	int status;
+
+	sigset_t set_SIGINT, set_rest;
+
+	if(sigemptyset(&set_SIGINT)) {
+		perror("sigemptyset");
+		goto cancel;
+	}
+
+	if(sigaddset(&set_SIGINT, SIGINT)) {
+		perror("sigaddset");
+		goto cancel;
+	}
+
+	/*
+	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		goto cancel;
+	}
+	*/
+
+	if(sigfillset(&set_rest)) {
+		perror("sigfillset");
+		goto cancel;
+	}
+
+	if(sigdelset(&set_rest, SIGINT)) {
+		perror("sigdelset");
+		goto cancel;
+	}
+
+	if((status = pthread_sigmask(SIG_UNBLOCK, &set_rest, NULL))) {
+		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		goto cancel;
+	}
+
+	siginfo_t info;
+	int signo;
+	if((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
+		perror("sigwaitinfo");
+		goto cancel;
+	}
+
+	fprintf(stderr, "Signal SIGINT recibida\n");
+
+	cancel:
+		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+			fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		}
+
+		if((status = pthread_sigmask(SIG_BLOCK, &set_rest, NULL))) {
+			fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		}
+
+		if((status = pthread_cancel(*thread_to_cancel))) {
+			fprintf(stderr, "pthread_cancel: %s\n", strerror(status));
+		}
+
+		pthread_exit(NULL);
+}
+
 int initialize_configs(char *pathname) {
 	MODULE_CONFIG = config_create(pathname);
 	if(MODULE_CONFIG == NULL) {
@@ -100,8 +162,7 @@ int initialize_logger(t_log **logger, char *pathname, char *module_name) {
 		return -1;
 	}
 
-	*logger = log_create(pathname, module_name, true, LOG_LEVEL);
-	if(*logger == NULL) {
+	if((*logger = log_create(pathname, module_name, true, LOG_LEVEL)) == NULL) {
 		fprintf(stderr, "%s: No se pudo crear el logger\n", pathname);
 		return -1;
 	}
@@ -178,6 +239,18 @@ void log_error_pthread_join(int status) {
 	log_error(MODULE_LOGGER, "pthread_join: %s", strerror(status));
 }
 
+void log_error_pthread_condattr_init(int status) {
+	log_error(MODULE_LOGGER, "pthread_condattr_init: %s", strerror(status));
+}
+
+void log_error_pthread_condattr_destroy(int status) {
+	log_error(MODULE_LOGGER, "pthread_condattr_destroy: %s", strerror(status));
+}
+
+void log_error_pthread_condattr_setclock(int status) {
+	log_error(MODULE_LOGGER, "pthread_condattr_setclock: %s", strerror(status));
+}
+
 void log_error_pthread_cond_init(int status) {
 	log_error(MODULE_LOGGER, "pthread_cond_init: %s", strerror(status));
 }
@@ -218,6 +291,10 @@ void log_error_sigaction(void) {
 	log_error(MODULE_LOGGER, "sigaction: %s", strerror(errno));
 }
 
+void log_error_clock_gettime(void) {
+	log_error(MODULE_LOGGER, "clock_gettime: %s", strerror(errno));
+}
+
 int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 	if(resource_sync == NULL) {
 		errno = EINVAL;
@@ -247,8 +324,6 @@ int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 		goto error_cond_drain_requests;
 	}
 
-	resource_sync->initialized = true;
-
 	return 0;
 
 	error_cond_drain_requests:
@@ -269,12 +344,7 @@ int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync) {
 		return -1;
 	}
 
-	if(!resource_sync->initialized)
-		return 0;
-
 	int retval = 0, status;
-
-	resource_sync->initialized = false;
 
 	if((status = pthread_cond_destroy(&(resource_sync->cond_go_requests)))) {
 		log_error_pthread_cond_destroy(status);
@@ -578,37 +648,23 @@ int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(vo
 	return retval;
 }
 
-int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg) {
+int cancel_and_join_pthread(pthread_t *thread) {
 	int status;
 
-	if((status = pthread_create(&(thread_controller->thread), NULL, start_routine, arg))) {
-		log_error_pthread_create(status);
+	if(thread == NULL) {
+		errno = EINVAL;
 		return -1;
 	}
 
-	thread_controller->was_created = true;
-
-	return 0;
-}
-
-int cancel_pthread(t_PThread_Controller *thread_controller) {
-	int status;
-
-	if(!(thread_controller->was_created)) {
-		return 0;
-	}
-
-	if((status = pthread_cancel(thread_controller->thread))) {
+	if((status = pthread_cancel(*thread))) {
 		log_error_pthread_cancel(status);
 		return -1;
 	}
 
-	if((status = pthread_join(thread_controller->thread, NULL))) {
+	if((status = pthread_join(*thread, NULL))) {
 		log_error_pthread_join(status);
 		return -1;
 	}
-
-	thread_controller->was_created = false;
 
 	return 0;
 }

@@ -19,11 +19,6 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
-typedef struct t_PThread_Controller {
-    pthread_t thread;
-	bool was_created;
-} t_PThread_Controller;
-
 typedef struct t_Drain_Ongoing_Resource_Sync {
 	pthread_mutex_t mutex_resource;
 	unsigned int ongoing_count;
@@ -31,7 +26,6 @@ typedef struct t_Drain_Ongoing_Resource_Sync {
 	pthread_cond_t cond_drain_requests;
 	unsigned int drain_go_requests_count;
 	pthread_cond_t cond_go_requests;
-	bool initialized;
 } t_Drain_Ongoing_Resource_Sync;
 
 extern char *MODULE_NAME;
@@ -52,6 +46,8 @@ extern char *SERIALIZE_LOG_PATHNAME;
 
 extern t_config *MODULE_CONFIG;
 extern char *MODULE_CONFIG_PATHNAME;
+
+void *signal_manager(pthread_t *thread_to_cancel);
 
 int initialize_configs(char *pathname);
 void finish_configs(void);
@@ -83,6 +79,10 @@ void log_error_pthread_detach(int status);
 void log_error_pthread_cancel(int status);
 void log_error_pthread_join(int status);
 
+void log_error_pthread_condattr_init(int status);
+void log_error_pthread_condattr_destroy(int status);
+void log_error_pthread_condattr_setclock(int status);
+
 void log_error_pthread_cond_init(int status);
 void log_error_pthread_cond_destroy(int status);
 void log_error_pthread_cond_wait(int status);
@@ -95,6 +95,7 @@ void log_error_sigaddset(void);
 void log_error_pthread_sigmask(int status);
 void log_error_sigaction(void);
 
+void log_error_clock_gettime(void);
 
 int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync);
 int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync);
@@ -113,8 +114,7 @@ bool pointers_match(void * ptr_1, void *ptr_2);
 int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(void *));
 
-int create_pthread(t_PThread_Controller *thread_controller, void *(*start_routine)(void *), void *arg);
-int cancel_pthread(t_PThread_Controller *thread_controller);
+int cancel_and_join_pthread(pthread_t *thread);
 void error_pthread(void);
 
 #endif // UTILS_MODULE_H
