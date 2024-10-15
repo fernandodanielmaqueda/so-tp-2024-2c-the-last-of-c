@@ -3,8 +3,6 @@
 
 #include "kernel.h"
 
-int asd = -5;
-
 char *MODULE_NAME = "kernel";
 
 t_log *MODULE_LOGGER = NULL;
@@ -23,7 +21,8 @@ const char *STATE_NAMES[] = {
 	[BLOCKED_JOIN_STATE] = "BLOCKED",
 	[BLOCKED_MUTEX_STATE] = "BLOCKED",
 	[BLOCKED_DUMP_STATE] = "BLOCKED",
-	[BLOCKED_IO_STATE] = "BLOCKED",
+	[BLOCKED_IO_READY_STATE] = "BLOCKED",
+	[BLOCKED_IO_EXEC_STATE] = "BLOCKED",
 
 	[EXIT_STATE] = "EXIT"
 };
@@ -37,37 +36,200 @@ char *SCHEDULING_ALGORITHMS[] = {
 e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 
 int module(int argc, char *argv[]) {
+	int status;
 
+
+	// Bloquea todas las señales para este y los hilos creados
+	sigset_t set;
+	if(sigfillset(&set)) {
+		perror("sigfillset");
+		return EXIT_FAILURE;
+	}
+	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
+		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		return EXIT_FAILURE;
+	}
+
+
+	// Verifica argumentos
 	if(argc < 3) {
 		fprintf(stderr, "Uso: %s <ARCHIVO_PSEUDOCODIGO> <TAMANIO_PROCESO> [ARGUMENTOS]\n", argv[0]);
-		goto error;
+		return EXIT_FAILURE;
 	}
 
 	size_t process_size;
 	if(str_to_size(argv[2], &process_size)) {
 		fprintf(stderr, "%s: No es un TAMANIO_PROCESO valido\n", argv[2]);
-		goto error;
+		return EXIT_FAILURE;
 	}
 
-	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
-		goto error;
+
+	pthread_t thread_main = pthread_self();
+
+
+	// Crea hilo para manejar señales
+	pthread_t thread_signal_manager;
+	if(pthread_create(&thread_signal_manager, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main)) {
+		perror("pthread_create");
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &thread_signal_manager);
+
+
+	// Config
+	if((MODULE_CONFIG = config_create(MODULE_CONFIG_PATHNAME)) == NULL) {
+		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", MODULE_CONFIG_PATHNAME);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) config_destroy, MODULE_CONFIG);
+
+
+	// Parse config
+	if(read_module_config(MODULE_CONFIG)) {
+		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", MODULE_CONFIG_PATHNAME);
+		pthread_exit(NULL);
 	}
 
-	if(initialize_loggers()) {
-		goto error_configs;
+
+	// Loggers
+	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+
+	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+
+	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+
+	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+
+
+	// Variables globales
+	if(shared_list_init(&SHARED_LIST_NEW)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_NEW);
+
+	if(resource_sync_init(&READY_SYNC)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) resource_sync_destroy, (void *) &READY_SYNC);
+
+	pthread_cleanup_push((void (*)(void *)) array_list_ready_destroy, NULL);
+	if(array_list_ready_init(0)) {
+		pthread_exit(NULL);
 	}
 
-	if(initialize_global_variables()) {
-		goto error_loggers;
+	if(shared_list_init(&SHARED_LIST_EXEC)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_EXEC);
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_MEMORY_DUMP)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_MEMORY_DUMP);
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_READY)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_IO_READY);
+
+	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_EXEC)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_IO_EXEC);
+
+	if(shared_list_init(&SHARED_LIST_EXIT)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_EXIT);
+
+	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
+		log_error_sem_init();
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_NEW);
+
+	if(sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0)) {
+		log_error_sem_init();
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_EXIT);
+
+	if((status = pthread_mutex_init(&MUTEX_IS_TCB_IN_CPU, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_IS_TCB_IN_CPU);
+
+	if((status = pthread_condattr_init(&CONDATTR_IS_TCB_IN_CPU))) {
+		log_error_pthread_condattr_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_IS_TCB_IN_CPU);
+
+	if((status = pthread_condattr_setclock(&CONDATTR_IS_TCB_IN_CPU, CLOCK_MONOTONIC))) {
+		log_error_pthread_condattr_setclock(status);
+		pthread_exit(NULL);
 	}
 
-	if(initialize_sockets()) {
-		goto error_global_variables;
+	if((status = pthread_cond_init(&COND_IS_TCB_IN_CPU, &CONDATTR_IS_TCB_IN_CPU))) {
+		log_error_pthread_cond_init(status);
+		pthread_exit(NULL);
 	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_IS_TCB_IN_CPU);
+
+	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
+		log_error_sem_init();
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_QUANTUM_INTERRUPTER);
+
+	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
+		log_error_sem_init();
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_SHORT_TERM_SCHEDULER);
+
+	if(sem_init(&BINARY_SHORT_TERM_SCHEDULER, 0, 0)) {
+		log_error_sem_init();
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_SHORT_TERM_SCHEDULER);
+
+	if((status = pthread_mutex_init(&MUTEX_FREE_MEMORY, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_FREE_MEMORY);
+
+	if((status = pthread_cond_init(&COND_FREE_MEMORY, NULL))) {
+		log_error_pthread_cond_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_FREE_MEMORY);
+
+
+	// Sockets
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &CONNECTION_CPU_DISPATCH.fd_connection);
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &CONNECTION_CPU_INTERRUPT.fd_connection);
+	initialize_sockets();
+
 
 	if(initialize_long_term_scheduler()) {
-		goto error_sockets;
+		pthread_exit(NULL);
 	}
+
 
 	switch(SCHEDULING_ALGORITHM) {
 
@@ -76,29 +238,43 @@ int module(int argc, char *argv[]) {
 			break;
 
 		case MLQ_SCHEDULING_ALGORITHM:
-			if(create_pthread(&THREAD_QUANTUM_INTERRUPTER, (void *(*)(void *)) quantum_interrupter, NULL)) {
-				goto error_long_term_scheduler;
+			if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
+				log_error_pthread_create(status);
+				pthread_exit(NULL);
 			}
 			break;
 	}
 
-	if(create_pthread(&THREAD_IO_DEVICE, (void *(*)(void *)) io_device, NULL)) {
-		goto error_quantum_interrupter;
+
+	if((status = pthread_create(&THREAD_IO_DEVICE, NULL, (void *(*)(void *)) io_device, NULL))) {
+		log_error_pthread_create(status);
+		pthread_exit(NULL);
 	}
+
 
 	if(new_process(process_size, argv[1], 0)) {
         log_error(MODULE_LOGGER, "No se pudo crear el proceso");
-        goto error_io_device;
+        pthread_exit(NULL);
     }
+
 
 	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
+
+	/*
+	SHARED_LIST_CONNECTIONS_MEMORY.list = list_create();
+	if((status = pthread_mutex_init(&(SHARED_LIST_CONNECTIONS_MEMORY.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		// TODO
+	}
+	*/
+
+
 	short_term_scheduler(NULL);
 
-	return EXIT_SUCCESS;
-
+	/*
 	error_io_device:
-		cancel_pthread(&THREAD_IO_DEVICE);
+		cancel_and_join_pthread(&THREAD_IO_DEVICE);
 	error_quantum_interrupter:
 		switch(SCHEDULING_ALGORITHM) {
 
@@ -107,21 +283,43 @@ int module(int argc, char *argv[]) {
 				break;
 
 			case MLQ_SCHEDULING_ALGORITHM:
-				cancel_pthread(&THREAD_QUANTUM_INTERRUPTER);
+				cancel_and_join_pthread(&THREAD_QUANTUM_INTERRUPTER);
 				break;
 		}
 	error_long_term_scheduler:
 		finish_long_term_scheduler();
 	error_sockets:
 		finish_sockets();
-	error_global_variables:
-		finish_global_variables();
-	error_loggers:
-		finish_loggers();
-	error_configs:
-		finish_configs();
-	error:
-		return EXIT_FAILURE;
+	*/
+		
+	pthread_cleanup_pop(1); // CONNECTION_CPU_INTERRUPT
+	pthread_cleanup_pop(1); // CONNECTION_CPU_DISPATCH
+	pthread_cleanup_pop(1); // COND_FREE_MEMORY
+	pthread_cleanup_pop(1); // MUTEX_FREE_MEMORY
+	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
+	pthread_cleanup_pop(1); // SEM_SHORT_TERM_SCHEDULER
+	pthread_cleanup_pop(1); // BINARY_QUANTUM_INTERRUPTER
+	pthread_cleanup_pop(1); // COND_IS_TCB_IN_CPU
+	pthread_cleanup_pop(1); // CONDATTR_IS_TCB_IN_CPU
+	pthread_cleanup_pop(1); // MUTEX_IS_TCB_IN_CPU
+	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_EXIT
+	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_NEW
+	pthread_cleanup_pop(1); // SHARED_LIST_EXIT
+	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_IO_EXEC
+	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_IO_READY
+	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_MEMORY_DUMP
+	pthread_cleanup_pop(1); // SHARED_LIST_EXEC
+	pthread_cleanup_pop(1); // ARRAY_LIST_READY
+	pthread_cleanup_pop(1); // READY_SYNC
+	pthread_cleanup_pop(1); // SHARED_LIST_NEW
+	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_CONFIG
+	pthread_cleanup_pop(1); // thread_signal_manager
+
+	return EXIT_SUCCESS;
 }
 
 int read_module_config(t_config *module_config) {
@@ -131,8 +329,8 @@ int read_module_config(t_config *module_config) {
         return -1;
     }
 
-	CONNECTION_CPU_DISPATCH = (t_Connection) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
-	CONNECTION_CPU_INTERRUPT = (t_Connection) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
+	CONNECTION_CPU_DISPATCH = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
+	CONNECTION_CPU_INTERRUPT = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
 
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
@@ -168,193 +366,6 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
         }
 
     return -1;
-}
-
-int initialize_global_variables(void) {
-	int status;
-
-	if(shared_list_init(&SHARED_LIST_NEW)) {
-		goto error;
-	}
-
-	if(resource_sync_init(&READY_SYNC)) {
-		goto error_list_new;
-	}
-
-	if(request_ready_list(0)) {
-		goto error_ready_sync;
-	}
-
-	if(shared_list_init(&SHARED_LIST_EXEC)) {
-		goto error_request_ready_list;
-	}
-
-	if(shared_list_init(&SHARED_LIST_BLOCKED_MEMORY_DUMP)) {
-		goto error_list_exec;
-	}
-
-	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_READY)) {
-		goto error_list_blocked_memory_dump;
-	}
-
-	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_EXEC)) {
-		goto error_list_blocked_io_ready;
-	}
-
-	if(shared_list_init(&SHARED_LIST_EXIT)) {
-		goto error_list_blocked_io_exec;
-	}
-
-	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
-		log_error_sem_init();
-		goto error_list_exit;
-	}
-
-	if(sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0)) {
-		log_error_sem_init();
-		goto error_sem_long_term_scheduler_new;
-	}
-
-	if((status = pthread_mutex_init(&MUTEX_IS_TCB_IN_CPU, NULL))) {
-		log_error_pthread_mutex_init(status);
-		goto error_sem_long_term_scheduler_exit;
-	}
-
-	if((status = pthread_cond_init(&COND_IS_TCB_IN_CPU, NULL))) {
-		log_error_pthread_cond_init(status);
-		goto error_mutex_is_tcb_in_cpu;
-	}
-
-	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
-		log_error_sem_init();
-		goto error_cond_is_tcb_in_cpu;
-	}
-
-	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
-		log_error_sem_init();
-		goto error_binary_quantum_interrupter;
-	}
-
-	if(sem_init(&BINARY_SHORT_TERM_SCHEDULER, 0, 0)) {
-		log_error_sem_init();
-		goto error_sem_short_term_scheduler;
-	}
-
-	if((status = pthread_mutex_init(&MUTEX_FREE_MEMORY, NULL))) {
-		log_error_pthread_mutex_init(status);
-		goto error_binary_short_term_scheduler;
-	}
-
-	if((status = pthread_cond_init(&COND_FREE_MEMORY, NULL))) {
-		log_error_pthread_cond_init(status);
-		goto error_mutex_free_memory;
-	}
-
-	return 0;
-
-	error_mutex_free_memory:
-		if((status = pthread_mutex_destroy(&MUTEX_FREE_MEMORY))) {
-			log_error_pthread_mutex_destroy(status);
-		}
-	error_binary_short_term_scheduler:
-		if(sem_destroy(&BINARY_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_destroy();
-		}
-	error_sem_short_term_scheduler:
-		if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_destroy();
-		}
-	error_binary_quantum_interrupter:
-		if(sem_destroy(&BINARY_QUANTUM_INTERRUPTER)) {
-			log_error_sem_destroy();
-		}
-	error_cond_is_tcb_in_cpu:
-		if((status = pthread_cond_destroy(&COND_IS_TCB_IN_CPU))) {
-			log_error_pthread_cond_destroy(status);
-		}
-	error_mutex_is_tcb_in_cpu:
-		if((status = pthread_mutex_destroy(&MUTEX_IS_TCB_IN_CPU))) {
-			log_error_pthread_mutex_destroy(status);
-		}
-	error_sem_long_term_scheduler_exit:
-		if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-			log_error_sem_destroy();
-		}
-	error_sem_long_term_scheduler_new:
-		if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-			log_error_sem_destroy();
-		}
-	error_list_exit:
-		shared_list_destroy(&SHARED_LIST_EXIT, (void (*)(void *)) tcb_destroy);
-	error_list_blocked_io_exec:
-		shared_list_destroy(&SHARED_LIST_BLOCKED_IO_EXEC, (void (*)(void *)) tcb_destroy);
-	error_list_blocked_io_ready:
-		shared_list_destroy(&SHARED_LIST_BLOCKED_IO_READY, (void (*)(void *)) tcb_destroy);
-	error_list_blocked_memory_dump:
-		shared_list_destroy(&SHARED_LIST_BLOCKED_MEMORY_DUMP, (void (*)(void *)) tcb_destroy);
-	error_list_exec:
-		shared_list_destroy(&SHARED_LIST_EXEC, (void (*)(void *)) tcb_destroy);
-	error_request_ready_list:
-		// TODO
-	error_ready_sync:
-		resource_sync_destroy(&READY_SYNC);
-	error_list_new:
-		shared_list_destroy(&SHARED_LIST_NEW, (void (*)(void *)) pcb_destroy);
-	error:
-		return -1;
-}
-
-int finish_global_variables(void) {
-	int retval = 0, status;
-
-	/*
-	if((status = pthread_mutex_destroy(&MUTEX_QUANTUM_INTERRUPT))) {
-		log_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-	*/
-
-	/*
-	if(sem_destroy(&SEM_SHORT_TERM_SCHEDULER)) {
-		log_error_sem_destroy();
-		retval = -1;
-	}
-	*/
-
-	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-		log_error_sem_destroy();
-		retval = -1;
-	}
-
-	if(sem_destroy(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-		log_error_sem_destroy();
-		retval = -1;
-	}
-
-	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXIT.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-
-	list_destroy_and_destroy_elements(SHARED_LIST_EXIT.list, (void (*)(void *)) tcb_destroy);
-
-	if((status = pthread_mutex_destroy(&(SHARED_LIST_EXEC.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-
-	list_destroy_and_destroy_elements(SHARED_LIST_EXEC.list, (void (*)(void *)) tcb_destroy);
-
-	resource_sync_destroy(&READY_SYNC);
-
-	if((status = pthread_mutex_destroy(&(SHARED_LIST_NEW.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-
-	list_destroy_and_destroy_elements(SHARED_LIST_NEW.list, (void (*)(void *)) pcb_destroy);
-
-	return retval;
 }
 
 t_PCB *pcb_create(size_t size) {
@@ -798,7 +809,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		return -1;
 }
 
-int request_ready_list(t_Priority priority) {
+int array_list_ready_init(t_Priority priority) {
 	int status;
 
 	// Si la lista de READY ya fue creada, retorna inmediatamente
@@ -808,7 +819,7 @@ int request_ready_list(t_Priority priority) {
 
 	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
 	if(priority >= PRIORITY_LIMIT) {
-		log_error(MODULE_LOGGER, "request_ready_list: %s", strerror(ERANGE));
+		log_error(MODULE_LOGGER, "array_list_ready_init: %s", strerror(ERANGE));
 		errno = ERANGE;
 		return -1;
 	}
@@ -846,6 +857,18 @@ int request_ready_list(t_Priority priority) {
 
 	return 0;
 
+}
+
+int array_list_ready_destroy(void *NULL_parameter) {
+	int retval = 0;
+	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
+		if(shared_list_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i]))) {
+			retval = -1;
+		}
+	}
+	free(ARRAY_LIST_READY);
+	PRIORITY_COUNT = 0;
+	return retval;
 }
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {

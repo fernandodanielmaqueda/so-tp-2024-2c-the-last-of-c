@@ -50,7 +50,8 @@ typedef enum e_Process_State {
     BLOCKED_JOIN_STATE,
     BLOCKED_MUTEX_STATE,
     BLOCKED_DUMP_STATE,
-    BLOCKED_IO_STATE,
+    BLOCKED_IO_READY_STATE,
+    BLOCKED_IO_EXEC_STATE,
 
 	EXIT_STATE
 } e_Process_State;
@@ -91,7 +92,6 @@ typedef enum e_Scheduling_Algorithm {
     MLQ_SCHEDULING_ALGORITHM
 } e_Scheduling_Algorithm;
 
-#include "io.h"
 #include "resources.h"
 #include "socket.h"
 #include "scheduler.h"
@@ -114,8 +114,6 @@ extern char *SCHEDULING_ALGORITHMS[];
 extern e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 
 int module(int, char*[]);
-int initialize_global_variables(void);
-int finish_global_variables(void);
 int read_module_config(t_config *module_config);
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 
@@ -147,7 +145,8 @@ bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
-int request_ready_list(t_Priority priority);
+int array_list_ready_init(t_Priority priority);
+int array_list_ready_destroy(void *NULL_parameter);
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
