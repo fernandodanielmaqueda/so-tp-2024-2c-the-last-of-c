@@ -612,33 +612,31 @@ bool pointers_match(void *ptr_1, void *ptr_2) {
 }
 
 int shared_list_init(t_Shared_List *shared_list) {
-	int status;
+	int retval = 0, status;
 
 	if((status = pthread_mutex_init(&(shared_list->mutex), NULL))) {
 		log_error_pthread_mutex_init(status);
-		goto error;
+		goto ret;
 	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(shared_list->mutex));
 
 	shared_list->list = list_create();
 	if(shared_list->list == NULL) {
 		log_error(MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
-		goto error_mutex;
+		retval = -1;
+		goto cleanup;
 	}
 
-	return 0;
-
-	error_mutex:
-		if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
-			log_error_pthread_mutex_destroy(status);
-		}
-	error:
-		return -1;
+	cleanup:
+		pthread_cleanup_pop(status); // shared_list->mutex
+	ret:
+		return retval;
 }
 
-int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(void *)) {
+int shared_list_destroy(t_Shared_List *shared_list) {
 	int retval = 0, status;
 
-	list_destroy_and_destroy_elements(shared_list->list, element_destroyer);
+	list_destroy(shared_list->list);
 
 	if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
 		log_error_pthread_mutex_destroy(status);

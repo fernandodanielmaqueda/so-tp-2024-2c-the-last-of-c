@@ -112,7 +112,7 @@ void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(vo
 bool pointers_match(void * ptr_1, void *ptr_2);
 
 int shared_list_init(t_Shared_List *shared_list);
-int shared_list_destroy(t_Shared_List *shared_list, void (*element_destroyer)(void *));
+int shared_list_destroy(t_Shared_List *shared_list);
 
 int cancel_and_join_pthread(pthread_t *thread);
 void error_pthread(void);
