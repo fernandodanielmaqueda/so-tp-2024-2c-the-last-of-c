@@ -8,7 +8,7 @@
 /configs/
 
 # Data files
-#*.dat
+*.dat
 
 # Eclipse files
 .settings/
