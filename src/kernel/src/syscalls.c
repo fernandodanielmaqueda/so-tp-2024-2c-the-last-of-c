@@ -298,13 +298,18 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
 int io_kernel_syscall(t_Payload *syscall_arguments) {
 
-    switch_process_state(EXEC_TCB, BLOCKED_IO_STATE);
-
-    pthread_mutex_lock(&(SHARED_LIST_IO_BLOCKED.mutex));
-        list_add(SHARED_LIST_IO_BLOCKED.list, EXEC_TCB);
-        log_debug(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", EXEC_TCB->pcb->PID, EXEC_TCB->TID);
-        EXEC_TCB->shared_list_state = &(SHARED_LIST_IO_BLOCKED);
-    pthread_mutex_unlock(&(SHARED_LIST_IO_BLOCKED.mutex));
+    switch_process_state(EXEC_TCB, BLOCKED_IO_READY_STATE); 
+ 
+    pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)); 
+        list_add(SHARED_LIST_BLOCKED_IO_READY.list, EXEC_TCB); 
+        log_debug(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", EXEC_TCB->pcb->PID, EXEC_TCB->TID); 
+        EXEC_TCB->shared_list_state = &(SHARED_LIST_BLOCKED_IO_READY); 
+    pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)); 
+ 
+    if(sem_post(&SEM_IO_DEVICE)) { 
+        log_error_sem_post(); 
+        return -1; 
+    } 
 
     log_trace(MODULE_LOGGER, "IO");
 
