@@ -2,7 +2,7 @@
 
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
-t_Drain_Ongoing_Resource_Sync READY_SYNC;
+pthread_rwlock_t READY_RWLOCK;
 
 t_Shared_List *ARRAY_LIST_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
@@ -783,7 +783,7 @@ void switch_process_state(t_TCB *tcb, e_Process_State new_state) {
 		case READY_STATE:
 		{
 			t_Shared_List *shared_list_state = tcb->shared_list_state;
-			wait_draining_requests(&READY_SYNC);
+			//wait_draining_requests(&READY_SYNC);
 				if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
 					log_error_pthread_mutex_lock(status);
 					// TODO
@@ -794,7 +794,7 @@ void switch_process_state(t_TCB *tcb, e_Process_State new_state) {
 					log_error_pthread_mutex_unlock(status);
 					// TODO
 				}
-			signal_draining_requests(&READY_SYNC);
+			//signal_draining_requests(&READY_SYNC);
 			break;
 		}
 

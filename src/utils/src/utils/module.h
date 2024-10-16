@@ -74,6 +74,12 @@ void log_error_pthread_mutex_destroy(int status);
 void log_error_pthread_mutex_lock(int statusoid);
 void log_error_pthread_mutex_unlock(int status);
 
+void log_error_pthread_rwlock_init(int status);
+void log_error_pthread_rwlock_destroy(int status);
+void log_error_pthread_rwlock_wrlock(int status);
+void log_error_pthread_rwlock_rdlock(int status);
+void log_error_pthread_rwlock_unlock(int status);
+
 void log_error_pthread_create(int status);
 void log_error_pthread_detach(int status);
 void log_error_pthread_cancel(int status);

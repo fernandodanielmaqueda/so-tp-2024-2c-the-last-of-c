@@ -223,6 +223,26 @@ void log_error_pthread_mutex_unlock(int status) {
 	log_error(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
 }
 
+void log_error_pthread_rwlock_init(int status) {
+	log_error(MODULE_LOGGER, "pthread_rwlock_init: %s", strerror(status));
+}
+
+void log_error_pthread_rwlock_destroy(int status) {
+	log_error(MODULE_LOGGER, "pthread_rwlock_destroy: %s", strerror(status));
+}
+
+void log_error_pthread_rwlock_wrlock(int status) {
+	log_error(MODULE_LOGGER, "pthread_rwlock_wrlock: %s", strerror(status));
+}
+
+void log_error_pthread_rwlock_rdlock(int status) {
+	log_error(MODULE_LOGGER, "pthread_rwlock_rdlock: %s", strerror(status));
+}
+
+void log_error_pthread_rwlock_unlock(int status) {
+	log_error(MODULE_LOGGER, "pthread_rwlock_unlock: %s", strerror(status));
+}
+
 void log_error_pthread_create(int status) {
 	log_error(MODULE_LOGGER, "pthread_create: %s", strerror(status));
 }
