@@ -30,6 +30,8 @@ typedef struct t_Drain_Ongoing_Resource_Sync {
 
 extern char *MODULE_NAME;
 
+extern pthread_t THREAD_SIGNAL_MANAGER;
+
 extern t_log_level LOG_LEVEL;
 
 extern t_log *MINIMAL_LOGGER;

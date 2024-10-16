@@ -3,6 +3,8 @@
 
 #include "module.h"
 
+pthread_t THREAD_SIGNAL_MANAGER;
+
 t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
 
 t_log *MINIMAL_LOGGER = NULL;
@@ -689,6 +691,6 @@ int cancel_and_join_pthread(pthread_t *thread) {
 }
 
 void error_pthread(void) {
-	pthread_kill(pthread_self(), SIGINT);
+	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT);
 	pthread_exit(NULL);
 }
