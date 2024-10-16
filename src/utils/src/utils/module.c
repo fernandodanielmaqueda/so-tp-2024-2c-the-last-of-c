@@ -616,6 +616,7 @@ int shared_list_init(t_Shared_List *shared_list) {
 
 	if((status = pthread_mutex_init(&(shared_list->mutex), NULL))) {
 		log_error_pthread_mutex_init(status);
+		retval = -1;
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(shared_list->mutex));

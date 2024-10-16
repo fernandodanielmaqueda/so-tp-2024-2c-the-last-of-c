@@ -79,12 +79,6 @@ extern bool SHOULD_REDISPATCH;
 
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
-void initialize_scheduling(void);
-void finish_scheduling(void);
-
-int initialize_long_term_scheduler(void);
-int finish_long_term_scheduler(void);
-
 void *long_term_scheduler_new(void *NULL_parameter);
 void *long_term_scheduler_exit(void *NULL_parameter);
 void *quantum_interrupter(void *NULL_parameter);

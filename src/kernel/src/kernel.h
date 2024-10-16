@@ -26,21 +26,17 @@
 #include "utils/send.h"
 #include "utils/socket.h"
 
-typedef enum e_ID_Manager_Type {
-    PROCESS_ID_MANAGER_TYPE,
-    THREAD_ID_MANAGER_TYPE
-} e_ID_Manager_Type;
+typedef struct t_PID_Manager {
+    t_PID counter;
+    void **array;
+    pthread_mutex_t mutex;
+} t_PID_Manager;
 
-typedef struct t_ID_Manager {
-    e_ID_Manager_Type id_data_type;
-
-    void *id_counter;
-    void **cb_array;
-    pthread_mutex_t mutex_cb_array;
-    t_list *list_released_ids; // LIFO
-    pthread_mutex_t mutex_list_released_ids;
-    pthread_cond_t cond_list_released_ids;
-} t_ID_Manager;
+typedef struct t_TID_Manager {
+    t_TID counter;
+    void **array;
+    pthread_mutex_t mutex;
+} t_TID_Manager;
 
 typedef enum e_Process_State {
     NEW_STATE,
@@ -63,7 +59,7 @@ typedef struct t_PCB {
 
     t_dictionary *dictionary_mutexes;
 
-    t_ID_Manager thread_manager;
+    t_TID_Manager thread_manager;
 } t_PCB;
 
 typedef struct t_TCB {
@@ -105,7 +101,7 @@ extern char *MINIMAL_LOG_PATHNAME;
 extern t_config *MODULE_CONFIG;
 extern char *MODULE_CONFIG_PATHNAME;
 
-extern t_ID_Manager PID_MANAGER;
+extern t_PID_Manager PID_MANAGER;
 
 extern const char *STATE_NAMES[];
 
@@ -120,26 +116,23 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
 
 t_PCB *pcb_create(size_t size);
-void pcb_destroy(t_PCB *pcb);
+int pcb_destroy(t_PCB *pcb);
 
 t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority);
-void tcb_destroy(t_TCB *tcb);
+int tcb_destroy(t_TCB *tcb);
 
-int id_manager_init(t_ID_Manager *id_manager, e_ID_Manager_Type id_data_type);
-void id_manager_destroy(t_ID_Manager *id_manager);
+int pid_manager_init(t_PID_Manager *id_manager);
+int tid_manager_init(t_TID_Manager *id_manager);
 
-int _id_assign(t_ID_Manager *id_manager, void *element, void *result);
-int pid_assign(t_ID_Manager *id_manager, t_PCB *pcb, t_PID *result);
-int tid_assign(t_ID_Manager *id_manager, t_TCB *tcb, t_TID *result);
+int pid_manager_destroy(t_PID_Manager *id_manager);
+int tid_manager_destroy(t_TID_Manager *id_manager);
 
-int _id_release(t_ID_Manager *id_manager, size_t id, void *data);
-int pid_release(t_ID_Manager *id_manager, t_PID pid);
-int tid_release(t_ID_Manager *id_manager, t_TID tid);
+int pid_assign(t_PID_Manager *id_manager, t_PCB *pcb, t_PID *result);
+int tid_assign(t_TID_Manager *id_manager, t_TCB *tcb, t_TID *result);
 
-size_t get_id_max(e_ID_Manager_Type id_manager_type);
-size_t get_id_size(e_ID_Manager_Type id_manager_type);
-int id_to_size(e_ID_Manager_Type id_data_type, void *source, size_t *destination);
-int size_to_id(e_ID_Manager_Type id_data_type, size_t *source, void *destination);
+int pid_release(t_PID_Manager *id_manager, t_PID pid);
+int tid_release(t_TID_Manager *id_manager, t_TID tid);
+
 
 bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);

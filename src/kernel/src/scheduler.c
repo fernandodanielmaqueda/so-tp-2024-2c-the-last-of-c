@@ -55,41 +55,6 @@ bool SHOULD_REDISPATCH = 0;
 
 t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
-int initialize_long_term_scheduler(void) {
-	int status;
-
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_NEW, NULL, (void *(*)(void *)) long_term_scheduler_new, NULL))) {
-		log_error_pthread_create(status);
-		goto error;
-	}
-
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
-		log_error_pthread_create(status);
-		goto error_thread_long_term_scheduler_new;
-	}
-
-	return 0;
-
-	error_thread_long_term_scheduler_new:
-		cancel_and_join_pthread(&THREAD_LONG_TERM_SCHEDULER_NEW);
-	error:
-		return -1;
-}
-
-int finish_long_term_scheduler(void) {
-	int retval = 0, status;
-
-	if(cancel_and_join_pthread(&THREAD_LONG_TERM_SCHEDULER_NEW)) {
-		retval = -1;
-	}
-
-	if(cancel_and_join_pthread(&THREAD_LONG_TERM_SCHEDULER_EXIT)) {
-		retval = -1;
-	}
-
-	return retval;
-}
-
 void *long_term_scheduler_new(void *NULL_parameter) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
@@ -127,7 +92,11 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 					pcb = (t_PCB *) (SHARED_LIST_NEW.list)->head->data;
 				}
 
-			pthread_cleanup_pop(1);
+			pthread_cleanup_pop(0);
+			if(((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex))))) {
+				log_error_pthread_mutex_unlock(status);
+				error_pthread();
+			}
 
 			if(status) {
 				goto cleanup;
@@ -175,7 +144,7 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 			client_thread_connect_to_server(&connection_memory);
 
-				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.cb_array))[0]->pseudocode_filename, connection_memory.fd_connection)) {
+				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename, connection_memory.fd_connection)) {
 					// TODO
 				}
 
@@ -195,12 +164,12 @@ void *long_term_scheduler_new(void *NULL_parameter) {
 
 				case PRIORITIES_SCHEDULING_ALGORITHM:
 				case MLQ_SCHEDULING_ALGORITHM:
-					if(array_list_ready_init(((t_TCB **) (pcb->thread_manager.cb_array))[0]->priority)) {
+					if(array_list_ready_init(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 					}
 					break;
 			}
 
-			switch_process_state(((t_TCB **) (pcb->thread_manager.cb_array))[0], READY_STATE);
+			switch_process_state(((t_TCB **) (pcb->thread_manager.array))[0], READY_STATE);
 
 	cleanup:
 		pthread_cleanup_pop(1);
