@@ -673,7 +673,7 @@ int cancel_and_join_pthread(pthread_t *thread) {
 	int status;
 
 	if(thread == NULL) {
-		errno = EINVAL;
+		fprintf(stderr, "cancel_and_join_pthread: %s\n", strerror(EINVAL));
 		return -1;
 	}
 

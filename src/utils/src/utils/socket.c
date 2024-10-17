@@ -42,10 +42,6 @@ void *server_thread_for_client(t_Client *new_client) {
   return NULL;
 }
 
-/*
-- crear server
-- por cada cliente nuevo, ejecutar en un hilo logica de FS.
-*/
 void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Client *)) {
 
 	int fd_new_client;
@@ -70,13 +66,14 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
       }
 			continue;
 		}
-
-		log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
-		new_client->fd_client = fd_new_client;
-		new_client->client_type = server->clients_type;
-		new_client->server = server;
-    client_handler(new_client);//Ejecuto en hilo logica de FS: pedir bloques para guardas datos. 
+    break;
 	}
+
+  log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
+  new_client->fd_client = fd_new_client;
+  new_client->client_type = server->clients_type;
+  new_client->server = server;
+  client_handler(new_client);
 
 	return NULL;
 }
@@ -296,7 +293,7 @@ int client_start_try(char *ip, char *port) {
       log_error_close();
     }
   }
-	
+
   freeaddrinfo(result); /* No longer needed */
 
   if(rp == NULL) { /* No address succeeded */

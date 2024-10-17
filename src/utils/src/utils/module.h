@@ -14,6 +14,11 @@
 #include "commons/log.h"
 #include "commons/config.h"
 
+typedef struct t_Bool_Thread {
+    pthread_t thread;
+    bool running;
+} t_Bool_Thread;
+
 typedef struct t_Shared_List {
     t_list *list;
     pthread_mutex_t mutex;

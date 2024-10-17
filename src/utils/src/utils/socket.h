@@ -27,7 +27,7 @@ typedef struct t_Connection {
     enum e_Port_Type server_type;
     char *ip;
     char *port;
-    pthread_t thread_connection;
+    t_Bool_Thread thread_connection;
 } t_Connection;
 
 typedef struct t_Server {
