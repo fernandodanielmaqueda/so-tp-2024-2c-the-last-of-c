@@ -335,7 +335,7 @@ void instruction_cycle(void)
     arguments_destroy(arguments);
 }
 
-void *kernel_cpu_interrupt_handler(void *NULL_parameter) {
+void *kernel_cpu_interrupt_handler(void) {
 
     log_trace(MODULE_LOGGER, "Hilo de manejo de interrupciones de Kernel iniciado");
 

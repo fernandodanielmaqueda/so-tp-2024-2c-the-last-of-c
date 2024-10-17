@@ -63,7 +63,7 @@ int read_module_config(t_config *module_config);
 
 void instruction_cycle(void);
 
-void *kernel_cpu_interrupt_handler(void *NULL_parameter);
+void *kernel_cpu_interrupt_handler(void);
 
 int cpu_fetch_next_instruction(char **line);
 
