@@ -26,7 +26,7 @@
 
 extern t_Shared_List SHARED_LIST_NEW;
 
-extern pthread_rwlock_t READY_RWLOCK;
+extern pthread_rwlock_t ARRAY_READY_RWLOCK;
 
 extern t_Shared_List *ARRAY_LIST_READY;
 extern t_Priority PRIORITY_COUNT;
@@ -40,10 +40,10 @@ extern t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC;
 
 extern t_Shared_List SHARED_LIST_EXIT;
 
-extern pthread_t THREAD_LONG_TERM_SCHEDULER_NEW;
+extern t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_NEW;
 extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 
-extern pthread_t THREAD_LONG_TERM_SCHEDULER_EXIT;
+extern t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_EXIT;
 extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
 extern bool IS_TCB_IN_CPU;
@@ -52,10 +52,9 @@ extern pthread_condattr_t CONDATTR_IS_TCB_IN_CPU;
 extern pthread_cond_t COND_IS_TCB_IN_CPU;
 
 extern t_Time QUANTUM;
-extern pthread_t THREAD_QUANTUM_INTERRUPTER;
+extern t_Bool_Thread THREAD_QUANTUM_INTERRUPTER;
 extern sem_t BINARY_QUANTUM_INTERRUPTER;
 
-extern pthread_t THREAD_SHORT_TERM_SCHEDULER;
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 extern sem_t BINARY_SHORT_TERM_SCHEDULER;
 
@@ -63,7 +62,7 @@ extern bool CANCEL_IO_OPERATION;
 extern pthread_mutex_t MUTEX_CANCEL_IO_OPERATION;
 extern pthread_cond_t COND_CANCEL_IO_OPERATION;
 
-extern pthread_t THREAD_IO_DEVICE;
+extern t_Bool_Thread THREAD_IO_DEVICE;
 extern sem_t SEM_IO_DEVICE;
 
 extern bool FREE_MEMORY;
@@ -79,11 +78,14 @@ extern bool SHOULD_REDISPATCH;
 
 extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
-void *long_term_scheduler_new(void *NULL_parameter);
-void *long_term_scheduler_exit(void *NULL_parameter);
-void *quantum_interrupter(void *NULL_parameter);
-void *short_term_scheduler(void *NULL_parameter);
-void *io_device(void *NULL_parameter);
+void initialize_scheduling(void);
+int finish_scheduling(void);
+
+void *long_term_scheduler_new(void);
+void *long_term_scheduler_exit(void);
+void *quantum_interrupter(void);
+void *short_term_scheduler(void);
+void *io_device(void);
 
 int wait_free_memory(void);
 int signal_free_memory(void);

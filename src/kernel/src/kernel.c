@@ -68,7 +68,6 @@ int module(int argc, char *argv[]) {
 
 
 	// Crea hilo para manejar señales
-	pthread_t THREAD_SIGNAL_MANAGER;
 	if(pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main)) {
 		perror("pthread_create");
 		pthread_exit(NULL);
@@ -119,11 +118,11 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_NEW);
 
-	if((status = pthread_rwlock_init(&READY_RWLOCK, NULL))) {
+	if((status = pthread_rwlock_init(&ARRAY_READY_RWLOCK, NULL))) {
 		log_error_pthread_rwlock_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &READY_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &ARRAY_READY_RWLOCK);
 
 	pthread_cleanup_push((void (*)(void *)) array_list_ready_destroy, NULL);
 	if(array_list_ready_init(0)) {
@@ -222,47 +221,14 @@ int module(int argc, char *argv[]) {
 
 
 	// Sockets
-	pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &CONNECTION_CPU_DISPATCH.fd_connection);
-	pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &CONNECTION_CPU_INTERRUPT.fd_connection);
+	pthread_cleanup_push((void (*)(void *)) finish_sockets, NULL);
 	initialize_sockets();
 
 
-	// Long term scheduler
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_NEW, NULL, (void *(*)(void *)) long_term_scheduler_new, NULL))) {
-		log_error_pthread_create(status);
-		pthread_exit(NULL);
-	}
-	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_LONG_TERM_SCHEDULER_NEW);
+	// Scheduling
+	pthread_cleanup_push((void (*)(void *)) finish_scheduling, NULL);
+	initialize_scheduling();
 
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
-		log_error_pthread_create(status);
-		pthread_exit(NULL);
-	}
-	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_LONG_TERM_SCHEDULER_EXIT);
-
-	// Quantum Interrupter (Push)
-	switch(SCHEDULING_ALGORITHM) {
-
-		case FIFO_SCHEDULING_ALGORITHM:
-		case PRIORITIES_SCHEDULING_ALGORITHM:
-			goto skip_quantum_interrupter_push;
-
-		case MLQ_SCHEDULING_ALGORITHM:
-			break;
-	}
-	if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
-		log_error_pthread_create(status);
-		pthread_exit(NULL);
-	}
-	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_QUANTUM_INTERRUPTER);
-	skip_quantum_interrupter_push:
-
-	// IO Device
-	if((status = pthread_create(&THREAD_IO_DEVICE, NULL, (void *(*)(void *)) io_device, NULL))) {
-		log_error_pthread_create(status);
-		pthread_exit(NULL);
-	}
-	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_IO_DEVICE);
 
 	// Initial process
 	if(new_process(process_size, argv[1], 0)) {
@@ -284,29 +250,13 @@ int module(int argc, char *argv[]) {
 	*/
 
 	// Short term scheduler
-	short_term_scheduler(NULL);
+	short_term_scheduler();
 
 
 	// Cleanup
 
-	pthread_cleanup_pop(1); // THREAD_IO_DEVICE
-	// Quantum Interrupter (Pop)
-		switch(SCHEDULING_ALGORITHM) {
-
-			case FIFO_SCHEDULING_ALGORITHM:
-			case PRIORITIES_SCHEDULING_ALGORITHM:
-				goto skip_quantum_interrupter_pop;
-
-			case MLQ_SCHEDULING_ALGORITHM:
-				break;
-		}
-		pthread_cleanup_pop(1); // THREAD_QUANTUM_INTERRUPTER
-		skip_quantum_interrupter_pop:
-
-	pthread_cleanup_pop(1); // THREAD_LONG_TERM_SCHEDULER_EXIT
-	pthread_cleanup_pop(1); // THREAD_LONG_TERM_SCHEDULER_NEW
-	pthread_cleanup_pop(1); // CONNECTION_CPU_INTERRUPT
-	pthread_cleanup_pop(1); // CONNECTION_CPU_DISPATCH
+	pthread_cleanup_pop(1); // Scheduling
+	pthread_cleanup_pop(1); // Sockets
 	pthread_cleanup_pop(1); // COND_FREE_MEMORY
 	pthread_cleanup_pop(1); // MUTEX_FREE_MEMORY
 	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
@@ -323,7 +273,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_MEMORY_DUMP
 	pthread_cleanup_pop(1); // SHARED_LIST_EXEC
 	pthread_cleanup_pop(1); // ARRAY_LIST_READY
-	pthread_cleanup_pop(1); // READY_RWLOCK
+	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
 	pthread_cleanup_pop(1); // SHARED_LIST_NEW
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
@@ -342,8 +292,8 @@ int read_module_config(t_config *module_config) {
         return -1;
     }
 
-	CONNECTION_CPU_DISPATCH = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
-	CONNECTION_CPU_INTERRUPT = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
+	CONNECTION_CPU_DISPATCH = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH"), .thread_connection = {.running = false}};
+	CONNECTION_CPU_INTERRUPT = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT"), .thread_connection = {.running = false}};
 
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
@@ -493,6 +443,8 @@ int tcb_destroy(t_TCB *tcb) {
 	dictionary_destroy(tcb->dictionary_assigned_mutexes);
 
 	free(tcb);
+
+	return 0;
 }
 
 int pid_manager_init(t_PID_Manager *id_manager) {
@@ -773,11 +725,11 @@ int array_list_ready_init(t_Priority priority) {
 		return -1;
 	}
 
-	if((status = pthread_rwlock_wrlock(&READY_RWLOCK))) {
+	if((status = pthread_rwlock_wrlock(&ARRAY_READY_RWLOCK))) {
 		log_error_pthread_rwlock_wrlock(status);
 		return -1;
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &READY_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
 
 		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
 		if(new_array_list_ready == NULL) {
@@ -807,7 +759,7 @@ int array_list_ready_init(t_Priority priority) {
 		PRIORITY_COUNT = priority + 1;
 	
 	pthread_cleanup_pop(0);
-	if((status = pthread_rwlock_unlock(&READY_RWLOCK))) {
+	if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
 		log_error_pthread_rwlock_unlock(status);
 		return -1;
 	}
@@ -816,7 +768,7 @@ int array_list_ready_init(t_Priority priority) {
 
 }
 
-int array_list_ready_destroy(void *NULL_parameter) {
+int array_list_ready_destroy(void) {
 	int retval = 0;
 	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
 		if(shared_list_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i]))) {

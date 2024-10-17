@@ -139,7 +139,7 @@ bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
 int array_list_ready_init(t_Priority priority);
-int array_list_ready_destroy(void *NULL_parameter);
+int array_list_ready_destroy(void);
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);

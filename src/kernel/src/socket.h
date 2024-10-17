@@ -29,10 +29,11 @@
 extern t_log *SOCKET_LOGGER;
 
 extern t_Server COORDINATOR_IO;
-extern t_Connection CONNECTION_MEMORY;
+
 extern t_Connection CONNECTION_CPU_DISPATCH;
 extern t_Connection CONNECTION_CPU_INTERRUPT;
 
 void initialize_sockets(void);
+int finish_sockets(void);
 
 #endif // KERNEL_SOCKET_H

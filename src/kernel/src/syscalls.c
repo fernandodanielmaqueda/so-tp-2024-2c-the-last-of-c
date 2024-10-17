@@ -152,7 +152,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 }
 
 int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
-    int status;
+    //int status;
 
     char *resource_name;
     text_deserialize(syscall_arguments, &resource_name);
