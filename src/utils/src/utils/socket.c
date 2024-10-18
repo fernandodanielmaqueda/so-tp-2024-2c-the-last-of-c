@@ -127,7 +127,7 @@ int server_start_try(char *port) {
 
     // Permite reutilizar el puerto inmediatamente después de cerrar el socket
     if(setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &(int){1}, (socklen_t) sizeof(int)) == -1) {
-        log_warning(SOCKET_LOGGER, "Function setsockopt: %s", strerror(errno));
+        log_warning(SOCKET_LOGGER, "setsockopt: %s", strerror(errno));
         if(close(fd_server)) {
           log_error_close();
         }

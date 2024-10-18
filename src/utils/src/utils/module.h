@@ -24,15 +24,6 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
-typedef struct t_Drain_Ongoing_Resource_Sync {
-	pthread_mutex_t mutex_resource;
-	unsigned int ongoing_count;
-	unsigned int drain_requests_count;
-	pthread_cond_t cond_drain_requests;
-	unsigned int drain_go_requests_count;
-	pthread_cond_t cond_go_requests;
-} t_Drain_Ongoing_Resource_Sync;
-
 extern char *MODULE_NAME;
 
 extern pthread_t THREAD_SIGNAL_MANAGER;
@@ -109,15 +100,6 @@ void log_error_pthread_sigmask(int status);
 void log_error_sigaction(void);
 
 void log_error_clock_gettime(void);
-
-int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
-int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync);
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);

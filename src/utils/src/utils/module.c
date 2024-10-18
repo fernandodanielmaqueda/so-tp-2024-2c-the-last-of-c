@@ -186,385 +186,135 @@ int finish_logger(t_log **logger) {
 }
 
 void log_error_close(void) {
-	log_error(MODULE_LOGGER, "close: %s", strerror(errno));
+	perror("close");
 }
 
 void log_error_fclose(void) {
-	log_error(MODULE_LOGGER, "fclose: %s", strerror(errno));
+	perror("fclose");
 }
 
 void log_error_sem_init(void) {
-	log_error(MODULE_LOGGER, "sem_init: %s", strerror(errno));
+	perror("sem_init");
 }
 
 void log_error_sem_destroy(void) {
-	log_error(MODULE_LOGGER, "sem_destroy: %s", strerror(errno));
+	perror("sem_destroy");
 }
 
 void log_error_sem_wait(void) {
-	log_error(MODULE_LOGGER, "sem_wait: %s", strerror(errno));
+	perror("sem_wait");
 }
 
 void log_error_sem_post(void) {
-	log_error(MODULE_LOGGER, "sem_post: %s", strerror(errno));
+	perror("sem_post");
 }
 
 void log_error_pthread_mutex_init(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_init: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_init: %s", strerror(status));
 }
 
 void log_error_pthread_mutex_destroy(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_destroy: %s", strerror(status));
 }
 
 void log_error_pthread_mutex_lock(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_lock: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_lock: %s", strerror(status));
 }
 
 void log_error_pthread_mutex_unlock(int status) {
-	log_error(MODULE_LOGGER, "pthread_mutex_unlock: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_unlock: %s", strerror(status));
 }
 
 void log_error_pthread_rwlock_init(int status) {
-	log_error(MODULE_LOGGER, "pthread_rwlock_init: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_init: %s", strerror(status));
 }
 
 void log_error_pthread_rwlock_destroy(int status) {
-	log_error(MODULE_LOGGER, "pthread_rwlock_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_destroy: %s", strerror(status));
 }
 
 void log_error_pthread_rwlock_wrlock(int status) {
-	log_error(MODULE_LOGGER, "pthread_rwlock_wrlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_wrlock: %s", strerror(status));
 }
 
 void log_error_pthread_rwlock_rdlock(int status) {
-	log_error(MODULE_LOGGER, "pthread_rwlock_rdlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_rdlock: %s", strerror(status));
 }
 
 void log_error_pthread_rwlock_unlock(int status) {
-	log_error(MODULE_LOGGER, "pthread_rwlock_unlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_unlock: %s", strerror(status));
 }
 
 void log_error_pthread_create(int status) {
-	log_error(MODULE_LOGGER, "pthread_create: %s", strerror(status));
+	fprintf(stderr, "pthread_create: %s", strerror(status));
 }
 
 void log_error_pthread_detach(int status) {
-	log_error(MODULE_LOGGER, "pthread_detach: %s", strerror(status));
+	fprintf(stderr, "pthread_detach: %s", strerror(status));
 }
 
 void log_error_pthread_cancel(int status) {
-	log_error(MODULE_LOGGER, "pthread_cancel: %s", strerror(status));
+	fprintf(stderr, "pthread_cancel: %s", strerror(status));
 }
 
 void log_error_pthread_join(int status) {
-	log_error(MODULE_LOGGER, "pthread_join: %s", strerror(status));
+	fprintf(stderr, "pthread_join: %s", strerror(status));
 }
 
 void log_error_pthread_condattr_init(int status) {
-	log_error(MODULE_LOGGER, "pthread_condattr_init: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_init: %s", strerror(status));
 }
 
 void log_error_pthread_condattr_destroy(int status) {
-	log_error(MODULE_LOGGER, "pthread_condattr_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_destroy: %s", strerror(status));
 }
 
 void log_error_pthread_condattr_setclock(int status) {
-	log_error(MODULE_LOGGER, "pthread_condattr_setclock: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_setclock: %s", strerror(status));
 }
 
 void log_error_pthread_cond_init(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_init: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_init: %s", strerror(status));
 }
 
 void log_error_pthread_cond_destroy(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_destroy: %s", strerror(status));
 }
 
 void log_error_pthread_cond_wait(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_wait: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_wait: %s", strerror(status));
 }
 
 void log_error_pthread_cond_timedwait(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_timedwait: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_timedwait: %s", strerror(status));
 }
 
 void log_error_pthread_cond_signal(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_signal: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_signal: %s", strerror(status));
 }
 
 void log_error_pthread_cond_broadcast(int status) {
-	log_error(MODULE_LOGGER, "pthread_cond_broadcast: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_broadcast: %s", strerror(status));
 }
 
 void log_error_sigemptyset(void) {
-	log_error(MODULE_LOGGER, "sigemptyset: %s", strerror(errno));
+	perror("sigemptyset");
 }
 
 void log_error_sigaddset(void) {
-	log_error(MODULE_LOGGER, "sigaddset: %s", strerror(errno));
+	perror("sigaddset");
 }
 
 void log_error_pthread_sigmask(int status) {
-	log_error(MODULE_LOGGER, "pthread_sigmask: %s", strerror(status));
+	fprintf(stderr, "pthread_sigmask: %s", strerror(status));
 }
 
 void log_error_sigaction(void) {
-	log_error(MODULE_LOGGER, "sigaction: %s", strerror(errno));
+	perror("sigaction");
 }
 
 void log_error_clock_gettime(void) {
-	log_error(MODULE_LOGGER, "clock_gettime: %s", strerror(errno));
-}
-
-int resource_sync_init(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	resource_sync->ongoing_count = 0;
-
-	if((status = pthread_mutex_init(&(resource_sync->mutex_resource), NULL))) {
-		log_error_pthread_mutex_init(status);
-		goto error;
-	}
-
-	resource_sync->drain_requests_count = 0;
-
-	if((status = pthread_cond_init(&(resource_sync->cond_drain_requests), NULL))) {
-		log_error_pthread_cond_init(status);
-		goto error_mutex_resource;
-	}
-
-	resource_sync->drain_go_requests_count = 0;
-
-	if(pthread_cond_init(&(resource_sync->cond_go_requests), NULL)) {
-		log_error_pthread_cond_init(status);
-		goto error_cond_drain_requests;
-	}
-
-	return 0;
-
-	error_cond_drain_requests:
-		if((status = pthread_cond_destroy(&(resource_sync->cond_drain_requests)))) {
-			log_error_pthread_cond_destroy(status);
-		}
-	error_mutex_resource:
-		if((status = pthread_mutex_destroy(&(resource_sync->mutex_resource)))) {
-			log_error_pthread_mutex_destroy(status);
-		}
-	error:
-		return -1;
-}
-
-int resource_sync_destroy(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	int retval = 0, status;
-
-	if((status = pthread_cond_destroy(&(resource_sync->cond_go_requests)))) {
-		log_error_pthread_cond_destroy(status);
-		retval = -1;
-	}
-	if((status = pthread_cond_destroy(&(resource_sync->cond_drain_requests)))) {
-		log_error_pthread_cond_destroy(status);
-		retval = -1;
-	}
-	if((status = pthread_mutex_destroy(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-
-	return retval;
-}
-
-int wait_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	 // TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-    if(wait_ongoing_locking(resource_sync)) {
-		goto error;
-	}
-
-	if((status = pthread_mutex_unlock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_unlock(status);
-		goto error;
-	}
-
-	return 0;
-
-	error:
-		return -1;
-}
-
-int signal_ongoing(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	// TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	if((status = pthread_mutex_lock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_lock(status);
-		goto error;
-	}
-
-		resource_sync->drain_requests_count--;
-
-		// TODO: Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
-		if(resource_sync->drain_requests_count == 0) {
-			if((status = pthread_cond_broadcast(&(resource_sync->cond_drain_requests)))) {
-				log_error_pthread_cond_broadcast(status);
-				goto error;
-			}
-		}
-
-	if((status = pthread_mutex_unlock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_unlock(status);
-		goto error;
-	}
-
-	return 0;
-
-	error:
-		return -1;
-}
-
-int wait_ongoing_locking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	// TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	if((status = pthread_mutex_lock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_lock(status);
-		goto error;
-	}
-
-		resource_sync->drain_requests_count++;
-
-		while(1) {
-
-			if((resource_sync->ongoing_count) == 0)
-				break;
-
-			if((status = pthread_cond_wait(&(resource_sync->cond_go_requests), &(resource_sync->mutex_resource)))) {
-				log_error_pthread_cond_wait(status);
-				goto error;
-			}
-		}
-
-	return 0;
-
-	error:
-		return -1;
-}
-
-int signal_ongoing_unlocking(t_Drain_Ongoing_Resource_Sync *resource_sync) {
-	// TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	if((status = pthread_mutex_unlock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_unlock(status);
-		goto error;
-	}
-
-	if(signal_ongoing(resource_sync)) {
-		goto error;
-	}
-
-	return 0;
-
-	error:
-		return -1;
-}
-
-int wait_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	if((status = pthread_mutex_lock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_lock(status);
-		goto error;
-	}
-
-		while(1) {
-			if((resource_sync->drain_requests_count) == 0)
-				break;
-
-			if((status = pthread_cond_wait(&(resource_sync->cond_drain_requests), &(resource_sync->mutex_resource)))) {
-				log_error_pthread_cond_wait(status);
-				goto error;
-			}
-		}
-
-		resource_sync->ongoing_count++;
-
-	if((status = pthread_mutex_unlock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_unlock(status);
-		goto error;
-	}
-
-	return 0;
-
-	error:
-		return -1;
-}
-
-int signal_draining_requests(t_Drain_Ongoing_Resource_Sync *resource_sync) { // TODO
-	if(resource_sync == NULL) {
-		errno = EINVAL;
-		goto error;
-	}
-
-	int status;
-
-	if((status = pthread_mutex_lock(&(resource_sync->mutex_resource)))) {
-		log_error_pthread_mutex_lock(status);
-		goto error;
-	}
-
-		resource_sync->ongoing_count--;
-
-		// Acá se podría agregar un if para hacer el signal sólo si el semáforo efectivamente quedó en 0
-		if((status = pthread_cond_signal(&(resource_sync->cond_go_requests)))) {// podría ser un broadcast en lugar de un wait si hay más de un comando de consola esperando
-			log_error_pthread_cond_signal(status);
-			goto error;
-		}
-
-	if((status = pthread_mutex_unlock(&(resource_sync->mutex_resource)))) {
-		goto error;
-	}
-
-	return 0;
-
-	error:
-		return -1;
+	perror("clock_gettime");
 }
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
@@ -691,6 +441,6 @@ int cancel_and_join_pthread(pthread_t *thread) {
 }
 
 void error_pthread(void) {
-	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT);
+	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL+C
 	pthread_exit(NULL);
 }
