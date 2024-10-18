@@ -230,17 +230,8 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-			switch(SCHEDULING_ALGORITHM) {
-
-				case FIFO_SCHEDULING_ALGORITHM:
-					break;
-
-				case PRIORITIES_SCHEDULING_ALGORITHM:
-				case MLQ_SCHEDULING_ALGORITHM:
-					if(array_list_ready_init(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
-						error_pthread();
-					}
-					break;
+			if(array_list_ready_init(0)) {
+				error_pthread();
 			}
 
 			switch_process_state(((t_TCB **) (pcb->thread_manager.array))[0], READY_STATE);
@@ -260,6 +251,7 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 		}
+
 	cleanup_rwlock:
 		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
@@ -385,7 +377,7 @@ void *quantum_interrupter(void) {
 	log_trace(MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
 
 	struct timespec ts_now, ts_quantum, ts_abstime;
-	int status;
+	int retval = 0, status;
 
 	while(1) {
 		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
@@ -411,11 +403,10 @@ void *quantum_interrupter(void) {
 			while(!IS_TCB_IN_CPU && status == 0) {
 				status = pthread_cond_timedwait(&COND_IS_TCB_IN_CPU, &MUTEX_IS_TCB_IN_CPU, &ts_abstime);
 			}
-
 			switch(status) {
 				case 0:
 					// El hilo fue desalojado antes de que se agote el quantum
-					status = -1;
+					retval = -1;
 					break;
 				case ETIMEDOUT:
 					// Se agotó el quantum
@@ -424,14 +415,14 @@ void *quantum_interrupter(void) {
 					log_error_pthread_cond_timedwait(status);
 					error_pthread();
 			}
-		
+
 		pthread_cleanup_pop(0);
 		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
 			log_error_pthread_mutex_unlock(status);
 			error_pthread();
 		}
 
-		if(status) {
+		if(retval) {
 			goto cleanup;
 		}
 
@@ -451,23 +442,26 @@ void *quantum_interrupter(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 			if(!IS_TCB_IN_CPU) {
-				status = -1;
+				retval = -1;
 			}
-		pthread_cleanup_pop(1);
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
+			log_error_pthread_mutex_unlock(status);
+			error_pthread();
+		}
 
-		if(status) {
+		if(retval) {
 			goto cleanup;
 		}
 
 		if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
-			// TODO
+			log_error(SOCKET_LOGGER, "[%d] Error al enviar interrupcion de quantum a [Servidor] %s", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type]);
 			error_pthread();
 		}
-
 		log_trace(MODULE_LOGGER, "(%u:%u) - Se envia interrupcion por quantum tras %li milisegundos", EXEC_TCB->pcb->PID, EXEC_TCB->TID, EXEC_TCB->quantum);
 	
 		cleanup:
-			pthread_cleanup_pop(status);
+			pthread_cleanup_pop(0); // BINARY_QUANTUM_INTERRUPTER
 
 		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
 			log_error_sem_post();
