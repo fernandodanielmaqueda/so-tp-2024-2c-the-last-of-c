@@ -82,6 +82,7 @@ void initialize_scheduling(void);
 int finish_scheduling(void);
 
 void *long_term_scheduler_new(void);
+void reinsert_pcb(t_PCB *pcb);
 void *long_term_scheduler_exit(void);
 void *quantum_interrupter(void);
 void *short_term_scheduler(void);
