@@ -1,5 +1,7 @@
 #include "scheduler.h"
 
+pthread_rwlock_t SCHEDULING_RWLOCK;
+
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
 pthread_rwlock_t ARRAY_READY_RWLOCK;
@@ -51,8 +53,6 @@ pthread_mutex_t MUTEX_KILL_EXEC_PROCESS;
 t_TCB *EXEC_TCB = NULL;
 
 bool SHOULD_REDISPATCH = 0;
-
-t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
 void initialize_scheduling(void) {
 	int status;
@@ -127,7 +127,7 @@ void *long_term_scheduler_new(void) {
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 	t_PCB *pcb;
-	int status;
+	int retval = 0, status;
 
 	while(1) {
 		if(wait_free_memory()) {
@@ -140,10 +140,11 @@ void *long_term_scheduler_new(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) sem_post, &SEM_LONG_TERM_SCHEDULER_NEW);
 
-		if(wait_draining_requests(&SCHEDULING_SYNC)) {
+		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_rdlock(status);
 			error_pthread();
 		}
-		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_SYNC);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
 			if(((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex))))) {
 				log_error_pthread_mutex_lock(status);
@@ -152,10 +153,11 @@ void *long_term_scheduler_new(void) {
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_NEW.mutex));
 
 				if((SHARED_LIST_NEW.list)->head == NULL) {
-					status = -1; // Empty
+					retval = -1; // Empty
 				}
 				else {
-					pcb = (t_PCB *) (SHARED_LIST_NEW.list)->head->data;
+					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+					pcb = (t_PCB *) list_remove(SHARED_LIST_NEW.list, 0);
 				}
 
 			pthread_cleanup_pop(0);
@@ -164,63 +166,68 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-			if(status) {
-				goto cleanup;
+			if(retval) {
+				goto cleanup_rwlock;
+			}
+
+			pthread_cleanup_push((void (*)(void *)) pcb_destroy, (void *) pcb);
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+				client_thread_connect_to_server(&connection_memory);
+				pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
+
+					if(send_process_create(pcb->PID, pcb->size, connection_memory.fd_connection)) {
+						log_error(SOCKET_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type]);
+						error_pthread();
+					}
+
+					if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &retval, connection_memory.fd_connection)) {
+						log_error(SOCKET_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type]);
+						error_pthread();
+					}
+
+				pthread_cleanup_pop(0);
+				if(close(connection_memory.fd_connection)) {
+					log_error_close();
+					error_pthread();
+				}
+
+			if(retval) {
+				if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
+					log_error_pthread_mutex_lock(status);
+					error_pthread();
+				}
+					FREE_MEMORY = 0;
+				if((status = pthread_mutex_unlock(&MUTEX_FREE_MEMORY))) {
+					log_error_pthread_mutex_unlock(status);
+					error_pthread();
+				}
+
+				if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
+					log_error_sem_post();
+					error_pthread();
+				}
+
+				goto cleanup_pcb;
 			}
 
 			client_thread_connect_to_server(&connection_memory);
-
-				if(send_process_create(pcb->PID, pcb->size, connection_memory.fd_connection)) {
-					// TODO
-				}
-
-				int result;
-				if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &result, connection_memory.fd_connection)) {
-					// TODO
-				}
-
-				if(result) {
-					if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
-						log_error_pthread_mutex_lock(status);
-						// TODO
-					}
-						FREE_MEMORY = 0;
-					if((status = pthread_mutex_unlock(&MUTEX_FREE_MEMORY))) {
-						log_error_pthread_mutex_unlock(status);
-						// TODO
-					}
-
-					if(close(connection_memory.fd_connection)) {
-						log_error_close();
-						// TODO
-					}
-					signal_draining_requests(&SCHEDULING_SYNC);
-					if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-						log_error_sem_post();
-						// TODO
-					}
-
-					continue;
-				}
-
-			if(close(connection_memory.fd_connection)) {
-				log_error_close();
-				// TODO
-			}
-
-			client_thread_connect_to_server(&connection_memory);
+			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
 				if(send_thread_create(pcb->PID, (t_TID) 0, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename, connection_memory.fd_connection)) {
-					// TODO
+					log_error(SOCKET_LOGGER, "[%d] Error al enviar solicitud de creacion de hilo a [Servidor] %s", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type]);
+					error_pthread();
 				}
 
 				if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
-					// TODO
+					log_error(SOCKET_LOGGER, "[%d] Error al recibir confirmacion de creacion de proceso de [Servidor] %s", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type]);
+					error_pthread();
 				}
 
+			pthread_cleanup_pop(0);
 			if(close(connection_memory.fd_connection)) {
 				log_error_close();
-				// TODO
+				error_pthread();
 			}
 
 			switch(SCHEDULING_ALGORITHM) {
@@ -231,15 +238,36 @@ void *long_term_scheduler_new(void) {
 				case PRIORITIES_SCHEDULING_ALGORITHM:
 				case MLQ_SCHEDULING_ALGORITHM:
 					if(array_list_ready_init(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
+						error_pthread();
 					}
 					break;
 			}
 
 			switch_process_state(((t_TCB **) (pcb->thread_manager.array))[0], READY_STATE);
 
-	cleanup:
-		pthread_cleanup_pop(1);
-		pthread_cleanup_pop(status);
+	cleanup_pcb:
+		pthread_cleanup_pop(0); // pcb_destroy
+		if(retval) {
+			if(((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex))))) {
+				log_error_pthread_mutex_lock(status);
+				error_pthread();
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_NEW.mutex));
+				list_add_in_index(SHARED_LIST_NEW.list, 0, pcb);
+			pthread_cleanup_pop(0);
+			if(((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex))))) {
+				log_error_pthread_mutex_unlock(status);
+				error_pthread();
+			}
+		}
+	cleanup_rwlock:
+		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_unlock(status);
+			error_pthread();
+		}
+
+		pthread_cleanup_pop(0); // SEM_LONG_TERM_SCHEDULER_NEW
 	}
 }
 
@@ -253,20 +281,33 @@ void *long_term_scheduler_exit(void) {
 	while(1) {
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 			log_error_sem_wait();
-			// TODO
+			error_pthread();
 		}
 
-		wait_draining_requests(&SCHEDULING_SYNC);
+		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_rdlock(status);
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
 			if((status = pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex)))) {
 				log_error_pthread_mutex_lock(status);
-				// TODO
+				error_pthread();
 			}
+				//pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 				tcb = (t_TCB *) list_remove((SHARED_LIST_EXIT.list), 0);
 			if((status = pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex)))) {
 				log_error_pthread_mutex_unlock(status);
-				// TODO
+				error_pthread();
 			}
-		signal_draining_requests(&SCHEDULING_SYNC);
+
+		pthread_cleanup_pop(0);
+		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_unlock(status);
+			error_pthread();
+		}
+
+		//pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		// Libera recursos asignados al proceso
 		/*
@@ -384,7 +425,11 @@ void *quantum_interrupter(void) {
 					error_pthread();
 			}
 		
-		pthread_cleanup_pop(1);
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
+			log_error_pthread_mutex_unlock(status);
+			error_pthread();
+		}
 
 		if(status) {
 			goto cleanup;
@@ -436,7 +481,7 @@ void *quantum_interrupter(void) {
 void *short_term_scheduler(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
- 
+
 	e_Eviction_Reason eviction_reason;
 	t_Payload syscall_instruction;
 	int status;
@@ -445,8 +490,11 @@ void *short_term_scheduler(void) {
 		sem_wait(&SEM_SHORT_TERM_SCHEDULER);
 		pthread_cleanup_push((void (*)(void *)) sem_post, &SEM_SHORT_TERM_SCHEDULER);
 
-		wait_draining_requests(&SCHEDULING_SYNC);
-		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_SYNC);
+		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_rdlock(status);
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
 			EXEC_TCB = NULL;
 			switch(SCHEDULING_ALGORITHM) {
@@ -459,12 +507,17 @@ void *short_term_scheduler(void) {
 					}
 					pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].mutex));
 						if((ARRAY_LIST_READY[0].list)->head != NULL) {
+							//pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 							EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[0].list), 0);
 						}
-					pthread_cleanup_pop(1);
+					pthread_cleanup_pop(0);
+					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
+						log_error_pthread_mutex_unlock(status);
+						error_pthread();
+					}
 
 					break;
-				
+
 				case PRIORITIES_SCHEDULING_ALGORITHM:
 				case MLQ_SCHEDULING_ALGORITHM:
 					
@@ -475,9 +528,14 @@ void *short_term_scheduler(void) {
 						}
 						pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[priority].mutex));
 							if((ARRAY_LIST_READY[priority].list)->head != NULL) {
+								//pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 								EXEC_TCB = (t_TCB *) list_remove((ARRAY_LIST_READY[priority].list), 0);
 							}
-						pthread_cleanup_pop(1);
+						pthread_cleanup_pop(0);
+						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].mutex)))) {
+							log_error_pthread_mutex_unlock(status);
+							error_pthread();
+						}
 					}
 
 					break;
@@ -488,18 +546,23 @@ void *short_term_scheduler(void) {
 				goto cleanup;
 			}
 
-			switch_process_state(EXEC_TCB, EXEC_STATE);
+			switch_process_state(EXEC_TCB, EXEC_STATE); // Internamente: pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+			if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
+				log_error(SOCKET_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type]);
+				error_pthread();
+			}
 
 			SHOULD_REDISPATCH = 1;
 			while(SHOULD_REDISPATCH) {
 
 				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, EXEC_TCB->pcb->PID, EXEC_TCB->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
-					// TODO
+					log_error(SOCKET_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type]);
 					error_pthread();
 				}
 
-				signal_draining_requests(&SCHEDULING_SYNC);
-				pthread_cleanup_push((void (*)(void *)) wait_draining_requests, &SCHEDULING_SYNC);
+				//signal_draining_requests(&SCHEDULING_RWLOCK);
+				//pthread_cleanup_push((void (*)(void *)) wait_draining_requests, &SCHEDULING_RWLOCK);
 
 				if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
 					log_error_pthread_mutex_lock(status);
@@ -561,7 +624,7 @@ void *short_term_scheduler(void) {
 
 				}
 
-				pthread_cleanup_pop(1);
+				//pthread_cleanup_pop(1);
 
 				switch(eviction_reason) {
 					case UNEXPECTED_ERROR_EVICTION_REASON:
@@ -662,7 +725,12 @@ void *short_term_scheduler(void) {
 
 		cleanup:
 			pthread_cleanup_pop(1);
-			pthread_cleanup_pop(status);
+			//pthread_cleanup_pop(status);
+			pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+			if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+				log_error_pthread_rwlock_unlock(status);
+				error_pthread();
+			}
 	}
 
 	return NULL;
@@ -682,10 +750,10 @@ void *io_device(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) sem_post, &SEM_IO_DEVICE);
 
-		if(wait_draining_requests(&SCHEDULING_SYNC)) {
-			error_pthread();
-		}
-		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_SYNC);
+		//if(wait_draining_requests(&SCHEDULING_RWLOCK)) {
+		//	error_pthread();
+		//}
+		//pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_RWLOCK);
 
 			if(((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex))))) {
 				log_error_pthread_mutex_lock(status);
@@ -766,10 +834,10 @@ void *io_device(void) {
 				goto cleanup;
 			}
 
-        if(wait_draining_requests(&SCHEDULING_SYNC)) {
+        if(wait_draining_requests(&SCHEDULING_RWLOCK)) {
 			error_pthread();
 		}
-		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_SYNC);
+		pthread_cleanup_push((void (*)(void *)) signal_draining_requests, &SCHEDULING_RWLOCK);
 
 			if((status = pthread_mutex_lock(&(SHARED_LIST_IO_BLOCKED.mutex)))) {
 				log_error_pthread_mutex_lock(status);
@@ -791,7 +859,7 @@ void *io_device(void) {
 		*/
 
 		cleanup:
-			pthread_cleanup_pop(1);
+			//pthread_cleanup_pop(1);
 			pthread_cleanup_pop(status);
 	}
 

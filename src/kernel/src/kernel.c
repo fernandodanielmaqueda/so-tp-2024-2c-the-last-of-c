@@ -113,6 +113,13 @@ int module(int argc, char *argv[]) {
 
 
 	// Variables globales
+
+	if((status = pthread_rwlock_init(&SCHEDULING_RWLOCK, NULL))) {
+		log_error_pthread_rwlock_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &SCHEDULING_RWLOCK);
+
 	if(shared_list_init(&SHARED_LIST_NEW)) {
 		pthread_exit(NULL);
 	}
@@ -275,6 +282,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // ARRAY_LIST_READY
 	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
 	pthread_cleanup_pop(1); // SHARED_LIST_NEW
+	pthread_cleanup_pop(1); // SCHEDULING_RWLOCK
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MODULE_LOGGER

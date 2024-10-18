@@ -24,6 +24,8 @@
 #include "utils/timespec.h"
 #include "kernel.h"
 
+extern pthread_rwlock_t SCHEDULING_RWLOCK;
+
 extern t_Shared_List SHARED_LIST_NEW;
 
 extern pthread_rwlock_t ARRAY_READY_RWLOCK;
@@ -75,8 +77,6 @@ extern pthread_mutex_t MUTEX_KILL_EXEC_PROCESS;
 extern t_TCB *EXEC_TCB;
 
 extern bool SHOULD_REDISPATCH;
-
-extern t_Drain_Ongoing_Resource_Sync SCHEDULING_SYNC;
 
 void initialize_scheduling(void);
 int finish_scheduling(void);
