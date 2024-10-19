@@ -63,6 +63,7 @@ int package_send(t_Package *package, int fd_socket) {
     return -1;
 
   size_t previous_offset = package->payload.offset;
+
   payload_seek(&(package->payload), 0, SEEK_SET);
 
   t_EnumValue header_serialized;

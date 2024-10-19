@@ -48,7 +48,8 @@ pthread_mutex_t MUTEX_FREE_MEMORY;
 pthread_cond_t COND_FREE_MEMORY;
 
 t_TCB *EXEC_TCB;
-bool CANCEL_EXEC_TCB;
+bool KILL_EXEC_TCB;
+e_Exit_Reason KILL_EXIT_REASON;
 
 bool SHOULD_REDISPATCH = 0;
 
@@ -492,7 +493,7 @@ void *short_term_scheduler(void) {
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
 			EXEC_TCB = NULL;
-			CANCEL_EXEC_TCB = false;
+			KILL_EXEC_TCB = false;
 			switch(SCHEDULING_ALGORITHM) {
 
 				case FIFO_SCHEDULING_ALGORITHM:
@@ -680,16 +681,16 @@ void *short_term_scheduler(void) {
 					SHOULD_REDISPATCH = 0;
 					break;
 
-				case CANCEL_EVICTION_REASON:
-					EXEC_TCB->exit_reason = CANCELLED_EXIT_REASON;
+				case KILL_EVICTION_REASON:
+					EXEC_TCB->exit_reason = KILL_EXIT_REASON;
 					switch_thread_state(EXEC_TCB, EXIT_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 					
 				case SYSCALL_EVICTION_REASON:
 
-					if(CANCEL_EXEC_TCB) {
-						EXEC_TCB->exit_reason = CANCELLED_EXIT_REASON;
+					if(KILL_EXEC_TCB) {
+						EXEC_TCB->exit_reason = KILL_EXIT_REASON;
 						switch_thread_state(EXEC_TCB, EXIT_STATE);
 						SHOULD_REDISPATCH = 0;
 						break;
@@ -710,8 +711,8 @@ void *short_term_scheduler(void) {
 				case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
 					log_info(MINIMAL_LOGGER, "## (%u:%u) - Desalojado por fin de Quantum", EXEC_TCB->pcb->PID, EXEC_TCB->TID);
 
-					if(CANCEL_EXEC_TCB) {
-						EXEC_TCB->exit_reason = CANCELLED_EXIT_REASON;
+					if(KILL_EXEC_TCB) {
+						EXEC_TCB->exit_reason = KILL_EXIT_REASON;
 						switch_thread_state(EXEC_TCB, EXIT_STATE);
 						SHOULD_REDISPATCH = 0;
 						break;
@@ -1078,6 +1079,32 @@ void switch_thread_state(t_TCB *tcb, e_Process_State new_state) {
 				log_error_pthread_mutex_unlock(status);
 				error_pthread();
 			}
+			break;
+		}
+
+		case BLOCKED_IO_READY_STATE:
+		{
+			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)))) {
+				log_error_pthread_mutex_lock(status);
+				error_pthread();
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_IO_READY.mutex));
+				//log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) tcb->TID, STATE_NAMES[previous_state]);
+				log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", tcb->pcb->PID, tcb->TID);
+				list_add((SHARED_LIST_BLOCKED_IO_READY.list), tcb);
+				tcb->shared_list_state = &(SHARED_LIST_BLOCKED_IO_READY);
+				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)))) {
+				log_error_pthread_mutex_unlock(status);
+				error_pthread();
+			}
+
+			if(sem_post(&SEM_IO_DEVICE)) {
+				log_error_sem_post();
+				error_pthread();
+			}
+
 			break;
 		}
 

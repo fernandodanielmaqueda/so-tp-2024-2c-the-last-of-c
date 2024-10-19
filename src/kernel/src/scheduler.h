@@ -72,7 +72,8 @@ extern pthread_mutex_t MUTEX_FREE_MEMORY;
 extern pthread_cond_t COND_FREE_MEMORY;
 
 extern t_TCB *EXEC_TCB;
-extern bool CANCEL_EXEC_TCB;
+extern bool KILL_EXEC_TCB;
+extern e_Exit_Reason KILL_EXIT_REASON;
 
 extern bool SHOULD_REDISPATCH;
 
