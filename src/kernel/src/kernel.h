@@ -52,6 +52,15 @@ typedef enum e_Process_State {
 	EXIT_STATE
 } e_Process_State;
 
+typedef enum e_Exit_Reason {
+    UNEXPECTED_ERROR_EXIT_REASON,
+
+    SUCCESS_EXIT_REASON,
+    INVALID_RESOURCE_EXIT_REASON,
+    SEGMENTATION_FAULT_EXIT_REASON,
+    CANCELLED_EXIT_REASON
+} e_Exit_Reason;
+
 typedef struct t_PCB {
     t_PID PID;
 
@@ -80,6 +89,8 @@ typedef struct t_TCB {
     t_Shared_List shared_list_blocked_thread_join;
 
     t_dictionary *dictionary_assigned_mutexes;
+
+    e_Exit_Reason exit_reason;
 } t_TCB;
 
 typedef enum e_Scheduling_Algorithm {

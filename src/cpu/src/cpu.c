@@ -261,12 +261,12 @@ void instruction_cycle(void)
                 log_error_pthread_mutex_lock(status);
                 // TODO
             }
-                if(KERNEL_INTERRUPT == KILL_KERNEL_INTERRUPT) {
+                if(KERNEL_INTERRUPT == CANCEL_KERNEL_INTERRUPT) {
                     if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
                         log_error_pthread_mutex_unlock(status);
                         // TODO
                     }
-                    EVICTION_REASON = KILL_KERNEL_INTERRUPT_EVICTION_REASON;
+                    EVICTION_REASON = CANCEL_EVICTION_REASON;
                     break;
                 }
             if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
