@@ -89,7 +89,6 @@ int module(int argc, char *argv[]) {
 		pthread_exit(NULL);
 	}
 
-
 	// Loggers
 	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
 		pthread_exit(NULL);
@@ -132,7 +131,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &ARRAY_READY_RWLOCK);
 
 	pthread_cleanup_push((void (*)(void *)) array_list_ready_destroy, NULL);
-	if(array_list_ready_init(0)) {
+	if(array_list_ready_init()) {
 		pthread_exit(NULL);
 	}
 
@@ -692,6 +691,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		goto cleanup_tcb;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, (void *) &(SHARED_LIST_NEW.mutex));
+		log_info(MINIMAL_LOGGER, "## (<%u>:%u) Se crea el proceso - Estado: NEW", pcb->PID, tcb->TID);
 		list_add(SHARED_LIST_NEW.list, pcb);
 	pthread_cleanup_pop(0);
 	if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
@@ -699,8 +699,6 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		retval = -1;
 		goto cleanup_tcb;
 	}
-
-	log_info(MINIMAL_LOGGER, "## (<%u>:%u) Se crea el proceso - Estado: NEW", pcb->PID, tcb->TID);
 
 	if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 		log_error_sem_post();
@@ -718,7 +716,28 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		return retval;
 }
 
-int array_list_ready_init(t_Priority priority) {
+int array_list_ready_init(void) {
+	return array_list_ready_resize(0);
+}
+
+int array_list_ready_update(t_Priority priority) {
+	switch(SCHEDULING_ALGORITHM) {
+
+		case FIFO_SCHEDULING_ALGORITHM:
+			break;
+
+		case PRIORITIES_SCHEDULING_ALGORITHM:
+		case MLQ_SCHEDULING_ALGORITHM:
+			if(array_list_ready_resize(priority)) {
+				return -1;
+			}
+			break;
+	}
+
+	return 0;
+}
+
+int array_list_ready_resize(t_Priority priority) {
 	int status;
 
 	// Si la lista de READY ya fue creada, retorna inmediatamente
@@ -728,7 +747,7 @@ int array_list_ready_init(t_Priority priority) {
 
 	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
 	if(priority >= PRIORITY_LIMIT) {
-		log_error(MODULE_LOGGER, "array_list_ready_init: %s", strerror(ERANGE));
+		log_error(MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
 		errno = ERANGE;
 		return -1;
 	}

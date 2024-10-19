@@ -236,10 +236,9 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-			if(array_list_ready_init(0)) {
+			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				error_pthread();
 			}
-
 			switch_thread_state(((t_TCB **) (pcb->thread_manager.array))[0], READY_STATE);
 
 	cleanup_pcb:

@@ -15,7 +15,6 @@ t_Syscall SYSCALLS[] = {
 };
 
 int syscall_execute(t_Payload *syscall_instruction) {
-    int retval = 0;
 
     e_CPU_OpCode syscall_opcode;
     if(cpu_opcode_deserialize(syscall_instruction, &syscall_opcode)) {
@@ -58,7 +57,6 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
     }
 
     SHOULD_REDISPATCH = 1;
-
     return 0;
 }
 
@@ -94,6 +92,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 }
 
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
+    int status;
 
     char *pseudocode_filename;
     if(text_deserialize(syscall_arguments, &pseudocode_filename)) {
@@ -107,18 +106,27 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
 
-    // TODO
-
-    /*
-    t_TCB *new_tcb = tcb_create(EXEC_TCB->pcb);
+    t_TCB *new_tcb = tcb_create(EXEC_TCB->pcb, pseudocode_filename, priority);
     if(new_tcb == NULL) {
-        log_error(MODULE_LOGGER, "No se pudo crear el TCB");
-        return -1;
+        error_pthread();
     }
-    */
+
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+        if(array_list_ready_update(new_tcb->priority)) {
+            error_pthread();
+        }
+        switch_thread_state(new_tcb, READY_STATE);
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
 
     SHOULD_REDISPATCH = 1;
-
     return 0;
 }
 
