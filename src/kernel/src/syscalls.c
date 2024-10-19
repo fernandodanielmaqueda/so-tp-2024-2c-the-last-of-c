@@ -110,18 +110,87 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 }
 
 int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
+    int status;
 
     log_trace(MODULE_LOGGER, "THREAD_CANCEL");
 
     t_TID tid;
-    payload_remove(syscall_arguments, &tid, sizeof(t_TID));
+    payload_remove(syscall_arguments, &tid, sizeof(tid));
 
-    // TODO
+    // Caso 1: Si se cancela a sí mismo
+    if(tid == EXEC_TCB->TID) {
+        EXEC_TCB->exit_reason = CANCELLED_EXIT_REASON;
+        return -1;
+    }
 
-    // Si es suicida (se cancela a sí mismo)
-    SHOULD_REDISPATCH = 0;
-    // Si cancela a otros
+    // Caso 2: Si cancela a otros (falle o no se hace redispatch)
     SHOULD_REDISPATCH = 1;
+
+    if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
+        log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+        return 0;
+    }
+
+    if((status = pthread_rwlock_wrlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_wrlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
+        t_TCB *tcb = ((t_TCB **) EXEC_TCB->pcb->thread_manager.array)[tid];
+        if(tcb == NULL) {
+            log_error(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            goto cleanup_scheduling_rwlock;
+        }
+
+        switch(tcb->current_state) {
+            case NEW_STATE:
+                tcb->exit_reason = CANCELLED_EXIT_REASON;
+                switch_thread_state(tcb, EXIT_STATE);
+                break;
+
+            case READY_STATE:
+                tcb->exit_reason = CANCELLED_EXIT_REASON;
+                switch_thread_state(tcb, EXIT_STATE);
+                break;
+
+            case EXEC_STATE:
+                CANCEL_EXEC_TCB = 1;
+                if(send_kernel_interrupt(CANCEL_KERNEL_INTERRUPT, EXEC_TCB->pcb->PID, tid, CONNECTION_CPU_INTERRUPT.fd_connection)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al enviar interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], EXEC_TCB->pcb->PID, tid);
+                    error_pthread();
+                }
+                log_trace(MODULE_LOGGER, "[%d] Se envia interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], EXEC_TCB->pcb->PID, tid);
+                break;
+
+            default:
+                break;
+            /*
+            case BLOCKED_STATE:
+            {
+                pcb->exit_reason = CANCELLED_EXIT_REASON;
+
+                t_Shared_List *shared_list_state = pcb->shared_list_state;
+                pthread_mutex_lock(&(shared_list_state->mutex));
+                    list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
+                    pcb->shared_list_state = NULL;
+                pthread_mutex_unlock(&(shared_list_state->mutex));
+
+                switch_process_state(pcb, EXIT_STATE);
+                break;
+            }
+            */
+
+            case EXIT_STATE:
+                break;
+        }
+
+    cleanup_scheduling_rwlock:
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
 
     return 0;
 }
@@ -182,7 +251,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
             // TODO
         }
 
-        switch_process_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
+        switch_thread_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
 
         if(status = pthread_mutex_lock(&(resource->shared_list_blocked.mutex))) {
             log_error_pthread_mutex_lock(status);
@@ -272,7 +341,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
         list_add(pcb->assigned_resources, resource);
       
-        switch_process_state(pcb, READY_STATE);
+        switch_thread_state(pcb, READY_STATE);
     }
     else {
         if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
@@ -298,7 +367,7 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
 int io_kernel_syscall(t_Payload *syscall_arguments) {
 
-    switch_process_state(EXEC_TCB, BLOCKED_IO_READY_STATE); 
+    switch_thread_state(EXEC_TCB, BLOCKED_IO_READY_STATE); 
  
     pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)); 
         list_add(SHARED_LIST_BLOCKED_IO_READY.list, EXEC_TCB); 
