@@ -304,7 +304,7 @@ int client_start_try(char *ip, char *port) {
 }
 
 int wrapper_close(int *fd) {
-	if(*fd == -1) {
+	if(*fd < 0) {
 		return 0;
 	}
 
