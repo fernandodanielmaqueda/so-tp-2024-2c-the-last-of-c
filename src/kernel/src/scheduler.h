@@ -71,10 +71,8 @@ extern bool FREE_MEMORY;
 extern pthread_mutex_t MUTEX_FREE_MEMORY;
 extern pthread_cond_t COND_FREE_MEMORY;
 
-extern bool KILL_EXEC_PROCESS;
-extern pthread_mutex_t MUTEX_KILL_EXEC_PROCESS;
-
 extern t_TCB *EXEC_TCB;
+extern bool CANCEL_EXEC_TCB;
 
 extern bool SHOULD_REDISPATCH;
 
@@ -93,6 +91,6 @@ int signal_free_memory(void);
 
 void* start_quantum(t_TCB *tcb);
 
-void switch_process_state(t_TCB *tcb, e_Process_State new_state);
+void switch_thread_state(t_TCB *tcb, e_Process_State new_state);
 
 #endif // KERNEL_SCHEDULER_H
