@@ -15,42 +15,46 @@ t_Syscall SYSCALLS[] = {
 };
 
 int syscall_execute(t_Payload *syscall_instruction) {
-
     int retval = 0;
+
     e_CPU_OpCode syscall_opcode;
-    cpu_opcode_deserialize(syscall_instruction, &syscall_opcode);
+    if(cpu_opcode_deserialize(syscall_instruction, &syscall_opcode)) {
+        error_pthread();
+    }
 
     if(SYSCALLS[syscall_opcode].function == NULL) {
-        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-            payload_destroy(syscall_instruction);
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-        log_error(MODULE_LOGGER, "Funcion de syscall no encontrada");
-        return -1;
+        log_warning(MODULE_LOGGER, "Syscall no encontrada");
+        error_pthread();
     }
 
     if(SYSCALLS[syscall_opcode].function(syscall_instruction)) {
-        retval = -1;
+        return -1;
     }
 
-    return retval;
+    return 0;
 }
 
 int process_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *pseudocode_filename;
-    text_deserialize(syscall_arguments, &pseudocode_filename);
+    if(text_deserialize(syscall_arguments, &pseudocode_filename)) {
+        error_pthread();
+    }
 
     size_t size;
-    size_deserialize(syscall_arguments, &size);
+    if(size_deserialize(syscall_arguments, &size)) {
+        error_pthread();
+    }
 
     t_Priority priority;
-    payload_remove(syscall_arguments, &priority, sizeof(t_Priority));
+    if(payload_remove(syscall_arguments, &priority, sizeof(priority))) {
+        error_pthread();
+    }
 
-    log_trace(MODULE_LOGGER, "PROCESS_CREATE");
+    log_trace(MODULE_LOGGER, "PROCESS_CREATE %s %zu %u", pseudocode_filename, size, priority);
 
     if(new_process(size, pseudocode_filename, priority)) {
-        log_warning(MODULE_LOGGER, "PROCESS_CREATE: No se pudo crear el proceso");
-        return -1;
+        error_pthread();
     }
 
     SHOULD_REDISPATCH = 1;
@@ -92,12 +96,16 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *pseudocode_filename;
-    text_deserialize(syscall_arguments, &pseudocode_filename);
+    if(text_deserialize(syscall_arguments, &pseudocode_filename)) {
+        error_pthread();
+    }
 
     t_Priority priority;
-    payload_remove(syscall_arguments, &priority, sizeof(t_Priority));
+    if(payload_remove(syscall_arguments, &priority, sizeof(priority))) {
+        error_pthread();
+    }
 
-    log_trace(MODULE_LOGGER, "THREAD_CREATE");
+    log_trace(MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
 
     // TODO
 
@@ -117,9 +125,11 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
     t_TID tid;
-    payload_remove(syscall_arguments, &tid, sizeof(t_TID));
+    if(payload_remove(syscall_arguments, &tid, sizeof(tid))) {
+        error_pthread();
+    }
 
-    log_trace(MODULE_LOGGER, "THREAD_JOIN");
+    log_trace(MODULE_LOGGER, "THREAD_JOIN %u", tid);
 
     // TODO
 
@@ -133,12 +143,10 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
 
     t_TID tid;
     if(payload_remove(syscall_arguments, &tid, sizeof(tid))) {
-        log_error(MODULE_LOGGER, "THREAD_CANCEL: No se pudo deserializar el TID");
-        EXEC_TCB->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
-        return -1;
+        error_pthread();
     }
 
-    log_trace(MODULE_LOGGER, "THREAD_CANCEL");
+    log_trace(MODULE_LOGGER, "THREAD_CANCEL %u", tid);
 
     // Caso 1: Si se cancela a sí mismo
     if(tid == EXEC_TCB->TID) {
@@ -191,7 +199,9 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *resource_name;
-    text_deserialize(syscall_arguments, &resource_name);
+    if(text_deserialize(syscall_arguments, &resource_name)) {
+        error_pthread();
+    }
 
     log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
 
@@ -206,7 +216,9 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
     //int status;
 
     char *resource_name;
-    text_deserialize(syscall_arguments, &resource_name);
+    if(text_deserialize(syscall_arguments, &resource_name)) {
+        error_pthread();
+    }
 
     log_trace(MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
 
@@ -268,7 +280,9 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
 int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
     char *resource_name;
-    text_deserialize(syscall_arguments, &resource_name);
+    if(text_deserialize(syscall_arguments, &resource_name)) {
+        error_pthread();
+    }
 
     log_trace(MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
 
@@ -351,8 +365,12 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 
     size_t previous_offset = syscall_arguments->offset;
         t_Time time;
-        payload_read(syscall_arguments, &time, sizeof(time));
-    payload_seek(syscall_arguments, previous_offset, SEEK_SET);
+        if(payload_read(syscall_arguments, &time, sizeof(time))) {
+            error_pthread();
+        }
+    if(payload_seek(syscall_arguments, previous_offset, SEEK_SET)) {
+        error_pthread();
+    }
 
     log_trace(MODULE_LOGGER, "IO %lu", time);
 
@@ -366,6 +384,7 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 void kill_thread(t_TCB *tcb) {
 
     switch(tcb->current_state) {
+
         case READY_STATE:
             tcb->exit_reason = KILL_EXIT_REASON;
             switch_thread_state(tcb, EXIT_STATE);
