@@ -717,6 +717,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 }
 
 int array_list_ready_init(void) {
+	// Todos los algoritmos de planificación requieren la lista de READY 0
 	return array_list_ready_resize(0);
 }
 

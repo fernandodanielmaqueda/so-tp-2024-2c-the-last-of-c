@@ -66,11 +66,17 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_EXIT");
 
+    // Cambio el rdlock por rwlock
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_wrlock, &SCHEDULING_RWLOCK);
     if((status = pthread_rwlock_wrlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_wrlock(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
         KILL_EXIT_REASON = PROCESS_EXIT_EXIT_REASON;
 
@@ -81,18 +87,23 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
             }
         }
 
-    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+    // Regreso del wrlock al rdlock
     if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_rdlock, &SCHEDULING_RWLOCK);
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
     EXEC_TCB->exit_reason = PROCESS_EXIT_EXIT_REASON;
     return -1;
 }
 
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
-    int status;
 
     char *pseudocode_filename;
     if(text_deserialize(syscall_arguments, &pseudocode_filename)) {
@@ -111,26 +122,18 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         error_pthread();
     }
 
-    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
-        log_error_pthread_rwlock_rdlock(status);
+    // Ya tengo rdlock de SCHEDULING_RWLOCK
+    if(array_list_ready_update(new_tcb->priority)) {
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
-        if(array_list_ready_update(new_tcb->priority)) {
-            error_pthread();
-        }
-        switch_thread_state(new_tcb, READY_STATE);
-    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
-        log_error_pthread_rwlock_unlock(status);
-        error_pthread();
-    }
+    switch_thread_state(new_tcb, READY_STATE);
 
     SHOULD_REDISPATCH = 1;
     return 0;
 }
 
 int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
+    int status;
 
     t_TID tid;
     if(payload_remove(syscall_arguments, &tid, sizeof(tid))) {
@@ -139,9 +142,55 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_JOIN %u", tid);
 
-    // TODO
+    // Caso 1: Si se une a sí mismo (falla pero se hace redispatch)
+    if(tid == EXEC_TCB->TID) {
+        SHOULD_REDISPATCH = 1;
+        return 0;
+    }
 
-    SHOULD_REDISPATCH = 0;
+    // Cambio el rdlock por rwlock
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_wrlock, &SCHEDULING_RWLOCK);
+    if((status = pthread_rwlock_wrlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_wrlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+
+        // Caso 2A: Si se une a otro y falla (se hace redispatch)
+        if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
+            log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            SHOULD_REDISPATCH = 1;
+            goto cleanup_scheduling_rwlock;
+        }
+
+        t_TCB *tcb = ((t_TCB **) EXEC_TCB->pcb->thread_manager.array)[tid];
+        // Caso 2B: Si se une a otro y falla (se hace redispatch)
+        if(tcb == NULL) {
+            log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            SHOULD_REDISPATCH = 1;
+            goto cleanup_scheduling_rwlock;
+        }
+
+        // Caso 3: Si se une a otro y no falla (se bloquea)
+        SHOULD_REDISPATCH = 0;
+        // TODO
+
+    cleanup_scheduling_rwlock:
+    // Regreso del wrlock al rdlock
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_rdlock, &SCHEDULING_RWLOCK);
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
     return 0;
 }
@@ -165,16 +214,22 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     // Caso 2: Si cancela a otros (falle o no se hace redispatch)
     SHOULD_REDISPATCH = 1;
 
-    if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
-        log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
-        return 0;
+    // Cambio el rdlock por rwlock
+    if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
     }
-
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_wrlock, &SCHEDULING_RWLOCK);
     if((status = pthread_rwlock_wrlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_wrlock(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+
+        if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
+            log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            goto cleanup_scheduling_rwlock;
+        }
 
         KILL_EXIT_REASON = THREAD_CANCEL_EXIT_REASON;
 
@@ -187,11 +242,17 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
         kill_thread(tcb);
 
     cleanup_scheduling_rwlock:
-    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+    // Regreso del wrlock al rdlock
     if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_rdlock, &SCHEDULING_RWLOCK);
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
     return 0;
 }
