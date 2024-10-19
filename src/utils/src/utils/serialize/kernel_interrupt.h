@@ -20,7 +20,7 @@
 typedef enum e_Kernel_Interrupt {
     NONE_KERNEL_INTERRUPT,
     QUANTUM_KERNEL_INTERRUPT,
-    CANCEL_KERNEL_INTERRUPT
+    KILL_KERNEL_INTERRUPT
 } e_Kernel_Interrupt;
 
 extern const char *KERNEL_INTERRUPT_NAMES[];
