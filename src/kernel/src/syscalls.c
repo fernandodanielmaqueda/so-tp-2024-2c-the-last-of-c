@@ -80,8 +80,8 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
         KILL_EXIT_REASON = PROCESS_EXIT_EXIT_REASON;
 
-        for(t_TID tid = 0; tid < EXEC_TCB->pcb->thread_manager.counter; tid++) {
-            tcb = ((t_TCB **) EXEC_TCB->pcb->thread_manager.array)[tid];
+        for(t_TID tid = 0; tid < TCB_EXEC->pcb->thread_manager.counter; tid++) {
+            tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
             if(tcb != NULL) {
                 kill_thread(tcb);
             }
@@ -99,7 +99,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
-    EXEC_TCB->exit_reason = PROCESS_EXIT_EXIT_REASON;
+    TCB_EXEC->exit_reason = PROCESS_EXIT_EXIT_REASON;
     return -1;
 }
 
@@ -117,7 +117,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
 
-    t_TCB *new_tcb = tcb_create(EXEC_TCB->pcb, pseudocode_filename, priority);
+    t_TCB *new_tcb = tcb_create(TCB_EXEC->pcb, pseudocode_filename, priority);
     if(new_tcb == NULL) {
         error_pthread();
     }
@@ -126,7 +126,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     if(array_list_ready_update(new_tcb->priority)) {
         error_pthread();
     }
-    switch_thread_state(new_tcb, READY_STATE);
+    switch_state(new_tcb, READY_STATE);
 
     SHOULD_REDISPATCH = 1;
     return 0;
@@ -143,7 +143,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "THREAD_JOIN %u", tid);
 
     // Caso 1: Si se une a sí mismo (falla pero se hace redispatch)
-    if(tid == EXEC_TCB->TID) {
+    if(tid == TCB_EXEC->TID) {
         SHOULD_REDISPATCH = 1;
         return 0;
     }
@@ -161,13 +161,13 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
         // Caso 2A: Si se une a otro y falla (se hace redispatch)
-        if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
+        if(tid >= TCB_EXEC->pcb->thread_manager.counter) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             SHOULD_REDISPATCH = 1;
             goto cleanup_scheduling_rwlock;
         }
 
-        t_TCB *tcb = ((t_TCB **) EXEC_TCB->pcb->thread_manager.array)[tid];
+        t_TCB *tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
         // Caso 2B: Si se une a otro y falla (se hace redispatch)
         if(tcb == NULL) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
@@ -177,7 +177,21 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
         // Caso 3: Si se une a otro y no falla (se bloquea)
         SHOULD_REDISPATCH = 0;
-        // TODO
+        switch_state(TCB_EXEC, BLOCKED_JOIN_STATE);
+
+        if((status = pthread_mutex_lock(&(tcb->shared_list_blocked_thread_join.mutex)))) {
+            log_error_pthread_mutex_lock(status);
+            error_pthread();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(tcb->shared_list_blocked_thread_join.mutex));
+            list_add(tcb->shared_list_blocked_thread_join.list, TCB_EXEC);
+            TCB_EXEC->location = &(tcb->shared_list_blocked_thread_join);
+            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_cleanup_pop(0);
+        if((status = pthread_mutex_unlock(&(tcb->shared_list_blocked_thread_join.mutex)))) {
+            log_error_pthread_mutex_unlock(status);
+            error_pthread();
+        }
 
     cleanup_scheduling_rwlock:
     // Regreso del wrlock al rdlock
@@ -206,8 +220,8 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "THREAD_CANCEL %u", tid);
 
     // Caso 1: Si se cancela a sí mismo
-    if(tid == EXEC_TCB->TID) {
-        EXEC_TCB->exit_reason = THREAD_CANCEL_EXIT_REASON;
+    if(tid == TCB_EXEC->TID) {
+        TCB_EXEC->exit_reason = THREAD_CANCEL_EXIT_REASON;
         return -1;
     }
 
@@ -226,14 +240,14 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
-        if(tid >= EXEC_TCB->pcb->thread_manager.counter) {
+        if(tid >= TCB_EXEC->pcb->thread_manager.counter) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             goto cleanup_scheduling_rwlock;
         }
 
         KILL_EXIT_REASON = THREAD_CANCEL_EXIT_REASON;
 
-        t_TCB *tcb = ((t_TCB **) EXEC_TCB->pcb->thread_manager.array)[tid];
+        t_TCB *tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
         if(tcb == NULL) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             goto cleanup_scheduling_rwlock;
@@ -261,7 +275,7 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_EXIT");
 
-    EXEC_TCB->exit_reason = SUCCESS_EXIT_REASON;
+    TCB_EXEC->exit_reason = SUCCESS_EXIT_REASON;
     return -1;
 }
 
@@ -314,7 +328,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
             // TODO
         }
 
-        switch_thread_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
+        switch_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
 
         if(status = pthread_mutex_lock(&(resource->shared_list_blocked.mutex))) {
             log_error_pthread_mutex_lock(status);
@@ -322,7 +336,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
         }
             list_add(resource->shared_list_blocked.list, SYSCALL_PCB);
             log_info(MINIMAL_LOGGER, "PID: <%d> - Bloqueado por: <%s>", (int) SYSCALL_PCB->PID, resource_name);
-            SYSCALL_PCB->shared_list_state = &(resource->shared_list_blocked);
+            SYSCALL_PCB->location = &(resource->shared_list_blocked);
         if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
             log_error_pthread_mutex_unlock(status);
             // TODO
@@ -406,7 +420,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
         list_add(pcb->assigned_resources, resource);
       
-        switch_thread_state(pcb, READY_STATE);
+        switch_state(pcb, READY_STATE);
     }
     else {
         if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
@@ -424,9 +438,11 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
     // TODO
+        // 1: Cambiar de EXEC a BLOCKED_DUMP
+        // 2: Agregar a la lista de bloqueados por dump
+        // 3: Crear hilo de dump
 
     SHOULD_REDISPATCH = 0;
-
     return 0;
 }
 
@@ -443,7 +459,7 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "IO %lu", time);
 
-    switch_thread_state(EXEC_TCB, BLOCKED_IO_READY_STATE); 
+    switch_state(TCB_EXEC, BLOCKED_IO_READY_STATE); 
 
     SHOULD_REDISPATCH = 0;
 
@@ -456,7 +472,7 @@ void kill_thread(t_TCB *tcb) {
 
         case READY_STATE:
             tcb->exit_reason = KILL_EXIT_REASON;
-            switch_thread_state(tcb, EXIT_STATE);
+            switch_state(tcb, EXIT_STATE);
             break;
 
         case EXEC_STATE:
@@ -473,10 +489,10 @@ void kill_thread(t_TCB *tcb) {
         {
             pcb->exit_reason = KILL_EXIT_REASON;
 
-            t_Shared_List *shared_list_state = pcb->shared_list_state;
+            t_Shared_List *shared_list_state = (t_Shared_List *) pcb->location;
             pthread_mutex_lock(&(shared_list_state->mutex));
                 list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
-                pcb->shared_list_state = NULL;
+                pcb->location = NULL;
             pthread_mutex_unlock(&(shared_list_state->mutex));
 
             switch_process_state(pcb, EXIT_STATE);

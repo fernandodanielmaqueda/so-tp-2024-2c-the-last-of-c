@@ -82,7 +82,7 @@ typedef struct t_TCB {
     t_Priority priority;
 
     e_Process_State current_state;
-    t_Shared_List *shared_list_state;
+    void *location;
 
     t_Time quantum;
 

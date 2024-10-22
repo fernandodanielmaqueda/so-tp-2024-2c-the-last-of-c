@@ -68,8 +68,8 @@ int module(int argc, char *argv[]) {
 
 
 	// Crea hilo para manejar señales
-	if(pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main)) {
-		perror("pthread_create");
+	if((status = pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main))) {
+		log_error_pthread_create(status);
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
@@ -135,10 +135,11 @@ int module(int argc, char *argv[]) {
 		pthread_exit(NULL);
 	}
 
-	if(shared_list_init(&SHARED_LIST_EXEC)) {
+	if((status = pthread_mutex_init(&MUTEX_EXEC, NULL))) {
+		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_EXEC);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXEC);
 
 	if(shared_list_init(&SHARED_LIST_BLOCKED_MEMORY_DUMP)) {
 		pthread_exit(NULL);
@@ -150,10 +151,11 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_IO_READY);
 
-	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_EXEC)) {
+	if((status = pthread_mutex_init(&MUTEX_BLOCKED_IO_EXEC, NULL))) {
+		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_IO_EXEC);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_BLOCKED_IO_EXEC);
 
 	if(shared_list_init(&SHARED_LIST_EXIT)) {
 		pthread_exit(NULL);
@@ -274,10 +276,10 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_EXIT
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_NEW
 	pthread_cleanup_pop(1); // SHARED_LIST_EXIT
-	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_IO_EXEC
+	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_EXEC
 	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_IO_READY
 	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_MEMORY_DUMP
-	pthread_cleanup_pop(1); // SHARED_LIST_EXEC
+	pthread_cleanup_pop(1); // MUTEX_EXEC
 	pthread_cleanup_pop(1); // ARRAY_LIST_READY
 	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
 	pthread_cleanup_pop(1); // SHARED_LIST_NEW
@@ -412,7 +414,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 	tcb->priority = priority;
 
 	tcb->current_state = NEW_STATE;
-	tcb->shared_list_state = NULL;
+	tcb->location = NULL;
 
 	tcb->quantum = QUANTUM;
 

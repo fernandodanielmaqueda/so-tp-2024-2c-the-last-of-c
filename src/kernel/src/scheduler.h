@@ -26,6 +26,9 @@
 
 extern pthread_rwlock_t SCHEDULING_RWLOCK;
 
+extern t_Shared_List SHARED_LIST_THREADS_MEMORY_DUMP;
+extern pthread_cond_t COND_THREADS_MEMORY_DUMP;
+
 extern t_Shared_List SHARED_LIST_NEW;
 
 extern pthread_rwlock_t ARRAY_READY_RWLOCK;
@@ -33,12 +36,17 @@ extern pthread_rwlock_t ARRAY_READY_RWLOCK;
 extern t_Shared_List *ARRAY_LIST_READY;
 extern t_Priority PRIORITY_COUNT;
 
-extern t_Shared_List SHARED_LIST_EXEC;
+//extern t_Shared_List SHARED_LIST_EXEC;
+extern t_TCB *TCB_EXEC;
+extern pthread_mutex_t MUTEX_EXEC;
 
 extern t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP;
 
 extern t_Shared_List SHARED_LIST_BLOCKED_IO_READY;
-extern t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC;
+
+//extern t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC;
+extern t_TCB *TCB_BLOCKED_IO_EXEC;
+extern pthread_mutex_t MUTEX_BLOCKED_IO_EXEC;
 
 extern t_Shared_List SHARED_LIST_EXIT;
 
@@ -71,7 +79,6 @@ extern bool FREE_MEMORY;
 extern pthread_mutex_t MUTEX_FREE_MEMORY;
 extern pthread_cond_t COND_FREE_MEMORY;
 
-extern t_TCB *EXEC_TCB;
 extern bool KILL_EXEC_TCB;
 extern e_Exit_Reason KILL_EXIT_REASON;
 
@@ -86,12 +93,13 @@ void *long_term_scheduler_exit(void);
 void *quantum_interrupter(void);
 void *short_term_scheduler(void);
 void *io_device(void);
+void *memory_dumper(void);
 
 int wait_free_memory(void);
 int signal_free_memory(void);
 
 void* start_quantum(t_TCB *tcb);
 
-void switch_thread_state(t_TCB *tcb, e_Process_State new_state);
+void switch_state(t_TCB *tcb, e_Process_State new_state);
 
 #endif // KERNEL_SCHEDULER_H
