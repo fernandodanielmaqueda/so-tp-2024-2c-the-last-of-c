@@ -3,14 +3,6 @@
 
 #include "kernel.h"
 
-char *MODULE_NAME = "kernel";
-
-t_log *MODULE_LOGGER = NULL;
-char *MODULE_LOG_PATHNAME = "kernel.log";
-
-t_config *MODULE_CONFIG = NULL;
-char *MODULE_CONFIG_PATHNAME = "kernel.config";
-
 t_PID_Manager PID_MANAGER;
 
 const char *STATE_NAMES[] = {
@@ -38,6 +30,9 @@ e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 int module(int argc, char *argv[]) {
 	int status;
 
+	MODULE_NAME = "kernel";
+	MODULE_LOG_PATHNAME = "kernel.log";
+	MODULE_CONFIG_PATHNAME = "kernel.config";
 
 	// Bloquea todas las señales para este y los hilos creados
 	sigset_t set;

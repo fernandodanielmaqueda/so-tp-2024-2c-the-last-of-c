@@ -28,14 +28,6 @@
 #include "opcodes.h"
 #include "registers.h"
 
-extern char *MODULE_NAME;
-
-extern t_log *MODULE_LOGGER;
-extern char *MINIMAL_LOG_PATHNAME;
-
-extern t_config *MODULE_CONFIG;
-extern char *MODULE_CONFIG_PATHNAME;
-
 extern t_PID PID;
 extern t_TID TID;
 extern t_Exec_Context EXEC_CONTEXT;

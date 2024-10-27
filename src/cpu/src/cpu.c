@@ -3,14 +3,6 @@
 
 #include "cpu.h"
 
-char *MODULE_NAME = "cpu";
-
-t_log *MODULE_LOGGER = NULL;
-char *MODULE_LOG_PATHNAME = "cpu.log";
-
-t_config *MODULE_CONFIG = NULL;
-char *MODULE_CONFIG_PATHNAME = "cpu.config";
-
 t_PID PID;
 t_TID TID;
 t_Exec_Context EXEC_CONTEXT;
@@ -33,6 +25,10 @@ t_Payload SYSCALL_INSTRUCTION = {0};
 int module(int argc, char *argv[])
 {
     int status;
+
+    MODULE_NAME = "cpu";
+    MODULE_LOG_PATHNAME = "cpu.log";
+    MODULE_CONFIG_PATHNAME = "cpu.config";
 
     if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
         // TODO

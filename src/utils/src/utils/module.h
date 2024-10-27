@@ -24,26 +24,30 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
+extern pthread_t THREAD_SIGNAL_MANAGER;
+
 extern char *MODULE_NAME;
 
-extern pthread_t THREAD_SIGNAL_MANAGER;
+extern t_config *MODULE_CONFIG;
+extern char *MODULE_CONFIG_PATHNAME;
 
 extern t_log_level LOG_LEVEL;
 
 extern t_log *MINIMAL_LOGGER;
 extern char *MINIMAL_LOG_PATHNAME;
+extern pthread_mutex_t MUTEX_MINIMAL_LOGGER;
 
 extern t_log *MODULE_LOGGER;
 extern char *MODULE_LOG_PATHNAME;
+extern pthread_mutex_t MUTEX_MODULE_LOGGER;
 
 extern t_log *SOCKET_LOGGER;
 extern char *SOCKET_LOG_PATHNAME;
+extern pthread_mutex_t MUTEX_SOCKET_LOGGER;
 
 extern t_log *SERIALIZE_LOGGER;
 extern char *SERIALIZE_LOG_PATHNAME;
-
-extern t_config *MODULE_CONFIG;
-extern char *MODULE_CONFIG_PATHNAME;
+extern pthread_mutex_t MUTEX_SERIALIZE_LOGGER;
 
 #define PTHREAD_SETCANCELSTATE_DISABLE() \
     do {                         \

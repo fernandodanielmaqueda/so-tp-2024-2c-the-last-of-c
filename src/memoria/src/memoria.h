@@ -71,14 +71,6 @@ typedef struct t_Memory_Process {
     pthread_mutex_t mutex_array_memory_threads;
 } t_Memory_Process;
 
-extern char *MODULE_NAME;
-
-extern t_log *MODULE_LOGGER;
-extern char *MODULE_LOG_PATHNAME;
-
-extern t_config *MODULE_CONFIG;
-extern char *MODULE_CONFIG_PATHNAME;
-
 extern size_t MEMORY_SIZE;
 extern char *INSTRUCTIONS_PATH;
 extern int RESPONSE_DELAY;

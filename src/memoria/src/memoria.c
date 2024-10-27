@@ -4,14 +4,6 @@
 
 #include "memoria.h"
 
-char *MODULE_NAME = "memoria";
-
-t_log *MODULE_LOGGER = NULL;
-char *MODULE_LOG_PATHNAME = "memoria.log";
-
-t_config *MODULE_CONFIG = NULL;
-char *MODULE_CONFIG_PATHNAME = "memoria.config";
-
 size_t MEMORY_SIZE;
 char *INSTRUCTIONS_PATH;
 int RESPONSE_DELAY;
@@ -42,6 +34,10 @@ pthread_mutex_t MUTEX_ARRAY_PROCESS_MEMORY;
 
 int module(int argc, char* argv[]) {
     int status;
+
+    MODULE_NAME = "memoria";
+    MODULE_LOG_PATHNAME = "memoria.log";
+    MODULE_CONFIG_PATHNAME = "memoria.config";
 
     PARTITION_TABLE = list_create();
 

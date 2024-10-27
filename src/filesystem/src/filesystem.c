@@ -3,14 +3,6 @@
 
 #include "filesystem.h"
 
-char *MODULE_NAME = "filesystem";
-
-t_log *MODULE_LOGGER = NULL;
-char *MODULE_LOG_PATHNAME = "filesystem.log";
-
-t_config *MODULE_CONFIG = NULL;
-char *MODULE_CONFIG_PATHNAME = "filesystem.config";
-
 char *MOUNT_DIR;
 size_t BLOCK_SIZE;
 size_t BLOCK_COUNT;
@@ -27,6 +19,10 @@ pthread_mutex_t MUTEX_BITMAP;
 void *PTRO_BLOCKS;
 
 int module(int argc, char *argv[]) {
+
+    MODULE_NAME = "filesystem";
+    MODULE_LOG_PATHNAME = "filesystem.log";
+    MODULE_CONFIG_PATHNAME = "filesystem.config";
 
 	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
         // TODO

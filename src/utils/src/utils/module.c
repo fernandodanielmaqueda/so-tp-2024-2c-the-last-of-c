@@ -5,16 +5,28 @@
 
 pthread_t THREAD_SIGNAL_MANAGER;
 
+char *MODULE_NAME;
+
+t_config *MODULE_CONFIG = NULL;
+char *MODULE_CONFIG_PATHNAME;
+
 t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
+
+t_log *MODULE_LOGGER = NULL;
+char *MODULE_LOG_PATHNAME;
+pthread_mutex_t MUTEX_MODULE_LOGGER;
 
 t_log *MINIMAL_LOGGER = NULL;
 char *MINIMAL_LOG_PATHNAME = "minimal.log";
+pthread_mutex_t MUTEX_MINIMAL_LOGGER;
 
 t_log *SOCKET_LOGGER = NULL;
 char *SOCKET_LOG_PATHNAME = "socket.log";
+pthread_mutex_t MUTEX_SOCKET_LOGGER;
 
 t_log *SERIALIZE_LOGGER = NULL;
 char *SERIALIZE_LOG_PATHNAME = "serialize.log";
+pthread_mutex_t MUTEX_SERIALIZE_LOGGER;
 
 void *signal_manager(pthread_t *thread_to_cancel) {
 	int status;
