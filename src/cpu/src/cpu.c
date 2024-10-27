@@ -60,7 +60,7 @@ int module(int argc, char *argv[])
     return EXIT_SUCCESS;
 
     error:
-        return EXIT_FAILURE;
+    return EXIT_FAILURE;
 }
 
 int initialize_global_variables(void) {
@@ -84,15 +84,15 @@ int initialize_global_variables(void) {
     return 0;
 
     error_mutex_executing:
-        if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_destroy(status);
-        }
+    if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
+        log_error_pthread_mutex_destroy(status);
+    }
     error_mutex_exec_context:
-        if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_destroy(status);
-        }
+    if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
+        log_error_pthread_mutex_destroy(status);
+    }
     error:
-        return -1;
+    return -1;
 }
 
 int finish_global_variables(void) {

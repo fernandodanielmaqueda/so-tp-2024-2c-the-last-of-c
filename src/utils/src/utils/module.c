@@ -93,9 +93,9 @@ int initialize_configs(char *pathname) {
 	return 0;
 
 	error_config:
-		config_destroy(MODULE_CONFIG);
+	config_destroy(MODULE_CONFIG);
 	error:
-		return -1;
+	return -1;
 }
 
 void finish_configs(void) {
@@ -135,13 +135,13 @@ int initialize_loggers(void) {
 	return 0;
 
 	error_socket_logger:
-		finish_logger(&SOCKET_LOGGER);
+	finish_logger(&SOCKET_LOGGER);
 	error_module_logger:
-		finish_logger(&MODULE_LOGGER);
+	finish_logger(&MODULE_LOGGER);
 	error_minimal_logger:
-		finish_logger(&MINIMAL_LOGGER);
+	finish_logger(&MINIMAL_LOGGER);
 	error:
-		return -1;
+	return -1;
 }
 
 int finish_loggers(void) {
@@ -401,9 +401,9 @@ int shared_list_init(t_Shared_List *shared_list) {
 	}
 
 	cleanup:
-		pthread_cleanup_pop(status); // shared_list->mutex
+	pthread_cleanup_pop(status); // shared_list->mutex
 	ret:
-		return retval;
+	return retval;
 }
 
 int shared_list_destroy(t_Shared_List *shared_list) {
@@ -417,22 +417,6 @@ int shared_list_destroy(t_Shared_List *shared_list) {
 	}
 
 	return retval;
-}
-
-void shared_list_prepend(t_Insert_Shared_List *insert_shared_list) {
-	int status;
-
-	if((status = pthread_mutex_lock(&(insert_shared_list->shared_list->mutex)))) {
-		log_error_pthread_mutex_lock(status);
-		error_pthread();
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(insert_shared_list->shared_list->mutex));
-		list_add_in_index(insert_shared_list->shared_list->list, 0, insert_shared_list->data);
-	pthread_cleanup_pop(0);
-	if((status = pthread_mutex_unlock(&(insert_shared_list->shared_list->mutex)))) {
-		log_error_pthread_mutex_unlock(status);
-		error_pthread();
-	}
 }
 
 int cancel_and_join_pthread(pthread_t *thread) {
@@ -460,3 +444,18 @@ void error_pthread(void) {
 	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL+C
 	pthread_exit(NULL);
 }
+
+/*
+void _perror(const char *__s) {
+	int oldstate;
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
+		perror(__s);
+	pthread_setcancelstate(oldstate, NULL);
+}
+
+perror
+fprintf
+strerror
+log_info
+*/

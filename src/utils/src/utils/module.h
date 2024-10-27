@@ -24,11 +24,6 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
-typedef struct t_Insert_Shared_List {
-	t_Shared_List *shared_list;
-	void *data;
-} t_Insert_Shared_List;
-
 extern char *MODULE_NAME;
 
 extern pthread_t THREAD_SIGNAL_MANAGER;
@@ -49,6 +44,15 @@ extern char *SERIALIZE_LOG_PATHNAME;
 
 extern t_config *MODULE_CONFIG;
 extern char *MODULE_CONFIG_PATHNAME;
+
+#define PTHREAD_SETCANCELSTATE_DISABLE() \
+    do {                         \
+        int __old_cancel_state;  \
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &__old_cancel_state)
+
+#define PTHREAD_SETCANCELSTATE_OLDSTATE()                          \
+        pthread_setcancelstate(__old_cancel_state, NULL); \
+    } while(0)
 
 void *signal_manager(pthread_t *thread_to_cancel);
 
@@ -113,8 +117,6 @@ bool pointers_match(void * ptr_1, void *ptr_2);
 
 int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list);
-
-void shared_list_prepend(t_Insert_Shared_List *insert_shared_list);
 
 int cancel_and_join_pthread(pthread_t *thread);
 void error_pthread(void);
