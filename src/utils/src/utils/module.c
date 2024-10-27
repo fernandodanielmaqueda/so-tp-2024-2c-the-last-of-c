@@ -369,14 +369,31 @@ void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(vo
 	if(list == NULL || condition == NULL || comparation == NULL)
 		return NULL;
 
-	t_link_element **indirect = &(list->head);
-	while (*indirect != NULL) {
-		if(condition(((*indirect)->data), comparation)) {
-			return (*indirect)->data;
+	t_link_element *current = list->head;
+	while(current != NULL) {
+		if(condition((current->data), comparation)) {
+			return current->data;
 		}
-		indirect = &((*indirect)->next);
+		current = current->next;
 	}
 	return NULL;
+}
+
+void list_destroy_and_free_elements(t_list *list) {
+	if(list == NULL)
+		return;
+
+	t_link_element *next;
+
+	t_link_element *element = list->head;
+	while(element != NULL) {
+		next = element->next;
+		free(element->data);
+		free(element);
+		element = next;
+	}
+
+	free(list);
 }
 
 bool pointers_match(void *ptr_1, void *ptr_2) {

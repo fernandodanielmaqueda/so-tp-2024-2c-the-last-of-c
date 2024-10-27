@@ -113,6 +113,7 @@ void log_error_clock_gettime(void);
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);
 void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
+void list_destroy_and_free_elements(t_list *list);
 bool pointers_match(void * ptr_1, void *ptr_2);
 
 int shared_list_init(t_Shared_List *shared_list);
