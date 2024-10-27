@@ -85,21 +85,41 @@ int module(int argc, char *argv[]) {
 	}
 
 	// Loggers
+	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
 	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
 
+	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
 	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
 
+	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
 	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
 
+	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
 	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
 		pthread_exit(NULL);
 	}
@@ -319,9 +339,13 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_NEW
 	pthread_cleanup_pop(1); // SCHEDULING_RWLOCK
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // thread_signal_manager
 
