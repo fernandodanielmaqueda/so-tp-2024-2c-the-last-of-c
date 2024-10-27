@@ -111,56 +111,91 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
 
 
-	// Variables globales
-
+	// SCHEDULING_RWLOCK
 	if((status = pthread_rwlock_init(&SCHEDULING_RWLOCK, NULL))) {
 		log_error_pthread_rwlock_init(status);
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &SCHEDULING_RWLOCK);
 
-	if(shared_list_init(&SHARED_LIST_NEW)) {
+	// SHARED_LIST_NEW
+	if((status = pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_NEW);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_NEW.mutex));
 
+	SHARED_LIST_NEW.list = list_create();
+	if(SHARED_LIST_NEW.list == NULL) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_NEW.list);
+
+	// ARRAY_READY_RWLOCK
 	if((status = pthread_rwlock_init(&ARRAY_READY_RWLOCK, NULL))) {
 		log_error_pthread_rwlock_init(status);
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &ARRAY_READY_RWLOCK);
 
+	// ARRAY_LIST_READY
 	pthread_cleanup_push((void (*)(void *)) array_list_ready_destroy, NULL);
 	if(array_list_ready_init()) {
 		pthread_exit(NULL);
 	}
 
+	// MUTEX_EXEC
 	if((status = pthread_mutex_init(&MUTEX_EXEC, NULL))) {
 		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXEC);
 
-	if(shared_list_init(&SHARED_LIST_BLOCKED_MEMORY_DUMP)) {
+	// SHARED_LIST_BLOCKED_MEMORY_DUMP
+	if((status = pthread_mutex_init(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_MEMORY_DUMP);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
 
-	if(shared_list_init(&SHARED_LIST_BLOCKED_IO_READY)) {
+	SHARED_LIST_BLOCKED_MEMORY_DUMP.list = list_create();
+	if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list == NULL) {
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_BLOCKED_IO_READY);
+	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_BLOCKED_MEMORY_DUMP.list);
 
+	// SHARED_LIST_BLOCKED_IO_READY
+	if((status = pthread_mutex_init(&(SHARED_LIST_BLOCKED_IO_READY.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_BLOCKED_IO_READY.mutex));
+
+	SHARED_LIST_BLOCKED_IO_READY.list = list_create();
+	if(SHARED_LIST_BLOCKED_IO_READY.list == NULL) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_BLOCKED_IO_READY.list);
+
+	// MUTEX_BLOCKED_IO_EXEC
 	if((status = pthread_mutex_init(&MUTEX_BLOCKED_IO_EXEC, NULL))) {
 		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_BLOCKED_IO_EXEC);
 
-	if(shared_list_init(&SHARED_LIST_EXIT)) {
+	// SHARED_LIST_EXIT
+	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
+		log_error_pthread_mutex_init(status);
 		pthread_exit(NULL);
 	}
-	pthread_cleanup_push((void (*)(void *)) shared_list_destroy, (void *) &SHARED_LIST_EXIT);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_EXIT.mutex));
+
+	SHARED_LIST_EXIT.list = list_create();
+	if(SHARED_LIST_EXIT.list == NULL) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_EXIT.list);
 
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
 		log_error_sem_init();
@@ -275,14 +310,18 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_IS_TCB_IN_CPU
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_EXIT
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_NEW
-	pthread_cleanup_pop(1); // SHARED_LIST_EXIT
+	pthread_cleanup_pop(1); // LIST_EXIT
+	pthread_cleanup_pop(1); // MUTEX_EXIT
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_EXEC
-	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_IO_READY
-	pthread_cleanup_pop(1); // SHARED_LIST_BLOCKED_MEMORY_DUMP
+	pthread_cleanup_pop(1); // LIST_BLOCKED_IO_READY
+	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_READY
+	pthread_cleanup_pop(1); // LIST_BLOCKED_MEMORY_DUMP
+	pthread_cleanup_pop(1); // MUTEX_BLOCKED_MEMORY_DUMP
 	pthread_cleanup_pop(1); // MUTEX_EXEC
 	pthread_cleanup_pop(1); // ARRAY_LIST_READY
 	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
-	pthread_cleanup_pop(1); // SHARED_LIST_NEW
+	pthread_cleanup_pop(1); // LIST_NEW
+	pthread_cleanup_pop(1); // MUTEX_NEW
 	pthread_cleanup_pop(1); // SCHEDULING_RWLOCK
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
@@ -783,11 +822,13 @@ int array_list_ready_resize(t_Priority priority) {
 }
 
 int array_list_ready_destroy(void) {
-	int retval = 0;
+	int retval = 0, status;
 	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
-		if(shared_list_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i]))) {
+		if((status = pthread_mutex_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].mutex)))) {
+			log_error_pthread_mutex_destroy(status);
 			retval = -1;
 		}
+		list_destroy_and_free_elements(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].list);
 	}
 	free(ARRAY_LIST_READY);
 	PRIORITY_COUNT = 0;

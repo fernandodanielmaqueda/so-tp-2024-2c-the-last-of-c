@@ -15,7 +15,6 @@ pthread_rwlock_t ARRAY_READY_RWLOCK;
 t_Shared_List *ARRAY_LIST_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
 
-// t_Shared_List SHARED_LIST_EXEC = { .list = NULL };
 t_TCB *TCB_EXEC = NULL;
 pthread_mutex_t MUTEX_EXEC;
 
@@ -23,7 +22,6 @@ t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP = { .list = NULL };
 
 t_Shared_List SHARED_LIST_BLOCKED_IO_READY = { .list = NULL };
 
-//t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC = { .list = NULL };
 t_TCB *TCB_BLOCKED_IO_EXEC = NULL;
 pthread_mutex_t MUTEX_BLOCKED_IO_EXEC;
 

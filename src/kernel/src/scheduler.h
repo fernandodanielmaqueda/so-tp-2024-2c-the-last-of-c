@@ -39,7 +39,6 @@ extern pthread_rwlock_t ARRAY_READY_RWLOCK;
 extern t_Shared_List *ARRAY_LIST_READY;
 extern t_Priority PRIORITY_COUNT;
 
-//extern t_Shared_List SHARED_LIST_EXEC;
 extern t_TCB *TCB_EXEC;
 extern pthread_mutex_t MUTEX_EXEC;
 
@@ -47,7 +46,6 @@ extern t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP;
 
 extern t_Shared_List SHARED_LIST_BLOCKED_IO_READY;
 
-//extern t_Shared_List SHARED_LIST_BLOCKED_IO_EXEC;
 extern t_TCB *TCB_BLOCKED_IO_EXEC;
 extern pthread_mutex_t MUTEX_BLOCKED_IO_EXEC;
 
