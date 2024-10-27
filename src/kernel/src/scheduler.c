@@ -1,3 +1,6 @@
+/* En los archivos (*.c) se pueden poner tanto DECLARACIONES como DEFINICIONES de C, así como directivas de preprocesador */
+/* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
+
 #include "scheduler.h"
 
 pthread_rwlock_t SCHEDULING_RWLOCK;
@@ -133,7 +136,6 @@ void *long_term_scheduler_new(void) {
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 	t_PCB *pcb;
-	t_Insert_Shared_List insert_shared_list;
 	int status, result;
 
 	while(1) {
@@ -154,24 +156,7 @@ void *long_term_scheduler_new(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-			if(((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex))))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_NEW.mutex));
-
-				if((SHARED_LIST_NEW.list)->head == NULL) {
-					pcb = NULL;
-				}
-				else {
-					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					pcb = (t_PCB *) list_remove(SHARED_LIST_NEW.list, 0);
-					insert_shared_list = (t_Insert_Shared_List) { .shared_list = &SHARED_LIST_NEW, .data = pcb };
-				}
-
-			pthread_cleanup_pop(0);
-			if(((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex))))) {
-				log_error_pthread_mutex_unlock(status);
+			if(get_state_new(&pcb)) {
 				error_pthread();
 			}
 
@@ -179,8 +164,7 @@ void *long_term_scheduler_new(void) {
 				goto cleanup_scheduling_rwlock;
 			}
 
-			pthread_cleanup_push((void (*)(void *)) shared_list_prepend, &insert_shared_list);
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_cleanup_push((void (*)(void *)) reinsert_state_new, pcb);
 
 				client_thread_connect_to_server(&connection_memory);
 				pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
@@ -246,15 +230,18 @@ void *long_term_scheduler_new(void) {
 			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				error_pthread();
 			}
-			switch_state(((t_TCB **) (pcb->thread_manager.array))[0], READY_STATE);
+			log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
+			insert_state_ready(((t_TCB **) (pcb->thread_manager.array))[0], NEW_STATE);
 
-	cleanup_pcb:
-		pthread_cleanup_pop(0); // shared_list_prepend
+		cleanup_pcb:
+		pthread_cleanup_pop(0); // reinsert_state_new
 		if(result) {
-			shared_list_prepend(&insert_shared_list);
+			if(reinsert_state_new(pcb)) {
+				error_pthread();
+			}
 		}
 
-	cleanup_scheduling_rwlock:
+		cleanup_scheduling_rwlock:
 		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_unlock(status);
@@ -283,19 +270,9 @@ void *long_term_scheduler_exit(void) {
 			error_pthread();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
-
-			if((status = pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex)))) {
-				log_error_pthread_mutex_lock(status);
+			if(get_state_exit(&tcb)) {
 				error_pthread();
 			}
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				tcb = (t_TCB *) list_remove((SHARED_LIST_EXIT.list), 0);
-				tcb->location = NULL;
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex)))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-
 		pthread_cleanup_pop(0);
 		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_unlock(status);
@@ -303,7 +280,6 @@ void *long_term_scheduler_exit(void) {
 		}
 
 		pthread_cleanup_push((void (*)(void *)) tcb_destroy, tcb);
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		// Libera recursos asignados al proceso
 		/*
@@ -346,7 +322,7 @@ void *long_term_scheduler_exit(void) {
 
 				list_add(pcb->assigned_resources, resource);
 
-				switch_state(pcb, READY_STATE);
+				insert_state_ready(tcb, BLOCKED_STATE);
 			}
 			else {
 				if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
@@ -367,7 +343,7 @@ void *long_term_scheduler_exit(void) {
 		}
 		*/
 
-		//log_info(MINIMAL_LOGGER, "Finaliza el proceso <%d> - Motivo: <%s>", pcb->PID, EXIT_REASONS[pcb->exit_reason]);
+		//log_info(MINIMAL_LOGGER, "Finaliza el proceso %d - Motivo: %s", pcb->PID, EXIT_REASONS[pcb->exit_reason]);
 
 		tid_release(&(tcb->pcb->thread_manager), tcb->TID);
 
@@ -468,11 +444,10 @@ void *quantum_interrupter(void) {
 		log_trace(SOCKET_LOGGER, "[%d] Se envia interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 	
 		post_binary_short_term_scheduler:
-
-			if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
-				log_error_sem_post();
-				error_pthread();
-			}
+		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
+			log_error_sem_post();
+			error_pthread();
+		}
 	}
 
 	return NULL;
@@ -499,76 +474,17 @@ void *short_term_scheduler(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-			tcb = NULL;
 			KILL_EXEC_TCB = false;
-			switch(SCHEDULING_ALGORITHM) {
 
-				case FIFO_SCHEDULING_ALGORITHM:
-
-					if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
-						log_error_pthread_mutex_lock(status);
-						error_pthread();
-					}
-					pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].mutex));
-						if((ARRAY_LIST_READY[0].list)->head != NULL) {
-							pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-							tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[0].list), 0);
-							tcb->location = NULL;
-						}
-					pthread_cleanup_pop(0);
-					if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
-						log_error_pthread_mutex_unlock(status);
-						error_pthread();
-					}
-
-					break;
-
-				case PRIORITIES_SCHEDULING_ALGORITHM:
-				case MLQ_SCHEDULING_ALGORITHM:
-					
-					for(register t_Priority priority = 0; ((tcb == NULL) && (priority < PRIORITY_COUNT)); priority++) {
-						if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority].mutex)))) {
-							log_error_pthread_mutex_lock(status);
-							error_pthread();
-						}
-						pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[priority].mutex));
-							if((ARRAY_LIST_READY[priority].list)->head != NULL) {
-								pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-								tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[priority].list), 0);
-								tcb->location = NULL;
-							}
-						pthread_cleanup_pop(0);
-						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].mutex)))) {
-							log_error_pthread_mutex_unlock(status);
-							error_pthread();
-						}
-					}
-
-					break;
-
+			if(get_state_ready(&tcb)) {
+				error_pthread();
 			}
 
 			if(tcb == NULL) {
 				goto cleanup_scheduling_rwlock;
 			}
 
-			tcb->current_state = EXEC_STATE;
-
-			if((status = pthread_mutex_lock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC);
-				//log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) tcb->TID, STATE_NAMES[previous_state]);
-				TCB_EXEC = tcb;
-				TCB_EXEC->location = &TCB_EXEC;
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-			break;
+			insert_state_exec(tcb, READY_STATE);
 
 			if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
 				log_error(MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
@@ -672,25 +588,29 @@ void *short_term_scheduler(void) {
 			switch(eviction_reason) {
 				case UNEXPECTED_ERROR_EVICTION_REASON:
 					TCB_EXEC->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
-					switch_state(TCB_EXEC, EXIT_STATE);
+					locate_and_remove_state(TCB_EXEC);
+					insert_state_exit(TCB_EXEC, EXEC_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case SEGMENTATION_FAULT_EVICTION_REASON:
 					TCB_EXEC->exit_reason = SEGMENTATION_FAULT_EXIT_REASON;
-					switch_state(TCB_EXEC, EXIT_STATE);
+					locate_and_remove_state(TCB_EXEC);
+					insert_state_exit(TCB_EXEC, EXEC_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case EXIT_EVICTION_REASON:
 					TCB_EXEC->exit_reason = SUCCESS_EXIT_REASON;
-					switch_state(TCB_EXEC, EXIT_STATE);
+					locate_and_remove_state(TCB_EXEC);
+					insert_state_exit(TCB_EXEC, EXEC_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case KILL_EVICTION_REASON:
 					TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-					switch_state(TCB_EXEC, EXIT_STATE);
+					locate_and_remove_state(TCB_EXEC);
+					insert_state_exit(TCB_EXEC, EXEC_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 					
@@ -698,7 +618,8 @@ void *short_term_scheduler(void) {
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-						switch_state(TCB_EXEC, EXIT_STATE);
+						locate_and_remove_state(TCB_EXEC);
+						insert_state_exit(TCB_EXEC, EXEC_STATE);
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
@@ -707,7 +628,8 @@ void *short_term_scheduler(void) {
 
 					if(status) {
 						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
-						switch_state(TCB_EXEC, EXIT_STATE);
+						locate_and_remove_state(TCB_EXEC);
+						insert_state_exit(TCB_EXEC, EXEC_STATE);
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
@@ -720,12 +642,14 @@ void *short_term_scheduler(void) {
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-						switch_state(TCB_EXEC, EXIT_STATE);
+						locate_and_remove_state(TCB_EXEC);
+						insert_state_exit(TCB_EXEC, EXEC_STATE);
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
 
-					switch_state(TCB_EXEC, READY_STATE);
+					locate_and_remove_state(TCB_EXEC);
+					insert_state_ready(TCB_EXEC, EXEC_STATE);
 					SHOULD_REDISPATCH = 0;
 					break;
 			}
@@ -770,22 +694,7 @@ void *io_device(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-			if(((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex))))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_IO_READY.mutex));
-				if((SHARED_LIST_BLOCKED_IO_READY.list)->head == NULL) {
-					tcb = NULL;
-				}
-				else {
-					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					tcb = (t_TCB *) list_remove(SHARED_LIST_BLOCKED_IO_READY.list, 0);
-					tcb->location = NULL;
-				}
-			pthread_cleanup_pop(0);
-			if(((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_IO_READY.mutex))))){
-				log_error_pthread_mutex_unlock(status);
+			if(get_state_blocked_io_ready(&tcb)) {
 				error_pthread();
 			}
 
@@ -793,21 +702,7 @@ void *io_device(void) {
 				goto cleanup_scheduling_rwlock;
 			}
 
-			tcb->current_state = BLOCKED_IO_EXEC_STATE;
-
-			if(((status = pthread_mutex_lock(&MUTEX_BLOCKED_IO_EXEC)))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_BLOCKED_IO_EXEC);
-				TCB_BLOCKED_IO_EXEC = tcb;
-				TCB_BLOCKED_IO_EXEC->location = &TCB_BLOCKED_IO_EXEC;
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_cleanup_pop(0);
-			if(((status = pthread_mutex_unlock(&MUTEX_BLOCKED_IO_EXEC)))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
+			insert_state_blocked_io_exec(tcb, BLOCKED_IO_READY_STATE);
 
 			payload_remove(&(TCB_BLOCKED_IO_EXEC->syscall_instruction), &time, sizeof(time));
 
@@ -820,7 +715,7 @@ void *io_device(void) {
 			error_pthread();
 		}
 
-		if(TCB_BLOCKED_IO_EXEC == NULL) {
+		if(tcb == NULL) {
 			continue;
 		}
 
@@ -865,23 +760,13 @@ void *io_device(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-			if((status = pthread_mutex_lock(&MUTEX_BLOCKED_IO_EXEC))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_BLOCKED_IO_EXEC);
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				tcb = TCB_BLOCKED_IO_EXEC;
-				TCB_BLOCKED_IO_EXEC = NULL;
-				tcb->location = NULL;
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&MUTEX_BLOCKED_IO_EXEC))) {
-				log_error_pthread_mutex_unlock(status);
+			if(get_state_blocked_io_exec(&tcb)) {
 				error_pthread();
 			}
 
 			if(tcb != NULL) {
-				switch_state(tcb, READY_STATE);
+				log_info(MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", tcb->pcb->PID, tcb->TID);
+				insert_state_ready(tcb, BLOCKED_IO_EXEC_STATE);
 			}
 
 		pthread_cleanup_pop(0);
@@ -918,7 +803,7 @@ int wait_free_memory(void) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 }
 
 void *dump_memory_petitioner(t_TCB *tcb) {
@@ -952,7 +837,7 @@ void *dump_memory_petitioner(t_TCB *tcb) {
 		error_pthread();
 	}
 
-
+	pthread_exit(NULL);
 }
 
 int list_remove_thread(pthread_t *thread) {
@@ -977,7 +862,7 @@ int list_remove_thread(pthread_t *thread) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 	*/
 return 0;
 }
@@ -1004,198 +889,5 @@ int signal_free_memory(void) {
 	}
 
 	ret:
-		return retval;
-}
-
-void switch_state(t_TCB *tcb, e_Process_State new_state) {
-
-	e_Process_State previous_state = tcb->current_state;
-	int status;
-
-	switch(previous_state) {
-
-		case READY_STATE:
-		{
-			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
-
-			if((status = pthread_rwlock_rdlock(&ARRAY_READY_RWLOCK))) {
-				log_error_pthread_rwlock_rdlock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
-				if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
-					log_error_pthread_mutex_lock(status);
-					error_pthread();
-				}
-				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(shared_list_state->mutex));
-					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) tcb_matches_tid, &(tcb->TID));
-					tcb->location = NULL;
-				pthread_cleanup_pop(0);
-				if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
-					log_error_pthread_mutex_unlock(status);
-					error_pthread();
-				}
-			pthread_cleanup_pop(0);
-			if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
-				log_error_pthread_rwlock_unlock(status);
-				error_pthread();
-			}
-
-			break;
-		}
-
-		case EXEC_STATE:
-		{
-			if((status = pthread_mutex_lock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC);
-				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				tcb->location = NULL;
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-			break;
-		}
-
-		default:
-			break;
-	}
-
-	tcb->current_state = new_state;
-
-	switch(new_state) {
-
-		case READY_STATE:
-		{
-			if((status = pthread_rwlock_rdlock(&ARRAY_READY_RWLOCK))) {
-				log_error_pthread_rwlock_rdlock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
-				switch(SCHEDULING_ALGORITHM) {
-
-					case FIFO_SCHEDULING_ALGORITHM:
-						if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
-							log_error_pthread_mutex_lock(status);
-							error_pthread();
-						}
-						pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].mutex));
-							list_add((ARRAY_LIST_READY[0].list), tcb);
-							tcb->location = &(ARRAY_LIST_READY[0]);
-							pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-						pthread_cleanup_pop(0);
-						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
-							log_error_pthread_mutex_unlock(status);
-							error_pthread();
-						}
-						break;
-
-					case PRIORITIES_SCHEDULING_ALGORITHM:
-					case MLQ_SCHEDULING_ALGORITHM:
-						if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
-							log_error_pthread_mutex_lock(status);
-							error_pthread();
-						}
-						pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[tcb->priority].mutex));
-							list_add((ARRAY_LIST_READY[tcb->priority].list), tcb);
-							tcb->location = &(ARRAY_LIST_READY[tcb->priority]);
-							pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-						pthread_cleanup_pop(0);
-						if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
-							log_error_pthread_mutex_unlock(status);
-							error_pthread();
-						}
-						break;
-				}
-			pthread_cleanup_pop(0);
-			if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
-				log_error_pthread_rwlock_unlock(status);
-				error_pthread();
-			}
-
-			if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-				log_error_sem_post();
-				error_pthread();
-			}
-
-			break;
-		}
-
-		case EXEC_STATE:
-		{
-			if((status = pthread_mutex_lock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC);
-				//log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) tcb->TID, STATE_NAMES[previous_state]);
-				TCB_EXEC = tcb;
-				tcb->location = &TCB_EXEC;
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&MUTEX_EXEC))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-			break;
-		}
-
-		case BLOCKED_IO_READY_STATE:
-		{
-			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_IO_READY.mutex));
-				//log_info(MINIMAL_LOGGER, "PID: <%d> - Estado Anterior: <%s> - Estado Actual: <EXEC>", (int) tcb->TID, STATE_NAMES[previous_state]);
-				log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", tcb->pcb->PID, tcb->TID);
-				list_add((SHARED_LIST_BLOCKED_IO_READY.list), tcb);
-				tcb->location = &SHARED_LIST_BLOCKED_IO_READY;
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_IO_READY.mutex)))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-
-			if(sem_post(&SEM_IO_DEVICE)) {
-				log_error_sem_post();
-				error_pthread();
-			}
-
-			break;
-		}
-
-		case EXIT_STATE:
-		{
-			if((status = pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex)))) {
-				log_error_pthread_mutex_lock(status);
-				error_pthread();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_EXIT.mutex));
-				list_add((SHARED_LIST_EXIT.list), tcb);
-				tcb->location = &SHARED_LIST_EXIT;
-				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex)))) {
-				log_error_pthread_mutex_unlock(status);
-				error_pthread();
-			}
-
-			if(sem_post(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-				log_error_sem_post();
-				error_pthread();
-			}
-
-			break;
-		}
-
-		default:
-			break;
-	}
+	return retval;
 }

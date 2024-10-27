@@ -18,11 +18,11 @@ const char *STATE_NAMES[] = {
 	[READY_STATE] = "READY",
 	[EXEC_STATE] = "EXEC",
 
-	[BLOCKED_JOIN_STATE] = "BLOCKED",
-	[BLOCKED_MUTEX_STATE] = "BLOCKED",
-	[BLOCKED_DUMP_STATE] = "BLOCKED",
-	[BLOCKED_IO_READY_STATE] = "BLOCKED",
-	[BLOCKED_IO_EXEC_STATE] = "BLOCKED",
+	[BLOCKED_JOIN_STATE] = "BLOCKED_JOIN",
+	[BLOCKED_MUTEX_STATE] = "BLOCKED_MUTEX",
+	[BLOCKED_DUMP_STATE] = "BLOCKED_DUMP",
+	[BLOCKED_IO_READY_STATE] = "BLOCKED_IO_READY",
+	[BLOCKED_IO_EXEC_STATE] = "BLOCKED_IO_EXEC",
 
 	[EXIT_STATE] = "EXIT"
 };
@@ -372,16 +372,16 @@ t_PCB *pcb_create(size_t size) {
 	}
 
 	cleanup_dictionary_mutexes:
-		pthread_cleanup_pop(retval);
+	pthread_cleanup_pop(retval);
 	cleanup_tid_manager:
-		pthread_cleanup_pop(retval);
+	pthread_cleanup_pop(retval);
 	cleanup_pcb:
-		pthread_cleanup_pop(retval);
+	pthread_cleanup_pop(retval);
 	ret:
-		if(retval)
-			return NULL;
-		else
-			return pcb;
+	if(retval)
+		return NULL;
+	else
+		return pcb;
 }
 
 int pcb_destroy(t_PCB *pcb) {
@@ -475,7 +475,7 @@ int pid_manager_init(t_PID_Manager *id_manager) {
 	id_manager->array = NULL;
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int tid_manager_init(t_TID_Manager *id_manager) {
@@ -497,7 +497,7 @@ int tid_manager_init(t_TID_Manager *id_manager) {
 	id_manager->array = NULL;
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int pid_manager_destroy(t_PID_Manager *id_manager) {
@@ -511,7 +511,7 @@ int pid_manager_destroy(t_PID_Manager *id_manager) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int tid_manager_destroy(t_TID_Manager *id_manager) {
@@ -525,7 +525,7 @@ int tid_manager_destroy(t_TID_Manager *id_manager) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
@@ -575,7 +575,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
@@ -625,7 +625,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 	}
 
 	ret:
-		return retval;
+	return retval;
 }
 
 int pid_release(t_PID_Manager *id_manager, t_PID id) {
@@ -669,7 +669,7 @@ bool tcb_matches_tid(t_TCB *tcb, t_TID *tid) {
 }
 
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
-	int retval = 0, status;
+	int retval = 0;
 
 	t_PCB *pcb = pcb_create(size);
 	if(pcb == NULL) {
@@ -687,23 +687,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	}
 	pthread_cleanup_push((void (*)(void *)) tcb_destroy, tcb);
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
-		log_error_pthread_mutex_lock(status);
-		retval = -1;
-		goto cleanup_tcb;
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, (void *) &(SHARED_LIST_NEW.mutex));
-		log_info(MINIMAL_LOGGER, "## (<%u>:%u) Se crea el proceso - Estado: NEW", pcb->PID, tcb->TID);
-		list_add(SHARED_LIST_NEW.list, pcb);
-	pthread_cleanup_pop(0);
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
-		log_error_pthread_mutex_unlock(status);
-		retval = -1;
-		goto cleanup_tcb;
-	}
-
-	if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-		log_error_sem_post();
+	if(insert_state_new(pcb)) {
 		retval = -1;
 		goto cleanup_tcb;
 	}
@@ -711,11 +695,11 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	return 0;
 
 	cleanup_tcb:
-		pthread_cleanup_pop(retval);
+	pthread_cleanup_pop(retval); // tcb_destroy
 	cleanup_pcb:
-		pthread_cleanup_pop(retval);
+	pthread_cleanup_pop(retval); // pcb_destroy
 	ret:
-		return retval;
+	return retval;
 }
 
 int array_list_ready_init(void) {

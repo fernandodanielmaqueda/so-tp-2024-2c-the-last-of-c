@@ -46,6 +46,4 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments);
 int dump_memory_kernel_syscall(t_Payload *syscall_arguments);
 int io_kernel_syscall(t_Payload *syscall_arguments);
 
-void kill_thread(t_TCB *tcb);
-
 #endif // KERNEL_SYSCALLS_H

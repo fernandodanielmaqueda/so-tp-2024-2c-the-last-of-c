@@ -1,3 +1,5 @@
+/* En los archivos de cabecera (header files) (*.h) poner DECLARACIONES (evitar DEFINICIONES) de C, así como directivas de preprocesador */
+/* Recordar solamente indicar archivos *.h en las directivas de preprocesador #include, nunca archivos *.c */
 
 #ifndef KERNEL_SCHEDULER_H
 #define KERNEL_SCHEDULER_H
@@ -23,6 +25,7 @@
 #include "utils/socket.h"
 #include "utils/timespec.h"
 #include "kernel.h"
+#include "transitions.h"
 
 extern pthread_rwlock_t SCHEDULING_RWLOCK;
 
@@ -88,18 +91,13 @@ void initialize_scheduling(void);
 int finish_scheduling(void);
 
 void *long_term_scheduler_new(void);
-void reinsert_pcb(t_PCB *pcb);
 void *long_term_scheduler_exit(void);
 void *quantum_interrupter(void);
 void *short_term_scheduler(void);
 void *io_device(void);
-void *memory_dumper(void);
+void *dump_memory_petitioner(t_TCB *tcb);
 
 int wait_free_memory(void);
 int signal_free_memory(void);
-
-void* start_quantum(t_TCB *tcb);
-
-void switch_state(t_TCB *tcb, e_Process_State new_state);
 
 #endif // KERNEL_SCHEDULER_H

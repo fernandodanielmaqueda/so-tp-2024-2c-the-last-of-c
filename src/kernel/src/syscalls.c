@@ -21,10 +21,12 @@ int syscall_execute(t_Payload *syscall_instruction) {
         error_pthread();
     }
 
-    if(SYSCALLS[syscall_opcode].function == NULL) {
+    if(syscall_opcode >= (sizeof(SYSCALLS) / sizeof(t_Syscall))) {
         log_warning(MODULE_LOGGER, "Syscall no encontrada");
         error_pthread();
     }
+
+    log_info(MINIMAL_LOGGER, "## (%u:%u) - Solicitó syscall: %s", TCB_EXEC->pcb->PID, TCB_EXEC->TID, SYSCALLS[syscall_opcode].name);
 
     if(SYSCALLS[syscall_opcode].function(syscall_instruction)) {
         return -1;
@@ -66,7 +68,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "PROCESS_EXIT");
 
-    // Cambio el rdlock por rwlock
+    // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
@@ -80,6 +82,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
         KILL_EXIT_REASON = PROCESS_EXIT_EXIT_REASON;
 
+        // TODO: REVISAR QUÉ PASA CON EL TCB ACTUAL
         for(t_TID tid = 0; tid < TCB_EXEC->pcb->thread_manager.counter; tid++) {
             tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
             if(tcb != NULL) {
@@ -126,7 +129,8 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     if(array_list_ready_update(new_tcb->priority)) {
         error_pthread();
     }
-    switch_state(new_tcb, READY_STATE);
+    log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", new_tcb->pcb->PID, new_tcb->TID);
+    insert_state_ready(new_tcb, NEW_STATE);
 
     SHOULD_REDISPATCH = 1;
     return 0;
@@ -148,7 +152,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
         return 0;
     }
 
-    // Cambio el rdlock por rwlock
+    // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
@@ -177,21 +181,8 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
         // Caso 3: Si se une a otro y no falla (se bloquea)
         SHOULD_REDISPATCH = 0;
-        switch_state(TCB_EXEC, BLOCKED_JOIN_STATE);
-
-        if((status = pthread_mutex_lock(&(tcb->shared_list_blocked_thread_join.mutex)))) {
-            log_error_pthread_mutex_lock(status);
-            error_pthread();
-        }
-        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(tcb->shared_list_blocked_thread_join.mutex));
-            list_add(tcb->shared_list_blocked_thread_join.list, TCB_EXEC);
-            TCB_EXEC->location = &(tcb->shared_list_blocked_thread_join);
-            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-        pthread_cleanup_pop(0);
-        if((status = pthread_mutex_unlock(&(tcb->shared_list_blocked_thread_join.mutex)))) {
-            log_error_pthread_mutex_unlock(status);
-            error_pthread();
-        }
+        locate_and_remove_state(TCB_EXEC);
+        insert_state_blocked_join(TCB_EXEC, tcb, EXEC_STATE);
 
     cleanup_scheduling_rwlock:
     // Regreso del wrlock al rdlock
@@ -228,7 +219,7 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     // Caso 2: Si cancela a otros (falle o no se hace redispatch)
     SHOULD_REDISPATCH = 1;
 
-    // Cambio el rdlock por rwlock
+    // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
@@ -335,7 +326,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
             // TODO
         }
             list_add(resource->shared_list_blocked.list, SYSCALL_PCB);
-            log_info(MINIMAL_LOGGER, "PID: <%d> - Bloqueado por: <%s>", (int) SYSCALL_PCB->PID, resource_name);
+            log_info(MINIMAL_LOGGER, "PID: %d - Bloqueado por: %s", (int) SYSCALL_PCB->PID, resource_name);
             SYSCALL_PCB->location = &(resource->shared_list_blocked);
         if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
             log_error_pthread_mutex_unlock(status);
@@ -459,49 +450,9 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "IO %lu", time);
 
-    switch_state(TCB_EXEC, BLOCKED_IO_READY_STATE); 
+    locate_and_remove_state(TCB_EXEC);
+    insert_state_blocked_io_ready(TCB_EXEC, EXEC_STATE);
 
     SHOULD_REDISPATCH = 0;
-
     return 0;
-}
-
-void kill_thread(t_TCB *tcb) {
-
-    switch(tcb->current_state) {
-
-        case READY_STATE:
-            tcb->exit_reason = KILL_EXIT_REASON;
-            switch_state(tcb, EXIT_STATE);
-            break;
-
-        case EXEC_STATE:
-            KILL_EXEC_TCB = 1;
-            if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
-                log_error(MODULE_LOGGER, "[%d] Error al enviar interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-                error_pthread();
-            }
-            log_trace(MODULE_LOGGER, "[%d] Se envia interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-            break;
-
-        /*
-        case BLOCKED_STATE:
-        {
-            pcb->exit_reason = KILL_EXIT_REASON;
-
-            t_Shared_List *shared_list_state = (t_Shared_List *) pcb->location;
-            pthread_mutex_lock(&(shared_list_state->mutex));
-                list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pcb_matches_pid, &(pcb->exec_context.PID));
-                pcb->location = NULL;
-            pthread_mutex_unlock(&(shared_list_state->mutex));
-
-            switch_process_state(pcb, EXIT_STATE);
-            break;
-        }
-        */
-
-        default:
-            break;
-    }
-
 }
