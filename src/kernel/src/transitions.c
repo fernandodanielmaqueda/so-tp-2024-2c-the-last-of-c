@@ -513,6 +513,31 @@ int insert_state_blocked_join(t_TCB *tcb, t_TCB *target, e_Process_State previou
 	return 0;
 }
 
+int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petition, e_Process_State previous_state) {
+	int status;
+
+	dump_memory_petition->tcb->current_state = BLOCKED_DUMP_STATE;
+
+	if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+		log_error_pthread_mutex_lock(status);
+		return -1;
+	}
+		list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
+		dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
+	if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+		PTHREAD_SETCANCELSTATE_DISABLE();
+			log_error_pthread_mutex_unlock(status);
+		PTHREAD_SETCANCELSTATE_OLDSTATE();
+		list_remove_by_condition_with_comparation((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+		return -1;
+	}
+
+	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID, STATE_NAMES[previous_state]);
+	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID);
+
+	return 0;
+}
+
 int insert_state_blocked_io_ready(t_TCB *tcb, e_Process_State previous_state) {
 	int status;
 

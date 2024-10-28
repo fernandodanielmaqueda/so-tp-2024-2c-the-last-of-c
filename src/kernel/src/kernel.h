@@ -101,6 +101,11 @@ typedef enum e_Scheduling_Algorithm {
     MLQ_SCHEDULING_ALGORITHM
 } e_Scheduling_Algorithm;
 
+typedef struct t_Dump_Memory_Petition {
+    t_Bool_Thread bool_thread;
+    t_TCB *tcb;
+} t_Dump_Memory_Petition;
+
 #include "resources.h"
 #include "socket.h"
 #include "scheduler.h"

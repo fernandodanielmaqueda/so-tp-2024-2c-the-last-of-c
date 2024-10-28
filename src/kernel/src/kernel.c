@@ -179,6 +179,13 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_BLOCKED_MEMORY_DUMP.list);
 
+	// COND_BLOCKED_MEMORY_DUMP
+	if((status = pthread_cond_init(&COND_BLOCKED_MEMORY_DUMP, NULL))) {
+		log_error_pthread_cond_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_BLOCKED_MEMORY_DUMP);
+
 	// SHARED_LIST_BLOCKED_IO_READY
 	if((status = pthread_mutex_init(&(SHARED_LIST_BLOCKED_IO_READY.mutex), NULL))) {
 		log_error_pthread_mutex_init(status);
@@ -330,6 +337,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_EXEC
 	pthread_cleanup_pop(1); // LIST_BLOCKED_IO_READY
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_READY
+	pthread_cleanup_pop(1); // COND_BLOCKED_MEMORY_DUMP
 	pthread_cleanup_pop(1); // LIST_BLOCKED_MEMORY_DUMP
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_MEMORY_DUMP
 	pthread_cleanup_pop(1); // MUTEX_EXEC

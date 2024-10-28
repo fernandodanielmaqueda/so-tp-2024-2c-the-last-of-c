@@ -5,9 +5,6 @@
 
 pthread_rwlock_t SCHEDULING_RWLOCK;
 
-t_Shared_List SHARED_LIST_THREADS_MEMORY_DUMP = { .list = NULL };
-pthread_cond_t COND_THREADS_MEMORY_DUMP;
-
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
 pthread_rwlock_t ARRAY_READY_RWLOCK;
@@ -19,6 +16,7 @@ t_TCB *TCB_EXEC = NULL;
 pthread_mutex_t MUTEX_EXEC;
 
 t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP = { .list = NULL };
+pthread_cond_t COND_BLOCKED_MEMORY_DUMP;
 
 t_Shared_List SHARED_LIST_BLOCKED_IO_READY = { .list = NULL };
 
@@ -141,7 +139,7 @@ void *long_term_scheduler_new(void) {
 		if(wait_free_memory()) {
 			error_pthread();
 		}
-	
+
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 			log_error_sem_wait();
 			error_pthread();
@@ -713,6 +711,7 @@ void *io_device(void) {
 			error_pthread();
 		}
 
+
 		if(tcb == NULL) {
 			continue;
 		}
@@ -751,6 +750,7 @@ void *io_device(void) {
 			log_error_pthread_mutex_unlock(status);
 			error_pthread();
 		}
+
 
 		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_rdlock(status);
@@ -804,12 +804,15 @@ int wait_free_memory(void) {
 	return retval;
 }
 
-void *dump_memory_petitioner(t_TCB *tcb) {
+void *dump_memory_petitioner(void) {
 
 	// pthread_cleanup_push
 	// Sacarme de la lista de hilos
-	
-	log_trace(MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado [PID: %u - TID: %u]", tcb->pcb->PID, tcb->TID);
+
+	log_trace(MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
+
+	t_PID pid = 0;
+	t_TID tid = 0;
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 	int status, result;
@@ -817,17 +820,17 @@ void *dump_memory_petitioner(t_TCB *tcb) {
 	client_thread_connect_to_server(&connection_memory);
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
-		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, tcb->pcb->PID, tcb->TID, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, pid, tid, connection_memory.fd_connection)) {
+			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
 			error_pthread();
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
 
 		if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
 			error_pthread();
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID, result);
+		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid, result);
 
 	pthread_cleanup_pop(0);
 	if(close(connection_memory.fd_connection)) {
