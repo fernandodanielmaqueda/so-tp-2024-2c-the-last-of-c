@@ -315,7 +315,3 @@ int wrapper_close(int *fd) {
 
 	return 0;
 }
-
-bool client_matches_pthread(t_Client *client, pthread_t *thread) {
-    return pthread_equal(client->thread_client_handler, *thread);
-}

@@ -435,16 +435,15 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 		error_pthread();
 	}
     pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
+        dump_memory_petition->bool_thread.running = false;
+        dump_memory_petition->tcb = TCB_EXEC;
 
-	dump_memory_petition->bool_thread.running = false;
-	dump_memory_petition->tcb = TCB_EXEC;
-
-    if(locate_and_remove_state(TCB_EXEC)) {
-        error_pthread();
-    }
-    if(insert_state_blocked_dump_memory(dump_memory_petition, EXEC_STATE)) {
-        error_pthread();
-    }
+        if(locate_and_remove_state(TCB_EXEC)) {
+            error_pthread();
+        }
+        if(insert_state_blocked_dump_memory(dump_memory_petition, EXEC_STATE)) {
+            error_pthread();
+        }
     pthread_cleanup_pop(0);
 
 	if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {

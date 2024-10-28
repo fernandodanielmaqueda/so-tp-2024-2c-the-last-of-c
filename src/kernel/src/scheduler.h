@@ -93,6 +93,9 @@ void *short_term_scheduler(void);
 void *io_device(void);
 void *dump_memory_petitioner(void);
 
+int remove_dump_memory_thread(pthread_t *thread);
+bool dump_memory_petition_matches_pthread(t_Dump_Memory_Petition *dump_memory_petition, pthread_t *thread);
+
 int wait_free_memory(void);
 int signal_free_memory(void);
 
