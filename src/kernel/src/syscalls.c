@@ -82,7 +82,6 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
         KILL_EXIT_REASON = PROCESS_EXIT_EXIT_REASON;
 
-        // TODO: REVISAR QUÉ PASA CON EL TCB ACTUAL
         for(t_TID tid = 0; tid < TCB_EXEC->pcb->thread_manager.counter; tid++) {
             tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
             if(tcb != NULL) {
@@ -102,8 +101,9 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
-    TCB_EXEC->exit_reason = PROCESS_EXIT_EXIT_REASON;
-    return -1;
+    // El hilo actual ya se envió a EXIT
+    SHOULD_REDISPATCH = 0;
+    return 0;
 }
 
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
