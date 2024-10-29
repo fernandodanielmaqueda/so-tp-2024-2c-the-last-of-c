@@ -71,6 +71,13 @@ typedef struct t_Memory_Process {
     pthread_mutex_t mutex_array_memory_threads;
 } t_Memory_Process;
 
+typedef struct t_FS_Data{
+        t_PID pid;
+        t_TID tid;
+        char* namefile;
+        void *position;
+} t_FS_Data;
+
 extern size_t MEMORY_SIZE;
 extern char *INSTRUCTIONS_PATH;
 extern int RESPONSE_DELAY;
@@ -160,6 +167,7 @@ void free_threads(int pid);
 int create_thread(t_Payload *payload);
 int kill_thread(t_Payload *payload);
 int treat_memory_dump(t_Payload *payload);
+void* attend_memory_dump(void* arg);
 void seek_cpu_context(t_Payload *payload);
 void update_cpu_context(t_Payload *payload);
 
