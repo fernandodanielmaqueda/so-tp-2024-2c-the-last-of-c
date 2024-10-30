@@ -20,7 +20,7 @@ void kill_thread(t_TCB *tcb) {
             if(locate_and_remove_state(tcb)) {
 				error_pthread();
 			}
-            if(insert_state_exit(tcb, READY_STATE)) {
+            if(insert_state_exit(tcb, tcb->current_state)) {
 				error_pthread();
 			}
             break;
@@ -292,6 +292,12 @@ int locate_and_remove_state(t_TCB *tcb) {
 
 	switch(tcb->current_state) {
 
+		// No se aplica
+		case NEW_STATE:
+		{
+			break;
+		}
+
 		case READY_STATE:
 		{
 			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
@@ -345,6 +351,44 @@ int locate_and_remove_state(t_TCB *tcb) {
 			break;
 		}
 
+		case BLOCKED_JOIN_STATE:
+		{
+			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
+
+			if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
+				log_error_pthread_mutex_lock(status);
+				retval = -1;
+				goto ret;
+			}
+				list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) tcb_matches_tid, &(tcb->TID));
+				tcb->location = NULL;
+			if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
+				log_error_pthread_mutex_unlock(status);
+				retval = -1;
+				goto ret;
+			}
+
+			break;
+		}
+
+		case BLOCKED_MUTEX_STATE:
+		{
+			// TODO
+			break;
+		}
+
+		case BLOCKED_DUMP_STATE:
+		{
+			// TODO
+			break;
+		}
+
+		case BLOCKED_IO_READY_STATE:
+		{
+			// TODO
+			break;
+		}
+
 		case BLOCKED_IO_EXEC_STATE:
 		{
 			if((status = pthread_mutex_lock(&MUTEX_BLOCKED_IO_EXEC))) {
@@ -362,8 +406,9 @@ int locate_and_remove_state(t_TCB *tcb) {
 
 			break;
 		}
-	
-		default:
+
+		// No se aplica
+		case EXIT_STATE:
 		{
 			break;
 		}

@@ -181,8 +181,12 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
         // Caso 3: Si se une a otro y no falla (se bloquea)
         SHOULD_REDISPATCH = 0;
-        locate_and_remove_state(TCB_EXEC);
-        insert_state_blocked_join(TCB_EXEC, tcb, EXEC_STATE);
+        if(locate_and_remove_state(TCB_EXEC)) {
+            error_pthread();
+        }
+        if(insert_state_blocked_join(TCB_EXEC, tcb, EXEC_STATE)) {
+            error_pthread();
+        }
 
     cleanup_scheduling_rwlock:
     // Regreso del wrlock al rdlock

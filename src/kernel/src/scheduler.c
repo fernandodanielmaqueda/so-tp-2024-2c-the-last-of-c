@@ -226,8 +226,12 @@ void *long_term_scheduler_new(void) {
 			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				error_pthread();
 			}
+
 			log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
-			insert_state_ready(((t_TCB **) (pcb->thread_manager.array))[0], NEW_STATE);
+
+			if(insert_state_ready(((t_TCB **) (pcb->thread_manager.array))[0], NEW_STATE)) {
+				error_pthread();
+			}
 
 		cleanup_pcb:
 		pthread_cleanup_pop(0); // reinsert_state_new
@@ -318,7 +322,9 @@ void *long_term_scheduler_exit(void) {
 
 				list_add(pcb->assigned_resources, resource);
 
-				insert_state_ready(tcb, BLOCKED_STATE);
+				if(insert_state_ready(tcb, BLOCKED_STATE)) {
+					TODO
+				}
 			}
 			else {
 				if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
@@ -480,7 +486,9 @@ void *short_term_scheduler(void) {
 				goto cleanup_scheduling_rwlock;
 			}
 
-			insert_state_exec(tcb, READY_STATE);
+			if(insert_state_exec(tcb, READY_STATE)) {
+				error_pthread();
+			}
 
 			if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.fd_connection)) {
 				log_error(MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
@@ -584,29 +592,45 @@ void *short_term_scheduler(void) {
 			switch(eviction_reason) {
 				case UNEXPECTED_ERROR_EVICTION_REASON:
 					TCB_EXEC->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
-					locate_and_remove_state(TCB_EXEC);
-					insert_state_exit(TCB_EXEC, EXEC_STATE);
+					if(locate_and_remove_state(TCB_EXEC)) {
+						error_pthread();
+					}
+					if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+						error_pthread();
+					}
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case SEGMENTATION_FAULT_EVICTION_REASON:
 					TCB_EXEC->exit_reason = SEGMENTATION_FAULT_EXIT_REASON;
-					locate_and_remove_state(TCB_EXEC);
-					insert_state_exit(TCB_EXEC, EXEC_STATE);
+					if(locate_and_remove_state(TCB_EXEC)) {
+						error_pthread();
+					}
+					if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+						error_pthread();
+					}
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case EXIT_EVICTION_REASON:
 					TCB_EXEC->exit_reason = SUCCESS_EXIT_REASON;
-					locate_and_remove_state(TCB_EXEC);
-					insert_state_exit(TCB_EXEC, EXEC_STATE);
+					if(locate_and_remove_state(TCB_EXEC)) {
+						error_pthread();
+					}
+					if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+						error_pthread();
+					}
 					SHOULD_REDISPATCH = 0;
 					break;
 
 				case KILL_EVICTION_REASON:
 					TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-					locate_and_remove_state(TCB_EXEC);
-					insert_state_exit(TCB_EXEC, EXEC_STATE);
+					if(locate_and_remove_state(TCB_EXEC)) {
+						error_pthread();
+					}
+					if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+						error_pthread();
+					}
 					SHOULD_REDISPATCH = 0;
 					break;
 					
@@ -614,8 +638,12 @@ void *short_term_scheduler(void) {
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-						locate_and_remove_state(TCB_EXEC);
-						insert_state_exit(TCB_EXEC, EXEC_STATE);
+						if(locate_and_remove_state(TCB_EXEC)) {
+							error_pthread();
+						}
+						if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+							error_pthread();
+						}
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
@@ -624,8 +652,12 @@ void *short_term_scheduler(void) {
 
 					if(status) {
 						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
-						locate_and_remove_state(TCB_EXEC);
-						insert_state_exit(TCB_EXEC, EXEC_STATE);
+						if(locate_and_remove_state(TCB_EXEC)) {
+							error_pthread();
+						}
+						if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+							error_pthread();
+						}
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
@@ -638,14 +670,22 @@ void *short_term_scheduler(void) {
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
-						locate_and_remove_state(TCB_EXEC);
-						insert_state_exit(TCB_EXEC, EXEC_STATE);
+						if(locate_and_remove_state(TCB_EXEC)) {
+							error_pthread();
+						}
+						if(insert_state_exit(TCB_EXEC, EXEC_STATE)) {
+							error_pthread();
+						}
 						SHOULD_REDISPATCH = 0;
 						break;
 					}
 
-					locate_and_remove_state(TCB_EXEC);
-					insert_state_ready(TCB_EXEC, EXEC_STATE);
+					if(locate_and_remove_state(TCB_EXEC)) {
+						error_pthread();
+					}
+					if(insert_state_ready(TCB_EXEC, EXEC_STATE)) {
+						error_pthread();
+					}
 					SHOULD_REDISPATCH = 0;
 					break;
 			}
@@ -698,7 +738,9 @@ void *io_device(void) {
 				goto cleanup_scheduling_rwlock;
 			}
 
-			insert_state_blocked_io_exec(tcb, BLOCKED_IO_READY_STATE);
+			if(insert_state_blocked_io_exec(tcb, BLOCKED_IO_READY_STATE)) {
+				error_pthread();
+			}
 
 			payload_remove(&(TCB_BLOCKED_IO_EXEC->syscall_instruction), &time, sizeof(time));
 
@@ -764,7 +806,9 @@ void *io_device(void) {
 
 			if(tcb != NULL) {
 				log_info(MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", tcb->pcb->PID, tcb->TID);
-				insert_state_ready(tcb, BLOCKED_IO_EXEC_STATE);
+				if(insert_state_ready(tcb, BLOCKED_IO_EXEC_STATE)) {
+					error_pthread();
+				}
 			}
 
 		pthread_cleanup_pop(0);
