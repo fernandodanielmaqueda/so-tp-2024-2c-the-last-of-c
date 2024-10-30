@@ -130,7 +130,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         error_pthread();
     }
     log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", new_tcb->pcb->PID, new_tcb->TID);
-    insert_state_ready(new_tcb, NEW_STATE);
+    insert_state_ready(new_tcb);
 
     SHOULD_REDISPATCH = 1;
     return 0;
@@ -181,10 +181,10 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
         // Caso 3: Si se une a otro y no falla (se bloquea)
         SHOULD_REDISPATCH = 0;
-        if(locate_and_remove_state(TCB_EXEC)) {
+        if(get_state_exec(&TCB_EXEC)) {
             error_pthread();
         }
-        if(insert_state_blocked_join(TCB_EXEC, tcb, EXEC_STATE)) {
+        if(insert_state_blocked_join(TCB_EXEC, tcb)) {
             error_pthread();
         }
 
@@ -442,10 +442,10 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
         dump_memory_petition->bool_thread.running = false;
         dump_memory_petition->tcb = TCB_EXEC;
 
-        if(locate_and_remove_state(TCB_EXEC)) {
+        if(get_state_exec(&TCB_EXEC)) {
             error_pthread();
         }
-        if(insert_state_blocked_dump_memory(dump_memory_petition, EXEC_STATE)) {
+        if(insert_state_blocked_dump_memory(dump_memory_petition)) {
             error_pthread();
         }
     pthread_cleanup_pop(0);
@@ -474,10 +474,10 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "IO %lu", time);
 
-    if(locate_and_remove_state(TCB_EXEC)) {
+    if(get_state_exec(&TCB_EXEC)) {
         error_pthread();
     }
-    if(insert_state_blocked_io_ready(TCB_EXEC, EXEC_STATE)) {
+    if(insert_state_blocked_io_ready(TCB_EXEC)) {
         error_pthread();
     }
 

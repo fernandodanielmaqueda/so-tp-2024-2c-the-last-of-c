@@ -95,6 +95,7 @@ void *dump_memory_petitioner(void);
 
 int remove_dump_memory_thread(pthread_t *thread);
 bool dump_memory_petition_matches_pthread(t_Dump_Memory_Petition *dump_memory_petition, pthread_t *thread);
+bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petition, t_TCB *tcb);
 
 int wait_free_memory(void);
 int signal_free_memory(void);
