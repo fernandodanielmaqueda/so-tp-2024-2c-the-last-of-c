@@ -71,23 +71,23 @@ int locate_and_remove_state(t_TCB *tcb) {
 				retval = -1;
 				goto ret;
 			}
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
+
 				if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_lock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
 					list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pointers_match, tcb);
 					tcb->location = NULL;
 				if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_unlock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
+
 			cleanup_ready_rwlock:
+			pthread_cleanup_pop(0);
 			if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
 				log_error_pthread_rwlock_unlock(status);
 				retval = -1;
@@ -410,22 +410,20 @@ int insert_state_ready(t_TCB *tcb) {
 		log_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
+
 		switch(SCHEDULING_ALGORITHM) {
 
 			case FIFO_SCHEDULING_ALGORITHM:
 				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_lock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
 					list_add((ARRAY_LIST_READY[0].list), tcb);
 					tcb->location = &(ARRAY_LIST_READY[0]);
 				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_unlock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
@@ -434,37 +432,30 @@ int insert_state_ready(t_TCB *tcb) {
 			case PRIORITIES_SCHEDULING_ALGORITHM:
 			case MLQ_SCHEDULING_ALGORITHM:
 				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_lock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
 					list_add((ARRAY_LIST_READY[tcb->priority].list), tcb);
 					tcb->location = &(ARRAY_LIST_READY[tcb->priority]);
 				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
-					PTHREAD_SETCANCELSTATE_DISABLE();
-						log_error_pthread_mutex_unlock(status);
-					PTHREAD_SETCANCELSTATE_OLDSTATE();
+					log_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
 				break;
 		}
 
-	PTHREAD_SETCANCELSTATE_DISABLE();
-		log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
-	PTHREAD_SETCANCELSTATE_OLDSTATE();
+	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-		PTHREAD_SETCANCELSTATE_DISABLE();
-			log_error_sem_post();
-		PTHREAD_SETCANCELSTATE_OLDSTATE();
+		log_error_sem_post();
 		retval = -1;
 		goto cleanup_ready_rwlock;
 	}
 
 	cleanup_ready_rwlock:
+	pthread_cleanup_pop(0);
 	if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
 		log_error_pthread_rwlock_unlock(status);
 		retval = -1;
@@ -521,22 +512,64 @@ int insert_state_blocked_join(t_TCB *tcb, t_TCB *target) {
 }
 
 int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petition) {
-	int status;
+	int retval = 0, status;
 
 	e_Process_State previous_state = dump_memory_petition->tcb->current_state;
 	dump_memory_petition->tcb->current_state = BLOCKED_DUMP_STATE;
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		log_error_pthread_mutex_lock(status);
-		return -1;
-	}
-		list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
-		dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		PTHREAD_SETCANCELSTATE_DISABLE();
+	bool join = false;
+	t_Bool_Join_Thread join_thread = { .thread = &(dump_memory_petition->bool_thread.thread), .join = &join };
+	pthread_cleanup_push((void (*)(void *)) wrapper_join, &join_thread);
+
+		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			log_error_pthread_mutex_lock(status);
+			retval = -1;
+			goto cleanup_join;
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+
+			if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {
+				log_error_pthread_create(status);
+				retval = -1;
+				goto cleanup_blocked_memory_dump_mutex;
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_cancel, dump_memory_petition->bool_thread.thread);
+
+				join = true;
+					if((status = pthread_detach(dump_memory_petition->bool_thread.thread))) {
+						log_error_pthread_detach(status);
+						retval = -1;
+						goto cleanup_cancel_thread;
+					}
+				join = false;
+
+			cleanup_cancel_thread:
+			pthread_cleanup_pop(0);
+			if(retval) {
+				if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
+					join = false;
+					log_error_pthread_cancel(status);
+				}
+				goto cleanup_blocked_memory_dump_mutex;
+			}
+
+			dump_memory_petition->bool_thread.running = true;
+
+			list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
+			dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
+
+		cleanup_blocked_memory_dump_mutex:
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			join = false;
 			log_error_pthread_mutex_unlock(status);
-		PTHREAD_SETCANCELSTATE_OLDSTATE();
-		list_remove_by_condition_with_comparation((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+			retval = -1;
+		}
+
+	cleanup_join:
+	pthread_cleanup_pop(0);
+	if(retval) {
+		wrapper_join(&join_thread);
 		return -1;
 	}
 

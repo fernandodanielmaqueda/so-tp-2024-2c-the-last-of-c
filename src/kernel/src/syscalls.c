@@ -450,13 +450,6 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
         }
     pthread_cleanup_pop(0);
 
-	if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {
-		log_error_pthread_create(status);
-		error_pthread();
-	}
-
-	dump_memory_petition->bool_thread.running = true;
-
     SHOULD_REDISPATCH = 0;
     return 0;
 }

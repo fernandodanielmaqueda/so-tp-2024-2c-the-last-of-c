@@ -24,6 +24,11 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
+typedef struct t_Bool_Join_Thread {
+    bool *join;
+    pthread_t *thread;
+} t_Bool_Join_Thread;
+
 extern pthread_t THREAD_SIGNAL_MANAGER;
 
 extern char *MODULE_NAME;
@@ -124,6 +129,7 @@ int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list);
 
 int cancel_and_join_pthread(pthread_t *thread);
+int wrapper_join(t_Wrapper_Join *wrapper_join);
 void error_pthread(void);
 
 #endif // UTILS_MODULE_H

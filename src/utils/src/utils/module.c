@@ -469,6 +469,19 @@ int cancel_and_join_pthread(pthread_t *thread) {
 	return 0;
 }
 
+int wrapper_join(t_Bool_Join_Thread *join_thread) {
+	int status;
+
+	if(*(join_thread->join)) {
+		if((status = pthread_join(*(join_thread->thread), NULL))) {
+			log_error_pthread_join(status);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 void error_pthread(void) {
 	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL+C
 	pthread_exit(NULL);
