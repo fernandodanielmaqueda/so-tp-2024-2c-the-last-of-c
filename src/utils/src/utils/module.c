@@ -469,7 +469,18 @@ int cancel_and_join_pthread(pthread_t *thread) {
 	return 0;
 }
 
-int wrapper_join(t_Bool_Join_Thread *join_thread) {
+int wrapper_pthread_cancel(pthread_t *thread) {
+	int status;
+
+	if((status = pthread_cancel(*thread))) {
+		log_error_pthread_cancel(status);
+		return -1;
+	}
+
+	return 0;
+}
+
+int wrapper_pthread_join(t_Bool_Join_Thread *join_thread) {
 	int status;
 
 	if(*(join_thread->join)) {

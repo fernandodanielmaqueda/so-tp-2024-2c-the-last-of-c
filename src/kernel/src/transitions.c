@@ -519,7 +519,7 @@ int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petitio
 
 	bool join = false;
 	t_Bool_Join_Thread join_thread = { .thread = &(dump_memory_petition->bool_thread.thread), .join = &join };
-	pthread_cleanup_push((void (*)(void *)) wrapper_join, &join_thread);
+	pthread_cleanup_push((void (*)(void *)) wrapper_pthread_join, &join_thread);
 
 		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
 			log_error_pthread_mutex_lock(status);
@@ -533,7 +533,7 @@ int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petitio
 				retval = -1;
 				goto cleanup_blocked_memory_dump_mutex;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_cancel, dump_memory_petition->bool_thread.thread);
+			pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(dump_memory_petition->bool_thread.thread));
 
 				join = true;
 					if((status = pthread_detach(dump_memory_petition->bool_thread.thread))) {
@@ -569,7 +569,7 @@ int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petitio
 	cleanup_join:
 	pthread_cleanup_pop(0);
 	if(retval) {
-		wrapper_join(&join_thread);
+		wrapper_pthread_join(&join_thread);
 		return -1;
 	}
 

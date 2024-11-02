@@ -129,7 +129,8 @@ int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list);
 
 int cancel_and_join_pthread(pthread_t *thread);
-int wrapper_join(t_Wrapper_Join *wrapper_join);
+int wrapper_pthread_cancel(pthread_t *thread);
+int wrapper_pthread_join(t_Bool_Join_Thread *join_thread);
 void error_pthread(void);
 
 #endif // UTILS_MODULE_H
