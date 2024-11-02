@@ -270,7 +270,7 @@ int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "THREAD_EXIT");
 
-    TCB_EXEC->exit_reason = SUCCESS_EXIT_REASON;
+    TCB_EXEC->exit_reason = THREAD_EXIT_EXIT_REASON;
     return -1;
 }
 

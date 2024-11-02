@@ -615,14 +615,19 @@ void *short_term_scheduler(void) {
 					break;
 
 				case EXIT_EVICTION_REASON:
-					TCB_EXEC->exit_reason = SUCCESS_EXIT_REASON;
-					if(get_state_exec(&TCB_EXEC)) {
-						error_pthread();
+					if(syscall_execute(&syscall_instruction)) {
+						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
+						if(get_state_exec(&TCB_EXEC)) {
+							error_pthread();
+						}
+						if(insert_state_exit(TCB_EXEC)) {
+							error_pthread();
+						}
+						SHOULD_REDISPATCH = 0;
+						break;
 					}
-					if(insert_state_exit(TCB_EXEC)) {
-						error_pthread();
-					}
-					SHOULD_REDISPATCH = 0;
+
+					// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC) y/o el SHOULD_REDISPATCH
 					break;
 
 				case KILL_EVICTION_REASON:
@@ -650,9 +655,7 @@ void *short_term_scheduler(void) {
 						break;
 					}
 
-					status = syscall_execute(&syscall_instruction);
-
-					if(status) {
+					if(syscall_execute(&syscall_instruction)) {
 						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
 						if(get_state_exec(&TCB_EXEC)) {
 							error_pthread();

@@ -65,7 +65,6 @@ int set_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -130,7 +129,6 @@ int read_mem_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -182,7 +180,6 @@ int write_mem_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -219,7 +216,6 @@ int sum_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -256,7 +252,6 @@ int sub_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -292,7 +287,6 @@ int jnz_cpu_operation(int argc, char **argv) {
         EXEC_CONTEXT.cpu_registers.PC++;
     
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -320,7 +314,6 @@ int log_cpu_operation(int argc, char **argv) {
     EXEC_CONTEXT.cpu_registers.PC++;
 
     SYSCALL_CALLED = 0;
-
     return 0;
 }
 
@@ -335,7 +328,6 @@ int process_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
         size_t size;
@@ -353,6 +345,7 @@ int process_create_cpu_operation(int argc, char **argv) {
         }
     payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority));
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -367,9 +360,9 @@ int process_exit_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_EXIT_CPU_OPCODE);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -384,7 +377,6 @@ int thread_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
         t_Priority priority;
@@ -395,6 +387,7 @@ int thread_create_cpu_operation(int argc, char **argv) {
         }
     payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority));
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -409,7 +402,6 @@ int thread_join_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE);
         t_TID tid;
         if(str_to_tid(argv[1], &tid)) {
@@ -419,6 +411,7 @@ int thread_join_cpu_operation(int argc, char **argv) {
         }
     payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -433,7 +426,6 @@ int thread_cancel_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE);
         t_TID tid;
         if(str_to_tid(argv[1], &tid)) {
@@ -443,6 +435,7 @@ int thread_cancel_cpu_operation(int argc, char **argv) {
         }
     payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -457,9 +450,9 @@ int thread_exit_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_EXIT_CPU_OPCODE);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -474,10 +467,10 @@ int mutex_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_CREATE_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -492,10 +485,10 @@ int mutex_lock_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_LOCK_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -510,10 +503,10 @@ int mutex_unlock_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_UNLOCK_CPU_OPCODE);
     text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -528,9 +521,9 @@ int dump_memory_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, DUMP_MEMORY_CPU_OPCODE);
 
+    SYSCALL_CALLED = 1;
     return 0;
 }
 
@@ -545,7 +538,6 @@ int io_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    SYSCALL_CALLED = 1;
     cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE);
         t_Time time;
         if(str_to_time(argv[1], &time)) {
@@ -555,5 +547,6 @@ int io_cpu_operation(int argc, char **argv) {
         }
     payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(time));
 
+    SYSCALL_CALLED = 1;
     return 0;
 }

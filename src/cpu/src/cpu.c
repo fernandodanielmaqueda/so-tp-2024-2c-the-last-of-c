@@ -248,9 +248,16 @@ void instruction_cycle(void)
             }
 
             // Check Interrupts
-            if((cpu_opcode == PROCESS_EXIT_CPU_OPCODE) || (cpu_opcode == THREAD_EXIT_CPU_OPCODE)) {
-                EVICTION_REASON = EXIT_EVICTION_REASON;
-                break;
+            switch(cpu_opcode) {
+
+                case PROCESS_EXIT_CPU_OPCODE:
+                case THREAD_EXIT_CPU_OPCODE:
+                    EVICTION_REASON = EXIT_EVICTION_REASON;
+                    break;
+
+                default:
+                    break;
+
             }
 
             if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
