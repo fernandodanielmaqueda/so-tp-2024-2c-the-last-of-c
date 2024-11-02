@@ -4,24 +4,47 @@
 #include "resources.h"
 
 t_Resource *resource_create(void) {
-	int status;
+	int retval = 0, status;
 
 	t_Resource *resource = malloc(sizeof(t_Resource));
 	if(resource == NULL) {
 		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
-		return NULL;
+		retval = -1;
+		goto ret;
 	}
+	pthread_cleanup_push((void (*)(void *)) free, resource);
 
-	resource->shared_list_blocked.list = list_create();
-	if((status = pthread_mutex_init(&(resource->shared_list_blocked.mutex), NULL))) {
+	if((status = pthread_mutex_init(&(resource->mutex_resource), NULL))) {
 		log_error_pthread_mutex_init(status);
-		// TODO
+		retval = -1;
+		goto cleanup_resource;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(resource->mutex_resource));
+
+	resource->list_blocked = list_create();
+	if(resource->list_blocked == NULL) {
+		retval = -1;
+		goto cleanup_mutex;
 	}
 
-	return resource;
+	cleanup_mutex:
+	pthread_cleanup_pop(0); // resource->list_blocked.mutex
+	if(retval) {
+		if((status = pthread_mutex_destroy(&(resource->mutex_resource)))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	}
+	cleanup_resource:
+	pthread_cleanup_pop(retval); // resource
+	ret:
+	if(retval)
+		return NULL;
+	else
+		return resource;
 }
 
 void resource_destroy(t_Resource *resource) {
+	/*
 	int status;
 
 	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
@@ -31,4 +54,5 @@ void resource_destroy(t_Resource *resource) {
 	}
 
 	free(resource);
+	*/
 }

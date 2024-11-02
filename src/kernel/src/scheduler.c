@@ -252,6 +252,8 @@ void *long_term_scheduler_new(void) {
 	}
 }
 
+// TODO: Pensar que el programa puede terminar porque no hay más hilos ni procesos que ejecutar
+
 void *long_term_scheduler_exit(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");

@@ -28,8 +28,9 @@
 #include "socket.h"
 
 typedef struct t_Resource {
-    // char *name;
-    t_Shared_List shared_list_blocked;
+    int instances;
+    pthread_mutex_t mutex_resource;
+    t_list *list_blocked;
 } t_Resource;
 
 t_Resource *resource_create(void);

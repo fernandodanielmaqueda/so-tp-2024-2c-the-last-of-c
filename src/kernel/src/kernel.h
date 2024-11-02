@@ -69,6 +69,7 @@ typedef struct t_PCB {
     size_t size;
 
     t_dictionary *dictionary_mutexes;
+    pthread_rwlock_t rwlock_dictionary_mutexes;
 
     t_TID_Manager thread_manager;
 } t_PCB;
