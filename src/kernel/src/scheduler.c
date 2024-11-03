@@ -817,7 +817,7 @@ void *io_device(void) {
 			}
 
 		pthread_cleanup_pop(0);
-		if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
+		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_unlock(status);
 			error_pthread();
 		}
@@ -863,23 +863,37 @@ void *dump_memory_petitioner(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		log_error_pthread_mutex_lock(status);
-		error_pthread();
-	}
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-		t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
-		if((dump_memory_petition == NULL) || (dump_memory_petition->tcb == NULL)) {
-			retval = -1;
-			goto cleanup_shared_list_blocked_memory_dump_mutex;
+		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			log_error_pthread_mutex_lock(status);
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+
+			t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
+			if((dump_memory_petition == NULL) || (dump_memory_petition->tcb == NULL)) {
+				retval = -1;
+				goto cleanup_shared_list_blocked_memory_dump_mutex;
+			}
+
+			pid = dump_memory_petition->tcb->pcb->PID;
+			tid = dump_memory_petition->tcb->TID;
+		
+		cleanup_shared_list_blocked_memory_dump_mutex:
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			log_error_pthread_mutex_unlock(status);
+			error_pthread();
 		}
 
-		pid = dump_memory_petition->tcb->pcb->PID;
-		tid = dump_memory_petition->tcb->TID;
-	
-	cleanup_shared_list_blocked_memory_dump_mutex:
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_unlock(status);
 		error_pthread();
 	}
 
@@ -921,61 +935,63 @@ void *dump_memory_petitioner(void) {
 
 int remove_dump_memory_thread(pthread_t *thread) {
 	int retval = 0, status;
-	t_Dump_Memory_Petition *dump_memory_petition;
+	t_Dump_Memory_Petition *dump_memory_petition = NULL;
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		log_error_pthread_mutex_lock(status);
-		return -1;
-	}
+    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+        log_error_pthread_rwlock_rdlock(status);
+        return -1;
+    }
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
 
-		dump_memory_petition = list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
-		if(dump_memory_petition == NULL) {
-			goto cleanup_shared_list_blocked_memory_dump_mutex;
-		}
+		pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
 
-		if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head == NULL) {
-			if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
-				PTHREAD_SETCANCELSTATE_DISABLE();
-					log_error_pthread_cond_signal(status);
-				PTHREAD_SETCANCELSTATE_OLDSTATE();
+			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				log_error_pthread_mutex_lock(status);
 				retval = -1;
-				goto cleanup_shared_list_blocked_memory_dump_mutex;
+				goto cleanup_scheduling_rwlock;
 			}
-		}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
 
-	cleanup_shared_list_blocked_memory_dump_mutex:
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-		PTHREAD_SETCANCELSTATE_DISABLE();
-			log_error_pthread_mutex_unlock(status);
-		PTHREAD_SETCANCELSTATE_OLDSTATE();
+				dump_memory_petition = list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
+				if(dump_memory_petition == NULL) {
+					goto cleanup_shared_list_blocked_memory_dump_mutex;
+				}
+
+				if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head == NULL) {
+					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
+						log_error_pthread_cond_signal(status);
+						retval = -1;
+						goto cleanup_shared_list_blocked_memory_dump_mutex;
+					}
+				}
+
+			cleanup_shared_list_blocked_memory_dump_mutex:
+			pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
+			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				log_error_pthread_mutex_unlock(status);
+				retval = -1;
+				goto cleanup_dump_memory_petition;
+			}
+
+			if((retval) || (dump_memory_petition == NULL) || ((dump_memory_petition->tcb) == NULL)) {
+				goto cleanup_dump_memory_petition;
+			}
+
+			if(insert_state_ready(dump_memory_petition->tcb)) {
+				retval = -1;
+				goto cleanup_dump_memory_petition;
+			}
+
+		cleanup_dump_memory_petition:
+		pthread_cleanup_pop(1); // dump_memory_petition
+	
+	cleanup_scheduling_rwlock:
+	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_unlock(status);
 		retval = -1;
-		goto cleanup_dump_memory_petition;
 	}
 
-	if(retval) {
-		if(dump_memory_petition != NULL) {
-			free(dump_memory_petition);
-		}
-		return -1;
-	}
-
-	if(dump_memory_petition == NULL) {
-		return 0;
-	}
-
-	pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
-
-		if(dump_memory_petition->tcb == NULL) {
-			goto cleanup_dump_memory_petition;
-		}
-
-		if(insert_state_ready(dump_memory_petition->tcb)) {
-			retval = -1;
-			goto cleanup_dump_memory_petition;
-		}
-
-	cleanup_dump_memory_petition:
-	pthread_cleanup_pop(1); // dump_memory_petition
 	return retval;
 }
 

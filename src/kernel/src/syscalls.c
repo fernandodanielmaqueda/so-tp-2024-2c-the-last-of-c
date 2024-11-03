@@ -101,7 +101,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
-    // El hilo actual ya se envió a EXIT
+    // El hilo actual ya se envió a EXIT, por lo que ya no se hace nada
     SHOULD_REDISPATCH = 0;
     return 0;
 }
@@ -338,11 +338,11 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_dictionary_mutexes));
 
-        if(dictionary_has_key(TCB_EXEC->pcb->dictionary_mutexes, resource_name)) {
+        if(!dictionary_has_key(TCB_EXEC->pcb->dictionary_mutexes, resource_name)) {
             log_warning(MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
-            goto cleanup;
+            goto cleanup_rwlock_dictionary_mutexes;
         }
 
         t_Resource *resource = dictionary_get(TCB_EXEC->pcb->dictionary_mutexes, resource_name);
@@ -351,57 +351,46 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
             error_pthread();
         }
 
-        /*
-        if((status = pthread_mutex_lock(&(resource->mutex_instances)))) {
+        if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
             log_error_pthread_mutex_lock(status);
             error_pthread();
         }
-        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_instances));
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
 
-        resource->instances--;
+            (resource->instances)--;
 
-        if(resource->instances < 0) {
-            if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
-                log_error_pthread_mutex_unlock(status);
-                error_pthread();
+            if((resource->instances) < 0) {
+
+                if(get_state_exec(&TCB_EXEC)) {
+                    error_pthread();
+                }
+                if(insert_state_blocked_mutex(TCB_EXEC, resource)) {
+                    error_pthread();
+                }
+
+                SHOULD_REDISPATCH = 0;
+            }
+            else {
+                dictionary_put(TCB_EXEC->dictionary_assigned_mutexes, resource_name, NULL);
+                SHOULD_REDISPATCH = 1;
             }
 
-            switch_state(SYSCALL_PCB, BLOCKED_MUTEX_STATE);
-
-            if(status = pthread_mutex_lock(&(resource->shared_list_blocked.mutex))) {
-                log_error_pthread_mutex_lock(status);
-                error_pthread();
-            }
-                list_add(resource->shared_list_blocked.list, SYSCALL_PCB);
-                log_info(MINIMAL_LOGGER, "PID: %d - Bloqueado por: %s", (int) SYSCALL_PCB->PID, resource_name);
-                SYSCALL_PCB->location = &(resource->shared_list_blocked);
-            if(status = pthread_mutex_unlock(&(resource->shared_list_blocked.mutex))) {
-                log_error_pthread_mutex_unlock(status);
-                error_pthread();
-            }
-
-            EXEC_PCB = 0;
-        } else {
-            if(status = pthread_mutex_unlock(&(resource->mutex_instances))) {
-                log_error_pthread_mutex_unlock(status);
-                error_pthread();
-            }
-
-            list_add(SYSCALL_PCB->assigned_resources, resource);
-
-            EXEC_PCB = 1;
+        pthread_cleanup_pop(0); // mutex_resource
+        if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
+            log_error_pthread_mutex_unlock(status);
+            error_pthread();
         }
-        */
 
-    cleanup:
-	pthread_cleanup_pop(0); // rwlock_dictionary_mutexes
-	if((status = pthread_rwlock_unlock(&(TCB_EXEC->pcb->rwlock_dictionary_mutexes)))) {
-		log_error_pthread_rwlock_unlock(status);
-		error_pthread();
-	}
+    cleanup_rwlock_dictionary_mutexes:
+    pthread_cleanup_pop(0); // rwlock_dictionary_mutexes
+    if((status = pthread_rwlock_unlock(&(TCB_EXEC->pcb->rwlock_dictionary_mutexes)))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
+    }
+
     pthread_cleanup_pop(1); // resource_name
 
-    return 0;
+    return retval;
 }
 
 // TODO: Validar las implementaciones de funciones de diccionarios de que...
@@ -426,7 +415,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_dictionary_mutexes));
 
-        if(dictionary_has_key(TCB_EXEC->pcb->dictionary_mutexes, resource_name)) {
+        if(!dictionary_has_key(TCB_EXEC->pcb->dictionary_mutexes, resource_name)) {
             log_warning(MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
@@ -511,7 +500,6 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 }
 
 int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
-    int status;
 
     log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 

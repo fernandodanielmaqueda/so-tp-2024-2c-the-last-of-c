@@ -66,6 +66,7 @@ int locate_and_remove_state(t_TCB *tcb) {
 		{
 			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
 
+			/*
 			if((status = pthread_rwlock_rdlock(&ARRAY_READY_RWLOCK))) {
 				log_error_pthread_rwlock_rdlock(status);
 				retval = -1;
@@ -78,8 +79,10 @@ int locate_and_remove_state(t_TCB *tcb) {
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
+			*/
 					list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pointers_match, tcb);
 					tcb->location = NULL;
+			/*
 				if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
 					log_error_pthread_mutex_unlock(status);
 					retval = -1;
@@ -93,24 +96,29 @@ int locate_and_remove_state(t_TCB *tcb) {
 				retval = -1;
 				goto ret;
 			}
+			*/
 
 			break;
 		}
 
 		case EXEC_STATE:
 		{
+			/*
 			if((status = pthread_mutex_lock(&MUTEX_EXEC))) {
 				log_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 				TCB_EXEC = NULL;
 				tcb->location = NULL;
+			/*
 			if((status = pthread_mutex_unlock(&MUTEX_EXEC))) {
 				log_error_pthread_mutex_unlock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 
 			break;
 		}
@@ -121,29 +129,35 @@ int locate_and_remove_state(t_TCB *tcb) {
 		{
 			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
 
+			/*
 			if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
 				log_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 				list_remove_by_condition_with_comparation((shared_list_state->list), (bool (*)(void *, void *)) pointers_match, tcb);
 				tcb->location = NULL;
+			/*
 			if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
 				log_error_pthread_mutex_unlock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 
 			break;
 		}
 
 		case BLOCKED_DUMP_STATE:
 		{
+			/*
 			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
 				log_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 
 				t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), (bool (*)(void *, void *)) dump_memory_petition_matches_tcb, tcb);
 				dump_memory_petition->tcb = NULL;
@@ -155,16 +169,18 @@ int locate_and_remove_state(t_TCB *tcb) {
 					if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
 						log_error_pthread_cancel(status);
 						retval = -1;
-						goto cleanup_blocked_memory_dump_mutex;
+						//goto cleanup_blocked_memory_dump_mutex;
 					}
 				}
 
+			/*
 			cleanup_blocked_memory_dump_mutex:
 			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
 				log_error_pthread_mutex_unlock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 
 			break;
 		}
@@ -172,18 +188,22 @@ int locate_and_remove_state(t_TCB *tcb) {
 		case BLOCKED_IO_EXEC_STATE:
 		{
 
+			/*
 			if((status = pthread_mutex_lock(&MUTEX_BLOCKED_IO_EXEC))) {
 				log_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 				TCB_BLOCKED_IO_EXEC = NULL;
 				tcb->location = NULL;
+			/*
 			if((status = pthread_mutex_unlock(&MUTEX_BLOCKED_IO_EXEC))) {
 				log_error_pthread_mutex_unlock(status);
 				retval = -1;
 				goto ret;
 			}
+			*/
 
             // Opcional: Para adicionalmente cancelar la operación de entrada/salida
             if((status = pthread_mutex_lock(&MUTEX_CANCEL_IO_OPERATION))) {
@@ -507,6 +527,20 @@ int insert_state_blocked_join(t_TCB *tcb, t_TCB *target) {
 
 	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_JOIN", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: THREAD_JOIN", tcb->pcb->PID, tcb->TID);
+
+	return 0;
+}
+
+int insert_state_blocked_mutex(t_TCB *tcb, t_Resource *resource) {
+
+	e_Process_State previous_state = tcb->current_state;
+	tcb->current_state = BLOCKED_MUTEX_STATE;
+
+	list_add(resource->list_blocked, tcb);
+	tcb->location = resource;
+
+	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_MUTEX", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: MUTEX", tcb->pcb->PID, tcb->TID);
 
 	return 0;
 }

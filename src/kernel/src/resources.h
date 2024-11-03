@@ -24,8 +24,6 @@
 #include <commons/temporal.h>
 #include "utils/module.h"
 #include "utils/serialize/exec_context.h"
-#include "utils/socket.h"
-#include "socket.h"
 
 typedef struct t_Resource {
     int instances;

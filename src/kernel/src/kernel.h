@@ -25,6 +25,7 @@
 #include "utils/module.h"
 #include "utils/send.h"
 #include "utils/socket.h"
+#include "resources.h"
 
 typedef struct t_PID_Manager {
     t_PID counter;
@@ -106,7 +107,6 @@ typedef struct t_Dump_Memory_Petition {
     t_TCB *tcb;
 } t_Dump_Memory_Petition;
 
-#include "resources.h"
 #include "socket.h"
 #include "scheduler.h"
 #include "syscalls.h"
