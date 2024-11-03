@@ -124,7 +124,6 @@ int locate_and_remove_state(t_TCB *tcb) {
 		}
 
 		case BLOCKED_JOIN_STATE:
-		case BLOCKED_MUTEX_STATE:
 		case BLOCKED_IO_READY_STATE:
 		{
 			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
@@ -141,6 +140,51 @@ int locate_and_remove_state(t_TCB *tcb) {
 			/*
 			if((status = pthread_mutex_unlock(&(shared_list_state->mutex)))) {
 				log_error_pthread_mutex_unlock(status);
+				retval = -1;
+				goto ret;
+			}
+			*/
+
+			break;
+		}
+
+		case BLOCKED_MUTEX_STATE:
+		{
+			t_Resource *resource = (t_Resource *) tcb->location;
+
+			/*
+			if((status = pthread_rwlock_rdlock(&(tcb->pcb->rwlock_resources)))) {
+				log_error_pthread_rwlock_rdlock(status);
+				retval = -1;
+				goto ret;
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(tcb->pcb->rwlock_resources));
+
+				if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
+					log_error_pthread_mutex_lock(status);
+					retval = -1;
+					goto cleanup_rwlock_resources;
+				}
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
+			*/
+
+					(resource->instances)++;
+
+					list_remove_by_condition_with_comparation((resource->list_blocked), (bool (*)(void *, void *)) pointers_match, tcb);
+					tcb->location = NULL;
+
+			/*
+				pthread_cleanup_pop(0);
+				if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
+					log_error_pthread_mutex_unlock(status);
+					retval = -1;
+					goto cleanup_rwlock_resources;
+				}
+
+			cleanup_rwlock_resources:
+			pthread_cleanup_pop(0);
+			if((status = pthread_rwlock_unlock(&(tcb->pcb->rwlock_resources)))) {
+				log_error_pthread_rwlock_unlock(status);
 				retval = -1;
 				goto ret;
 			}
