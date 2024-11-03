@@ -330,6 +330,19 @@ int get_state_exec(t_TCB **tcb) {
 	return 0;
 }
 
+int get_state_blocked_mutex(t_TCB **tcb, t_Resource *resource) {
+
+	if(resource->list_blocked->head == NULL) {
+		*tcb = NULL;
+	}
+	else {
+		*tcb = (t_TCB *) list_remove(resource->list_blocked, 0);
+		(*tcb)->location = NULL;
+	}
+
+	return 0;
+}
+
 int get_state_blocked_io_ready(t_TCB **tcb) {
 	int status;
 

@@ -984,7 +984,7 @@ int remove_dump_memory_thread(pthread_t *thread) {
 
 		cleanup_dump_memory_petition:
 		pthread_cleanup_pop(1); // dump_memory_petition
-	
+
 	cleanup_scheduling_rwlock:
 	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {

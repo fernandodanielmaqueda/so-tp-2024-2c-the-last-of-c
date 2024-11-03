@@ -68,8 +68,8 @@ typedef struct t_PCB {
 
     size_t size;
 
-    t_dictionary *dictionary_mutexes;
-    pthread_rwlock_t rwlock_dictionary_mutexes;
+    pthread_rwlock_t rwlock_resources;
+    t_dictionary *dictionary_resources;
 
     t_TID_Manager thread_manager;
 } t_PCB;
@@ -164,5 +164,7 @@ int array_list_ready_destroy(void);
 
 void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
+void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination);
+void dump_memmory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);
 
 #endif // KERNEL_H

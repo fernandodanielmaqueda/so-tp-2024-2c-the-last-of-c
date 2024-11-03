@@ -425,19 +425,19 @@ t_PCB *pcb_create(size_t size) {
 	}
 	pthread_cleanup_push((void (*)(void *)) tid_manager_destroy, &(pcb->thread_manager));
 
-	pcb->dictionary_mutexes = dictionary_create();
-	if(pcb->dictionary_mutexes == NULL) {
+	pcb->dictionary_resources = dictionary_create();
+	if(pcb->dictionary_resources == NULL) {
 		retval = -1;
 		goto cleanup_tid_manager;
 	}
-	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, pcb->dictionary_mutexes);
+	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, pcb->dictionary_resources);
 
 	if(pid_assign(&PID_MANAGER, pcb, &(pcb->PID))) {
 		retval = -1;
-		goto cleanup_dictionary_mutexes;
+		goto cleanup_dictionary_resources;
 	}
 
-	cleanup_dictionary_mutexes:
+	cleanup_dictionary_resources:
 	pthread_cleanup_pop(retval);
 	cleanup_tid_manager:
 	pthread_cleanup_pop(retval);
@@ -458,7 +458,7 @@ int pcb_destroy(t_PCB *pcb) {
 		retval = -1;
 	}
 
-	dictionary_destroy(pcb->dictionary_mutexes);
+	dictionary_destroy(pcb->dictionary_resources);
 
 	free(pcb);
 
@@ -875,14 +875,54 @@ void pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
 
 	t_link_element *element = pcb_list->head;
 
-	if(**destination && element != NULL)
+	if((**destination) && (element != NULL))
 		string_append(destination, ", ");
 
 	char *pid_as_string;
 	while(element != NULL) {
-        pid_as_string = string_from_format("%" PRIu32, ((t_PCB *) element->data)->PID);
+        pid_as_string = string_from_format("%u", ((t_PCB *) element->data)->PID);
         string_append(destination, pid_as_string);
         free(pid_as_string);
+		element = element->next;
+        if(element != NULL)
+            string_append(destination, ", ");
+    }
+}
+
+void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination) {
+	if(tcb_list == NULL || destination == NULL || *destination == NULL)
+		return;
+
+	t_link_element *element = tcb_list->head;
+
+	if((**destination) && (element != NULL))
+		string_append(destination, ", ");
+
+	char *pid_tid_as_string;
+	while(element != NULL) {
+        pid_tid_as_string = string_from_format("%u:%u", ((t_TCB *) element->data)->pcb->PID, ((t_TCB *) element->data)->TID);
+        string_append(destination, pid_tid_as_string);
+        free(pid_tid_as_string);
+		element = element->next;
+        if(element != NULL)
+            string_append(destination, ", ");
+    }
+}
+
+void dump_memmory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination) {
+	if(dump_memory_list == NULL || destination == NULL || *destination == NULL)
+		return;
+
+	t_link_element *element = dump_memory_list->head;
+
+	if((**destination) && (element != NULL))
+		string_append(destination, ", ");
+
+	char *pid_tid_as_string;
+	while(element != NULL) {
+        pid_tid_as_string = string_from_format("%u:%u", ((t_Dump_Memory_Petition *) element->data)->tcb->pcb->PID, ((t_Dump_Memory_Petition *) element->data)->tcb->TID);
+        string_append(destination, pid_tid_as_string);
+        free(pid_tid_as_string);
 		element = element->next;
         if(element != NULL)
             string_append(destination, ", ");
