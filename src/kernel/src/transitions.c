@@ -748,15 +748,30 @@ int insert_state_exit(t_TCB *tcb) {
 }
 
 int reinsert_state_new(t_PCB *pcb) {
-	int status;
+	int retval = 0, status;
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
-		log_error_pthread_mutex_lock(status);
+	if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
-		list_add_in_index(SHARED_LIST_NEW.list, 0, pcb);
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
+		if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
+			log_error_pthread_mutex_lock(status);
+			retval = -1;
+			goto cleanup_rwlock_scheduling;
+		}
+			list_add_in_index(SHARED_LIST_NEW.list, 0, pcb);
+		if((status = pthread_mutex_unlock(&(SHARED_LIST_NEW.mutex)))) {
+			log_error_pthread_mutex_unlock(status);
+			retval = -1;
+			goto cleanup_rwlock_scheduling;
+		}
+
+	cleanup_rwlock_scheduling:
+	pthread_cleanup_pop(0);
+	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_unlock(status);
 		return -1;
 	}
 

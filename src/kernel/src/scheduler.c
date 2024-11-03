@@ -156,32 +156,38 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-			if(pcb == NULL) {
-				goto cleanup_scheduling_rwlock;
-			}
+		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_unlock(status);
+			error_pthread();
+		}
 
-			pthread_cleanup_push((void (*)(void *)) reinsert_state_new, pcb);
+		if(pcb == NULL) {
+			goto cleanup_sem;
+		}
 
-				client_thread_connect_to_server(&connection_memory);
-				pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
+		pthread_cleanup_push((void (*)(void *)) reinsert_state_new, pcb);
 
-					if(send_process_create(pcb->PID, pcb->size, connection_memory.fd_connection)) {
-						log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
-						error_pthread();
-					}
-					log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+			client_thread_connect_to_server(&connection_memory);
+			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
-					if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &result, connection_memory.fd_connection)) {
-						log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s [PID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID);
-						error_pthread();
-					}
-					log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creacion de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
-
-				pthread_cleanup_pop(0);
-				if(close(connection_memory.fd_connection)) {
-					log_error_close();
+				if(send_process_create(pcb->PID, pcb->size, connection_memory.fd_connection)) {
+					log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
 					error_pthread();
 				}
+				log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+
+				if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &result, connection_memory.fd_connection)) {
+					log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s [PID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID);
+					error_pthread();
+				}
+				log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creacion de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
+
+			pthread_cleanup_pop(0);
+			if(close(connection_memory.fd_connection)) {
+				log_error_close();
+				error_pthread();
+			}
 
 			if(result) {
 				if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
@@ -223,6 +229,21 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
+		cleanup_pcb:
+		pthread_cleanup_pop(0); // reinsert_state_new
+		if(result) {
+			if(reinsert_state_new(pcb)) {
+				error_pthread();
+			}
+			goto cleanup_sem;
+		}
+
+		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+			log_error_pthread_rwlock_rdlock(status);
+			error_pthread();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
 			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				error_pthread();
 			}
@@ -233,48 +254,42 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-		cleanup_pcb:
-		pthread_cleanup_pop(0); // reinsert_state_new
-		if(result) {
-			if(reinsert_state_new(pcb)) {
-				error_pthread();
-			}
-		}
-
-		cleanup_scheduling_rwlock:
 		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_unlock(status);
 			error_pthread();
 		}
 
+		cleanup_sem:
 		pthread_cleanup_pop(0); // SEM_LONG_TERM_SCHEDULER_NEW
 	}
 }
-
-// TODO: Pensar que el programa puede terminar porque no hay más hilos ni procesos que ejecutar
 
 void *long_term_scheduler_exit(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");
 
+	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 	t_TCB *tcb;
-	int status;
+	int status, result;
 
 	while(1) {
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 			log_error_sem_wait();
 			error_pthread();
 		}
+		pthread_cleanup_push((void (*)(void *)) sem_post, &SEM_LONG_TERM_SCHEDULER_EXIT);
 
 		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_rdlock(status);
 			error_pthread();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
 			if(get_state_exit(&tcb)) {
 				error_pthread();
 			}
+
 		pthread_cleanup_pop(0);
 		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 			log_error_pthread_rwlock_unlock(status);
