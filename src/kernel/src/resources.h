@@ -31,7 +31,10 @@ typedef struct t_Resource {
     t_list *list_blocked;
 } t_Resource;
 
+#include "kernel.h"
+
 t_Resource *resource_create(void);
 void resource_destroy(t_Resource *resource);
+void resources_unassign(t_TCB *tcb);
 
 #endif // KERNEL_RESOURCES_H

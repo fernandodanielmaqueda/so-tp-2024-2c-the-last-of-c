@@ -374,6 +374,19 @@ int get_state_exec(t_TCB **tcb) {
 	return 0;
 }
 
+int get_state_blocked_join(t_TCB **tcb, t_TCB *target) {
+
+	if(target->shared_list_blocked_thread_join.list->head == NULL) {
+		*tcb = NULL;
+	}
+	else {
+		*tcb = (t_TCB *) list_remove(target->shared_list_blocked_thread_join.list, 0);
+		(*tcb)->location = NULL;
+	}
+
+	return 0;
+}
+
 int get_state_blocked_mutex(t_TCB **tcb, t_Resource *resource) {
 
 	if(resource->list_blocked->head == NULL) {
@@ -775,5 +788,41 @@ int reinsert_state_new(t_PCB *pcb) {
 		return -1;
 	}
 
-	return 0;
+	return retval;
+}
+
+int join_threads(t_TCB *tcb) {
+	int retval = 0, status;
+
+	t_TCB *tcb_join;
+
+	if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_rdlock(status);
+		return -1;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+
+		while(1) {
+			if(get_state_blocked_join(&tcb_join, tcb)) {
+				retval = -1;
+				break;
+			}
+
+			if(tcb_join == NULL) {
+				break;
+			}
+
+			if(insert_state_ready(tcb_join)) {
+				retval = -1;
+				break;
+			}
+		}
+
+	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
+	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		log_error_pthread_rwlock_unlock(status);
+		return -1;
+	}
+
+	return retval;
 }

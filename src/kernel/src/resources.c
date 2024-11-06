@@ -56,3 +56,81 @@ void resource_destroy(t_Resource *resource) {
 	free(resource);
 	*/
 }
+
+void resources_unassign(t_TCB *tcb) {
+	int status;
+
+	char *resource_name;
+	t_Resource *resource;
+	t_TCB *tcb_unblock;
+
+	for(int table_index = 0; table_index < tcb->dictionary_assigned_resources->table_max_size; table_index++) {
+		t_hash_element *element = tcb->dictionary_assigned_resources->elements[table_index];
+		t_hash_element *next_element = NULL;
+
+		while (element != NULL) {
+
+			next_element = element->next;
+
+			resource_name = element->key;
+			resource = (t_Resource *) element->data;
+
+			if((status = pthread_rwlock_rdlock(&(tcb->pcb->rwlock_resources)))) {
+				log_error_pthread_rwlock_rdlock(status);
+				error_pthread();
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(tcb->pcb->rwlock_resources));
+
+				if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
+					log_error_pthread_mutex_lock(status);
+					error_pthread();
+				}
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
+
+					(resource->instances)++;
+
+					if((resource->instances) <= 0) {
+
+						if(get_state_blocked_mutex(&tcb_unblock, resource)) {
+							error_pthread();
+						}
+
+					}
+
+				pthread_cleanup_pop(0); // mutex_resource
+				if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
+					log_error_pthread_mutex_unlock(status);
+					error_pthread();
+				}
+
+			pthread_cleanup_pop(0); // rwlock_resources
+			if((status = pthread_rwlock_unlock(&(tcb->pcb->rwlock_resources)))) {
+				log_error_pthread_rwlock_unlock(status);
+				error_pthread();
+			}
+
+			if(tcb_unblock != NULL) {
+				dictionary_put(tcb_unblock->dictionary_assigned_resources, resource_name, resource);
+
+				if(insert_state_ready(tcb_unblock)) {
+					error_pthread();
+				}
+			}
+	
+			free(element->key);
+			free(element);
+
+			element = next_element;
+		}
+
+		tcb->dictionary_assigned_resources->elements[table_index] = NULL;
+	}
+
+	tcb->dictionary_assigned_resources->table_current_size = 0;
+	tcb->dictionary_assigned_resources->elements_amount = 0;
+
+	free(tcb->dictionary_assigned_resources->elements);
+	free(tcb->dictionary_assigned_resources);
+
+	return;
+}

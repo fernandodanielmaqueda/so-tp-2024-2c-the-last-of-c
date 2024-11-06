@@ -25,17 +25,18 @@
 #include "utils/module.h"
 #include "utils/send.h"
 #include "utils/socket.h"
-#include "resources.h"
 
 typedef struct t_PID_Manager {
-    t_PID counter;
+    t_PID size;
     void **array;
+    t_PID counter;
     pthread_mutex_t mutex;
 } t_PID_Manager;
 
 typedef struct t_TID_Manager {
-    t_TID counter;
+    t_TID size;
     void **array;
+    t_TID counter;
     pthread_mutex_t mutex;
 } t_TID_Manager;
 
@@ -72,6 +73,7 @@ typedef struct t_PCB {
     t_dictionary *dictionary_resources;
 
     t_TID_Manager thread_manager;
+    t_TID thread_counter;
 } t_PCB;
 
 typedef struct t_TCB {
@@ -91,7 +93,7 @@ typedef struct t_TCB {
 
     t_Shared_List shared_list_blocked_thread_join;
 
-    t_dictionary *dictionary_assigned_mutexes;
+    t_dictionary *dictionary_assigned_resources;
 
     e_Exit_Reason exit_reason;
 } t_TCB;
@@ -107,6 +109,7 @@ typedef struct t_Dump_Memory_Petition {
     t_TCB *tcb;
 } t_Dump_Memory_Petition;
 
+#include "resources.h"
 #include "socket.h"
 #include "scheduler.h"
 #include "syscalls.h"
@@ -122,6 +125,8 @@ extern char *MODULE_CONFIG_PATHNAME;
 extern t_PID_Manager PID_MANAGER;
 
 extern const char *STATE_NAMES[];
+
+extern const char *EXIT_REASONS[];
 
 extern char *SCHEDULING_ALGORITHMS[];
 

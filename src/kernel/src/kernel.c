@@ -19,6 +19,16 @@ const char *STATE_NAMES[] = {
 	[EXIT_STATE] = "EXIT"
 };
 
+const char *EXIT_REASONS[] = {
+	[UNEXPECTED_ERROR_EXIT_REASON] = "UNEXPECTED ERROR",
+
+	[INVALID_RESOURCE_EXIT_REASON] = "INVALID_RESOURCE",
+	[SEGMENTATION_FAULT_EXIT_REASON] = "SEGMENTATION_FAULT",
+	[PROCESS_EXIT_EXIT_REASON] = "PROCESS_EXIT",
+	[THREAD_EXIT_EXIT_REASON] = "THREAD_EXIT",
+	[THREAD_CANCEL_EXIT_REASON] = "THREAD_CANCEL"
+};
+
 char *SCHEDULING_ALGORITHMS[] = {
 	[FIFO_SCHEDULING_ALGORITHM] = "FIFO",
 	[PRIORITIES_SCHEDULING_ALGORITHM] = "PRIORIDADES",
@@ -492,7 +502,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 		// TODO
 	}
 
-	tcb->dictionary_assigned_mutexes = dictionary_create();
+	tcb->dictionary_assigned_resources = dictionary_create();
 
 	tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID));
 
@@ -515,7 +525,7 @@ int tcb_destroy(t_TCB *tcb) {
 		// TODO
 	}
 
-	dictionary_destroy(tcb->dictionary_assigned_mutexes);
+	dictionary_destroy(tcb->dictionary_assigned_resources);
 
 	free(tcb);
 
@@ -537,8 +547,10 @@ int pid_manager_init(t_PID_Manager *id_manager) {
 		goto ret;
 	}
 
-	id_manager->counter = 0;
+	id_manager->size = 0;
 	id_manager->array = NULL;
+
+	id_manager->counter = 0;
 
 	ret:
 	return retval;
@@ -559,8 +571,10 @@ int tid_manager_init(t_TID_Manager *id_manager) {
 		goto ret;
 	}
 
-	id_manager->counter = 0;
+	id_manager->size = 0;
 	id_manager->array = NULL;
+
+	id_manager->counter = 0;
 
 	ret:
 	return retval;
@@ -603,7 +617,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 		goto ret;
 	}
 
-	if(id_manager->counter == PID_MAX) {
+	if(id_manager->size == PID_MAX) {
 		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
@@ -616,14 +630,16 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, (void *) &(id_manager->mutex));
 
-		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->counter + 1));
+		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->counter, sizeof(void *) * (id_manager->counter + 1));
+			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
 
-		(id_manager->array)[id_manager->counter] = data;
+		(id_manager->array)[id_manager->size] = data;
+		(id_manager->size)++;
+
 		(id_manager->counter)++;
 
 	pthread_cleanup_pop(0);
@@ -637,7 +653,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 	}
 
 	if(result != NULL) {
-		memcpy(result, &(t_PID){id_manager->counter - 1}, sizeof(t_PID));
+		memcpy(result, &(t_PID){id_manager->size - 1}, sizeof(t_PID));
 	}
 
 	ret:
@@ -653,7 +669,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 		goto ret;
 	}
 
-	if(id_manager->counter == TID_MAX) {
+	if(id_manager->size == TID_MAX) {
 		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
@@ -666,14 +682,16 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, (void *) &(id_manager->mutex));
 
-		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->counter + 1));
+		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->counter, sizeof(void *) * (id_manager->counter + 1));
+			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
 
-		(id_manager->array)[id_manager->counter] = data;
+		(id_manager->array)[id_manager->size] = data;
+		(id_manager->size)++;
+
 		(id_manager->counter)++;
 
 	pthread_cleanup_pop(0);
@@ -687,7 +705,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 	}
 
 	if(result != NULL) {
-		memcpy(result, &(t_PID){id_manager->counter - 1}, sizeof(t_TID));
+		memcpy(result, &(t_PID){id_manager->size - 1}, sizeof(t_TID));
 	}
 
 	ret:
@@ -707,6 +725,8 @@ int pid_release(t_PID_Manager *id_manager, t_PID id) {
 		return -1;
 	}
 
+	(id_manager->counter)--;
+
 	return 0;
 }
 
@@ -722,6 +742,8 @@ int tid_release(t_TID_Manager *id_manager, t_TID id) {
 		log_error_pthread_mutex_unlock(status);
 		return -1;
 	}
+
+	(id_manager->counter)--;
 
 	return 0;
 }

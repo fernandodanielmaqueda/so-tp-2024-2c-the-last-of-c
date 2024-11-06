@@ -82,7 +82,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
         KILL_EXIT_REASON = PROCESS_EXIT_EXIT_REASON;
 
-        for(t_TID tid = 0; tid < TCB_EXEC->pcb->thread_manager.counter; tid++) {
+        for(t_TID tid = 0; tid < TCB_EXEC->pcb->thread_manager.size; tid++) {
             tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
             if(tcb != NULL) {
                 kill_thread(tcb);
@@ -165,7 +165,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
         // Caso 2A: Si se une a otro y falla (se hace redispatch)
-        if(tid >= TCB_EXEC->pcb->thread_manager.counter) {
+        if(tid >= TCB_EXEC->pcb->thread_manager.size) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             SHOULD_REDISPATCH = 1;
             goto cleanup_scheduling_rwlock;
@@ -235,7 +235,7 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 
-        if(tid >= TCB_EXEC->pcb->thread_manager.counter) {
+        if(tid >= TCB_EXEC->pcb->thread_manager.size) {
             log_warning(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             goto cleanup_scheduling_rwlock;
         }
@@ -385,7 +385,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
     }
 
     if((retval == 0) && (SHOULD_REDISPATCH)) {
-        dictionary_put(TCB_EXEC->dictionary_assigned_mutexes, resource_name, resource);
+        dictionary_put(TCB_EXEC->dictionary_assigned_resources, resource_name, resource);
 
         if(insert_state_exec(TCB_EXEC)) {
             error_pthread();
@@ -425,7 +425,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
             goto cleanup_rwlock_resources;
         }
 
-        resource = dictionary_remove(TCB_EXEC->dictionary_assigned_mutexes, resource_name);
+        resource = dictionary_remove(TCB_EXEC->dictionary_assigned_resources, resource_name);
         if(resource == NULL) {
             log_warning(MODULE_LOGGER, "%s: El hilo no tiene asignado un mutex con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
@@ -465,12 +465,13 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 	}
 
     if(tcb != NULL) {
-        dictionary_put(tcb->dictionary_assigned_mutexes, resource_name, resource);
+        dictionary_put(tcb->dictionary_assigned_resources, resource_name, resource);
 
         if(insert_state_ready(tcb)) {
             error_pthread();
         }
     }
+
 
     pthread_cleanup_pop(1); // resource_name
 
