@@ -863,7 +863,7 @@ corriendo los módulos
 
 Deben quedar en: `/home/utnso/scripts-pruebas`/...
 ```bash
-ln -s /home/utnso/tp-2024-2c-os/thirdparty/c-comenta-pruebas /home/utnso/scripts-pruebas
+ln -s /home/utnso/tp-2024-2c-os/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
 ```
 
 -----------------------------
@@ -1435,7 +1435,7 @@ git submodule update --init --recursive
 
 - Agregar un submodulo
 ```bash
-git submodule add https://github.com/sisoputnfrba/c-comenta-pruebas thirdparty/c-comenta-pruebas
+git submodule add https://github.com/sisoputnfrba/the-last-of-c-pruebas thirdparty/the-last-of-c-pruebas
 ```
 
 - Saber a qué commit hash apunta el submódulo

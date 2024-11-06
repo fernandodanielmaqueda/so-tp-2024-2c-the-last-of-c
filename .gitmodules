@@ -4,3 +4,6 @@
 [submodule "thirdparty/so-commons-library"]
 	path = thirdparty/so-commons-library
 	url = https://github.com/sisoputnfrba/so-commons-library
+[submodule "thirdparty/the-last-of-c-pruebas"]
+	path = thirdparty/the-last-of-c-pruebas
+	url = https://github.com/sisoputnfrba/the-last-of-c-pruebas
