@@ -66,7 +66,7 @@ int module(int argc, char* argv[]) {
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-    listen_cpu();
+    //listen_cpu();
 
 	//finish_threads();
     free_memory();
@@ -293,7 +293,7 @@ void listen_kernel(int fd_client) {
     int result;
 
     if(package_receive(package, fd_client)) {
-        
+
         switch(package->header) {
             
             case PROCESS_CREATE_HEADER:
@@ -755,31 +755,12 @@ void listen_cpu(void) {
     while(1) {
 
         if(package_receive(package, CLIENT_CPU->fd_client)) {
-            // TODO
-
-            if((status = pthread_cancel(SERVER_MEMORY.thread_server))) {
-                log_error_pthread_cancel(status);
-                // TODO
-            }
-
-            if((status = pthread_join(SERVER_MEMORY.thread_server, NULL))) {
-                log_error_pthread_join(status);
-                // TODO
-            }
-
-            if(close(SERVER_MEMORY.fd_listen)) {
-                log_error_close();
-                // TODO
-            }
-
-            if(close(CLIENT_CPU->fd_client)) {
-                log_error_close();
-                // TODO
-            }
+            log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
             exit(EXIT_FAILURE);
         }
+        log_trace(MODULE_LOGGER, "[%d] Paquete recibido de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
 
-        switch (package->header) {
+        switch(package->header) {
             case INSTRUCTION_REQUEST_HEADER:
                 log_info(MODULE_LOGGER, "CPU: Pedido de instruccion recibido.");
                 seek_instruccion(&(package->payload));

@@ -72,7 +72,7 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 		goto cancel;
 	}
 
-	fprintf(stderr, "Signal SIGINT recibida\n");
+	fprintf(stderr, "\nSIGINT recibida\n");
 
 	cancel:
 		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {

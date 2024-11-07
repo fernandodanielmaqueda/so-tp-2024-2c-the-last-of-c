@@ -66,14 +66,13 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
       }
 			continue;
 		}
-    break;
-	}
 
-  log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
-  new_client->fd_client = fd_new_client;
-  new_client->client_type = server->clients_type;
-  new_client->server = server;
-  client_handler(new_client);
+    log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
+    new_client->fd_client = fd_new_client;
+    new_client->client_type = server->clients_type;
+    new_client->server = server;
+    client_handler(new_client);
+	}
 
 	return NULL;
 }
@@ -250,7 +249,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     break;
   }
 
-  log_trace(MODULE_LOGGER, "Conexión con [Servidor] %s finalizada", PORT_NAMES[connection->server_type]);
+  log_trace(MODULE_LOGGER, "Conexión con [Servidor] %s exitosa", PORT_NAMES[connection->server_type]);
 
   return NULL;
 }

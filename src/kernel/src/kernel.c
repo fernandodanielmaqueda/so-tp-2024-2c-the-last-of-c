@@ -780,8 +780,6 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 		goto cleanup_tcb;
 	}
 
-	return 0;
-
 	cleanup_tcb:
 	pthread_cleanup_pop(retval); // tcb_destroy
 	cleanup_pcb:

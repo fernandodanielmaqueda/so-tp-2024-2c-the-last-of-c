@@ -161,7 +161,7 @@ void instruction_cycle(void)
             // TODO
         }
             if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
-                // TODO
+                //log_error()
                 exit(EXIT_FAILURE);
             }
 
