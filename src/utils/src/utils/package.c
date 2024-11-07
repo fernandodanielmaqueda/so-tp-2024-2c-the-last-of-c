@@ -154,15 +154,15 @@ int receive(int fd_socket, void *destination, size_t expected_bytes) {
 
   ssize_t bytes = recv(fd_socket, destination, expected_bytes, 0); // MSG_WAITALL
   if(bytes == 0) {
-      log_warning(SERIALIZE_LOGGER, "recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n");
+      log_warning(SERIALIZE_LOGGER, "[%d] recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n", fd_socket);
       return -1;
   }
   if(bytes == -1) {
-      log_warning(SERIALIZE_LOGGER, "recv: %s\n", strerror(errno));
+      log_warning(SERIALIZE_LOGGER, "[%d] recv: %s\n", fd_socket, strerror(errno));
       return -1;
   }
   if(bytes != expected_bytes) {
-      log_warning(SERIALIZE_LOGGER, "recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", expected_bytes, bytes);
+      log_warning(SERIALIZE_LOGGER, "[%d] recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", fd_socket, expected_bytes, bytes);
       return -1;
   }
 

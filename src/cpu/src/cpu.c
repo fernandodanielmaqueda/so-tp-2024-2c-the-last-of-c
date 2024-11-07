@@ -161,23 +161,27 @@ void instruction_cycle(void)
             // TODO
         }
             if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
-                //log_error()
+                log_error(MODULE_LOGGER, "[%d] Error al recibir dispatch de hilo de [Cliente] %s", CLIENT_KERNEL_CPU_DISPATCH.fd_client, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type]);
                 exit(EXIT_FAILURE);
             }
-
-            // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
-            if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
-                // TODO
-                exit(EXIT_FAILURE);
-            }
+            log_trace(MODULE_LOGGER, "[%d] Se recibe dispatch de hilo de [Cliente] %s [PID: %u - TID: %u]", CLIENT_KERNEL_CPU_DISPATCH.fd_client, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID);
 
             log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
 
-            // Recibo la respuesta de memoria con el contexto de ejecución
-            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
-                // TODO
+            // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
+            if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
+                log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
                 exit(EXIT_FAILURE);
             }
+            log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+
+            // Recibo la respuesta de memoria con el contexto de ejecución
+            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
+                log_error(MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                exit(EXIT_FAILURE);
+            }
+            log_trace(MODULE_LOGGER, "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+
         if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
             log_error_pthread_mutex_unlock(status);
             // TODO
@@ -194,8 +198,6 @@ void instruction_cycle(void)
             log_error_pthread_mutex_unlock(status);
             // TODO
         }
-
-        log_trace(MODULE_LOGGER, "<%d:%d> Contexto de ejecucion recibido del proceso - Ciclo de instruccion ejecutando", PID, TID);
 
         while(1) {
 

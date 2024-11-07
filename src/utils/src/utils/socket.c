@@ -249,7 +249,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     break;
   }
 
-  log_trace(MODULE_LOGGER, "Conexión con [Servidor] %s exitosa", PORT_NAMES[connection->server_type]);
+  log_trace(MODULE_LOGGER, "[%d] Conexión con [Servidor] %s exitosa", connection->fd_connection, PORT_NAMES[connection->server_type]);
 
   return NULL;
 }
