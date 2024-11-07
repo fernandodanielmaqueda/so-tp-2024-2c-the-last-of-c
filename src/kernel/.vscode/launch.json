@@ -22,6 +22,46 @@
         }
       ],
       "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["PLANI_PROC", "32"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["RECURSOS_MUTEX_PROC", "32"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
     }
   ]
 }

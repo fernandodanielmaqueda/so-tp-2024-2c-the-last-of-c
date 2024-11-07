@@ -7,12 +7,14 @@
       "label": "make src/kernel/bin/kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "file-binary"},
+      "icon": {
+        "id": "file-binary"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Construir el programa: src/kernel/bin/kernel",
-      "command": "make ${workspaceFolder}/bin/${workspaceFolderBasename} -j -O",
-      "args": [],
+      "command": "make",
+      "args": ["src/kernel/bin/kernel", "-j", "-O"],
       "runOptions": {},
       "type": "shell",
       "options": {
@@ -28,18 +30,22 @@
         "reveal": "always",
         "panel": "new"
       },
-      "problemMatcher": ["$gcc"],
+      "problemMatcher": [
+        "$gcc"
+      ]
     },
     {
       "label": "make run-kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "run"},
+      "icon": {
+        "id": "run"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Ejecutar en esta misma ventana el programa kernel",
-      "command": "make run-${workspaceFolderBasename}",
-      "args": [],
+      "command": "make",
+      "args": ["run-kernel"],
       "runOptions": {},
       "type": "shell",
       "options": {
@@ -61,12 +67,14 @@
       "label": "make gdb-kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "debug-console"},
+      "icon": {
+        "id": "debug-console"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
-      "command": "make gdb-${workspaceFolderBasename}",
-      "args": [],
+      "command": "make",
+      "args": ["gdb-kernel"],
       "runOptions": {},
       "type": "shell",
       "options": {
@@ -88,12 +96,14 @@
       "label": "make valgrind-none-kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "debug"},
+      "icon": {
+        "id": "debug"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
-      "command": "make valgrind-none-${workspaceFolderBasename}",
-      "args": [],
+      "command": "make",
+      "args": ["valgrind-none-kernel"],
       "runOptions": {},
       "type": "shell",
       "options": {
@@ -115,12 +125,14 @@
       "label": "make valgrind-memcheck-kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "debug"},
+      "icon": {
+        "id": "debug"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
-      "command": "make valgrind-memcheck-${workspaceFolderBasename}",
-      "args": [],
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel"],
       "runOptions": {},
       "type": "shell",
       "options": {
@@ -142,12 +154,333 @@
       "label": "make valgrind-helgrind-kernel",
       "dependsOn": "",
       "hide": false,
-      "icon": {"id": "debug"},
+      "icon": {
+        "id": "debug"
+      },
       "isBackground": false,
       "promptOnClose": false,
       "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
-      "command": "make valgrind-helgrind-${workspaceFolderBasename}",
-      "args": [],
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+     {
+      "label": "make run-kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=PLANI_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=PLANI_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=PLANI_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=PLANI_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel PLANI_PROC 32 [Prueba Planificacion]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=PLANI_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+    {
+      "label": "make run-kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel RECURSOS_MUTEX_PROC 32 [Prueba Race Condition]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
       "runOptions": {},
       "type": "shell",
       "options": {
