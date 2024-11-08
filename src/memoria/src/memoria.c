@@ -293,47 +293,50 @@ void listen_kernel(int fd_client) {
     int result;
 
     if(package_receive(package, fd_client)) {
-
-        switch(package->header) {
-            
-            case PROCESS_CREATE_HEADER:
-                log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion proceso nuevo recibido.", fd_client);
-                result = create_process(&(package->payload));
-                send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client);
-                break;
-            
-            case PROCESS_DESTROY_HEADER:
-                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar proceso recibido.", fd_client);
-                result = kill_process(&(package->payload));
-                send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
-                break;
-           
-            case THREAD_CREATE_HEADER:
-                log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion hilo nuevo recibido.", fd_client);
-                result = create_thread(&(package->payload));
-                send_result_with_header(THREAD_CREATE_HEADER, result, fd_client);
-                break;
-             
-            case THREAD_DESTROY_HEADER:
-                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-                result = kill_thread(&(package->payload));
-                send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client);
-                break;
-                
-            case MEMORY_DUMP_HEADER:
-                log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-                result = treat_memory_dump(&(package->payload));
-                if (result == (-1)) send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client);
-                break;
-
-            default:
-                log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
-                break;
-
-        }
-
-        package_destroy(package);
+        log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
+        return;
     }
+    log_trace(MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
+
+    switch(package->header) {
+
+        case PROCESS_CREATE_HEADER:
+            log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion proceso nuevo recibido.", fd_client);
+            result = create_process(&(package->payload));
+            send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client);
+            break;
+        
+        case PROCESS_DESTROY_HEADER:
+            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar proceso recibido.", fd_client);
+            result = kill_process(&(package->payload));
+            send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
+            break;
+        
+        case THREAD_CREATE_HEADER:
+            log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion hilo nuevo recibido.", fd_client);
+            result = create_thread(&(package->payload));
+            send_result_with_header(THREAD_CREATE_HEADER, result, fd_client);
+            break;
+            
+        case THREAD_DESTROY_HEADER:
+            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
+            result = kill_thread(&(package->payload));
+            send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client);
+            break;
+            
+        case MEMORY_DUMP_HEADER:
+            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
+            result = treat_memory_dump(&(package->payload));
+            if (result == (-1)) send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client);
+            break;
+
+        default:
+            log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+            break;
+
+    }
+
+    package_destroy(package);
 
 	return;
 }
@@ -758,7 +761,7 @@ void listen_cpu(void) {
             log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
             exit(EXIT_FAILURE);
         }
-        log_trace(MODULE_LOGGER, "[%d] Paquete recibido de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
+        log_trace(MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
 
         switch(package->header) {
             case INSTRUCTION_REQUEST_HEADER:
