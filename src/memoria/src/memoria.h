@@ -65,7 +65,7 @@ typedef struct t_Memory_Process {
     t_PID pid;
     size_t size;
    // t_Partition_Number partition_number;
-    t_Partition* partition;
+    t_Partition *partition;
     t_TID tid_count;
     t_Memory_Thread **array_memory_threads;
     pthread_mutex_t mutex_array_memory_threads;

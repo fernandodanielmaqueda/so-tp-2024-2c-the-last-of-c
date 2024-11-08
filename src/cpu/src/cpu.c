@@ -169,7 +169,7 @@ void instruction_cycle(void)
             log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
 
             // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
-            if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
+            if(send_pid_and_tid_with_header(EXEC_CONTEXT_REQUEST_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
                 log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
                 exit(EXIT_FAILURE);
             }

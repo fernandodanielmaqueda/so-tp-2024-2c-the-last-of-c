@@ -1033,11 +1033,16 @@ void seek_cpu_context(t_Payload *payload) {
     t_PID pid;
     t_TID tid;
 
-    payload_remove(payload, &(pid), sizeof(t_PID));
-    payload_remove(payload, &(tid), sizeof(t_TID));
+    payload_remove(payload, &pid, sizeof(t_PID));
+    payload_remove(payload, &tid, sizeof(t_TID));
 
-    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        return;
+    }
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
         return;
     }
 

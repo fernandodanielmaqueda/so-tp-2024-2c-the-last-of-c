@@ -67,9 +67,9 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 
 	siginfo_t info;
 	int signo;
-	if((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
+	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
 		perror("sigwaitinfo");
-		goto cancel;
+		//goto cancel;
 	}
 
 	fprintf(stderr, "\nSIGINT recibida\n");
