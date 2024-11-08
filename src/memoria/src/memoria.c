@@ -952,7 +952,7 @@ void free_threads(int pid) {
 }
 
 int treat_memory_dump(t_Payload *payload) {
-    
+    /*
     t_FS_Data* data = malloc(sizeof(t_FS_Data));
     if (data == NULL) {
         printf("No se pudo asignar memoria para t_FS_Data.\n");
@@ -961,19 +961,30 @@ int treat_memory_dump(t_Payload *payload) {
 
     payload_remove(payload, &(data->pid), sizeof(t_PID));
     payload_remove(payload, &(data->tid), sizeof(t_TID));
+    */
+
+    t_PID pid;
+    t_TID tid;
     time_t current_time = time(NULL);
 
-    data->namefile = string_new();
-    sprintf(data->namefile, "<%u><%u><%ld>.dmp", data->pid, data->tid, (long)current_time);
-    if(data->namefile == NULL) {
+    payload_remove(payload, &(pid), sizeof(t_PID));
+    payload_remove(payload, &(tid), sizeof(t_TID));
+
+    char *namefile = string_new();
+    sprintf(namefile, "<%u><%u><%ld>.dmp", pid, tid, (long)current_time);
+    if(namefile == NULL) {
         printf("No se pudo generar el nombre del archivo.");
-        free(data->namefile); 
-        free(data);
+        free(namefile); 
+       // free(data);
         return -1;
     }
 
-    data->position = (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[data->pid]->partition->base);
+    void* position = (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base);
 
+    
+	t_Connection connection_fileSystem = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
+
+/*
     pthread_t hilo_FS;
     if (pthread_create(&hilo_FS, NULL, attend_memory_dump, (void*)data) != 0) {
         printf("No se pudo crear el hilo correspondiente con FileSystem --> PID-TID: <%u><%u>.\n", data->pid, data->tid);
@@ -981,17 +992,40 @@ int treat_memory_dump(t_Payload *payload) {
         free(data);
         return -1;
     }
-
     pthread_detach(hilo_FS);
+*/    
+
+    int status = 0;
+    if((status = pthread_mutex_lock(&MUTEX_FILESYSTEM_MEMDUMP))) {
+        log_error_pthread_mutex_lock(status);
+        // TODO
+    }
+
+    if(send_memory_dump(namefile, position, ARRAY_PROCESS_MEMORY[pid]->size ,connection_fileSystem.fd_connection)) {
+        printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",pid, tid);
+        free(namefile); 
+        return -1;
+    }
     
-    log_info(MINIMAL_LOGGER, "## Memory dump solicitado - (PID:<%u>) - (TID:<%u>).\n", data->pid, data->tid);
+    if(receive_expected_header(MEMORY_DUMP_HEADER, connection_fileSystem.fd_connection)) {
+        printf("[DUMP] Filesystem no pudo resolver la peticion por el PID:<%u> TID:<%u>.",pid, tid);
+        free(namefile); 
+        return -1;
+    }
+    
+    if((status = pthread_mutex_unlock(&MUTEX_FILESYSTEM_MEMDUMP))) {
+        log_error_pthread_mutex_unlock(status);
+        // TODO
+    }
+    
+    log_info(MINIMAL_LOGGER, "## Memory dump solicitado - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
 
     return 0;
 }
 
 
 void* attend_memory_dump(void* arg){
-
+/* 
     t_FS_Data* data = (t_FS_Data*)arg;
     int result = 0;
     int status;
@@ -1001,7 +1035,7 @@ void* attend_memory_dump(void* arg){
         // TODO
     }
 
-/*  FIX REQUIRED
+ FIX REQUIRED
     if(send_memory_dump(data.namefile, data.position, connection_filesystem.fd_connection)) {
         printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",data.pid, data.tid");
         free(namefile); 
@@ -1024,6 +1058,7 @@ void* attend_memory_dump(void* arg){
     // Notificar resultado a hilo kernel
 
 */  
+    return 0;
 }
 
 void seek_cpu_context(t_Payload *payload) {
