@@ -1360,10 +1360,10 @@ clear ; make all -j -O
 
 - Compilar un módulo en particular con las utils
 ```bash
-clear ; make src/cpu/bin/cpu -j -O
-clear ; make src/entradasalida/bin/entradasalida -j -O
 clear ; make src/kernel/bin/kernel -j -O
+clear ; make src/cpu/bin/cpu -j -O
 clear ; make src/memoria/bin/memoria -j -O
+clear ; make src/filesystem/bin/filesystem -j -O
 ```
 
 - Compilar sólo las utils
@@ -1378,18 +1378,18 @@ clear ; make cleandirs
 
 - Ejecutar un módulo
 ```bash
-clear ; make run-kernel 'kernel_ARGS='
+clear ; make run-kernel 'kernel_ARGS=PLANI_PROC 32'
 clear ; make run-cpu 'cpu_ARGS='
 clear ; make run-memoria 'memoria_ARGS='
-clear ; make run-entradasalida 'entradasalida_ARGS=SLP1 SLP1.config'
+clear ; make run-filesystem 'filesystem_ARGS='
 ```
 
 - Ejecutar con memcheck un módulo
 ```bash
-clear ; make valgrind-memcheck-kernel 'kernel_ARGS='
+clear ; make valgrind-memcheck-kernel 'kernel_ARGS=PLANI_PROC 32'
 clear ; make valgrind-memcheck-cpu 'cpu_ARGS='
 clear ; make valgrind-memcheck-memoria 'memoria_ARGS='
-clear ; make valgrind-memcheck-entradasalida 'entradasalida_ARGS=SLP1 SLP1.config'
+clear ; make valgrind-memcheck-filesystem 'filesystem_ARGS='
 ```
 
 - Ejecutar con helgrind un módulo
@@ -1397,7 +1397,7 @@ clear ; make valgrind-memcheck-entradasalida 'entradasalida_ARGS=SLP1 SLP1.confi
 clear ; make valgrind-helgrind-kernel 'kernel_ARGS='
 clear ; make valgrind-helgrind-cpu 'cpu_ARGS='
 clear ; make valgrind-helgrind-memoria 'memoria_ARGS='
-clear ; make valgrind-helgrind-entradasalida 'entradasalida_ARGS=SLP1 SLP1.config'
+clear ; make valgrind-helgrind-filesystem 'filesystem_ARGS='
 ```
 
 - Ejecutar con valgrind (sin ninguna herramienta) un módulo
@@ -1405,7 +1405,7 @@ clear ; make valgrind-helgrind-entradasalida 'entradasalida_ARGS=SLP1 SLP1.confi
 clear ; make valgrind-none-kernel 'kernel_ARGS='
 clear ; make valgrind-none-cpu 'cpu_ARGS='
 clear ; make valgrind-none-memoria 'memoria_ARGS='
-clear ; make valgrind-none-entradasalida 'entradasalida_ARGS=SLP1 SLP1.config'
+clear ; make valgrind-none-filesystem 'filesystem_ARGS='
 ```
 
 -----------------------------
