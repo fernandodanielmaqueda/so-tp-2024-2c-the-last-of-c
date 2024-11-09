@@ -640,19 +640,19 @@ int verify_and_join_splited_partitions(t_PID pid) {
 
 int create_thread(t_Payload *payload) {
 
-    t_PID pid;
-    char* path_instructions;
-    int result = 0;
-
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
         // TODO
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo thread.", sizeof(t_Memory_Thread));
         return -1;
     }
-    payload_remove(payload, &(pid), sizeof(t_PID));
+
+    t_PID pid;
+    char *argument_path;
+
+    payload_remove(payload, &pid, sizeof(t_PID));
     payload_remove(payload, &(new_thread->tid), sizeof(((t_Memory_Thread *)0)->tid));
-    text_deserialize(payload, &path_instructions);
+    text_deserialize(payload, &argument_path);
 
     new_thread->instructions_count = 0;
     new_thread->array_instructions = NULL;
@@ -668,19 +668,43 @@ int create_thread(t_Payload *payload) {
     new_thread->registers.GX = 0;
     new_thread->registers.HX = 0;
 
-    //inicializar instrucciones
-    result = parse_pseudocode_file(path_instructions, &(new_thread->array_instructions), &(new_thread->instructions_count));
-    if(result) {
-            for(size_t i = 0; i < new_thread->instructions_count; i++) {
-                free(new_thread->array_instructions[i]);
-            }
-            free(new_thread->array_instructions);
-            free(new_thread);
-            return -1;
+    // Genera la ruta hacia el archivo de pseudocódigo
+    char *target_path;
+    // Ruta relativa
+    target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
+    if(target_path == NULL) {
+        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para la ruta relativa.");
+        exit(EXIT_FAILURE);
     }
 
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, 
-                                                    sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count + 1)); 
+    register int i;
+    for(i = 0; INSTRUCTIONS_PATH[i]; i++) {
+        target_path[i] = INSTRUCTIONS_PATH[i];
+    }
+
+    if(INSTRUCTIONS_PATH[0])
+        target_path[i++] = '/';
+
+    register int j;
+    for(j = 0; argument_path[j]; j++) {
+        target_path[i + j] = argument_path[j];
+    }
+
+    target_path[i + j] = '\0';
+
+    log_debug(MODULE_LOGGER, "Ruta hacia el archivo de pseudocódigo: %s", target_path);
+
+    //inicializar instrucciones
+    if(parse_pseudocode_file(target_path, &(new_thread->array_instructions), &(new_thread->instructions_count))) {
+        for(size_t i = 0; i < new_thread->instructions_count; i++) {
+            free(new_thread->array_instructions[i]);
+        }
+        free(new_thread->array_instructions);
+        free(new_thread);
+        return -1;
+    }
+
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count + 1)); 
     if(ARRAY_PROCESS_MEMORY == NULL) {
         log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", 
                                     sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count  +1));
