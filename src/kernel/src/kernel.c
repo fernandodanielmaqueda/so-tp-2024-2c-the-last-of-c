@@ -838,7 +838,7 @@ int array_list_ready_resize(t_Priority priority) {
 			return -1;
 		}
 		ARRAY_LIST_READY = new_array_list_ready;
-		
+
 		for(t_Priority i = PRIORITY_COUNT; i <= priority; i++) {
 			if(shared_list_init(&(ARRAY_LIST_READY[i]))) {
 

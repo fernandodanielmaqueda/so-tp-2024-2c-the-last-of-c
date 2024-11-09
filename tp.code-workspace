@@ -9,7 +9,8 @@
 			"compare": "c",
 			"cmath": "c",
 			"console.C": "cpp",
-			"consolee.C": "cpp"
+			"consolee.C": "cpp",
+			"cstdlib": "c"
 		},
 		"C_Cpp.errorSquiggles": "disabled",
 	},

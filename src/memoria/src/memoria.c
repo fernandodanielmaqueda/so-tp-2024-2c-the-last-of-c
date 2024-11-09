@@ -807,13 +807,15 @@ int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count) {
 void listen_cpu(void) {
     int status;
 
-    t_Package *package = package_create();
-    if(package == NULL) {
-        // TODO
-        return;
-    }
+    t_Package *package;
 
     while(1) {
+
+        package = package_create();
+        if(package == NULL) {
+            // TODO
+            return;
+        }
 
         if(package_receive(package, CLIENT_CPU->fd_client)) {
             log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
@@ -863,33 +865,33 @@ void listen_cpu(void) {
 }
 
 void seek_instruccion(t_Payload *payload) {
-    
+
     usleep(RESPONSE_DELAY * 1000);
-    
+
     t_PID pid;
     t_TID tid;
     t_PC pc;
 
-    payload_remove(payload, &pid, sizeof(t_PID));
-    payload_remove(payload, &tid, sizeof(t_TID));
-    payload_remove(payload, &pc, sizeof(t_PC));
+    payload_remove(payload, &pid, sizeof(pid));
+    payload_remove(payload, &tid, sizeof(tid));
+    payload_remove(payload, &pc, sizeof(pc));
 
-    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
         return;
     }
-    
-    if(pc > ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count) {
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        return;
+    }
+
+    if(pc >= (ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count)) {
         log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo PID-TID: %d-%d.\n", pid, tid);
         return;
     }
 
-    if(pc < 0) {
-        log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter es invalido para el hilo PID-TID: %d-%d.\n", pid, tid);
-        return;
-    }
-
-    char* instruccionBuscada = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
+    char *instruccionBuscada = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
 
     if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruccionBuscada, CLIENT_CPU->fd_client)) {
         log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d.\n", pid);
@@ -915,7 +917,7 @@ int read_memory(t_Payload *payload, int socket) {
     payload_remove(payload, &tid, sizeof(tid));
     size_deserialize(payload, &physical_address);
     size_deserialize(payload, &bytes);
-    
+
     if(bytes > 4) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
         if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, socket)) {
