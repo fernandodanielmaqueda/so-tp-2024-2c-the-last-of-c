@@ -360,92 +360,38 @@ int create_process(t_Payload *payload) {
         log_error_pthread_mutex_lock(status);
         // TODO
     }
-    bool unavailable = true;
-    size_t count = list_size(PARTITION_TABLE);
-    t_Partition* partition;
-    if(count != 0) partition = list_get(PARTITION_TABLE, 0);
+        bool available = true;
+        size_t index_partition;
 
-    switch(MEMORY_MANAGEMENT_SCHEME) {
-
-        case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-
-            for(size_t i = 0; i < count; i++) {
-                partition = list_get(PARTITION_TABLE, i);
-                if((partition->occupied == false) && (partition->size >= new_process->size)) {
-                    unavailable = false;
-                    i = count;
-                }
-            }
-
-            break;
+        if(allocate_partition(&index_partition, new_process->size)) {
+            available = false;
         }
 
-        case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-            t_Partition* aux_partition;
-            int location = 0;
-            
-            switch(MEMORY_ALLOCATION_ALGORITHM) {
-                case FIRST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
+        if(!available) {
+            log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d.\n", new_process->pid);
+            free(new_process);
+            return -1;
+        }
 
-                    for(size_t i = 0; i < count; i++) {
-                        partition = list_get(PARTITION_TABLE, i);
-                        if((partition->occupied == false) && (partition->size >= new_process->size)) {
-                            unavailable = false;
-                            i = count;
-                        }
-                    }
+        switch(MEMORY_MANAGEMENT_SCHEME) {
 
-                    break;
-                }
-
-                case BEST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
-
-                    for(size_t i = 0; i < count; i++) {
-                        aux_partition = list_get(PARTITION_TABLE, i);
-                        if((aux_partition->occupied == false) && (aux_partition->size >= new_process->size) && ((i == 0) || (aux_partition->size < partition->size))) {
-                            unavailable = false;
-                            location = i;
-                            partition = aux_partition;
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-
-                case WORST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
-
-                    for(size_t i = 0; i < count; i++) {
-                        aux_partition = list_get(PARTITION_TABLE, i);
-                        if((aux_partition->occupied == false) && (aux_partition->size >= new_process->size) && ((i == 0) || (aux_partition->size > partition->size))) {
-                            unavailable = false;
-                            location = i;
-                            partition = aux_partition;
-                            break;
-                        }
-                    }
-
-                    break;
-                }
+            case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+                break;
             }
 
-            //REALIZO EL SPLIT DE LA PARTICION (si es requerido)
-            if((partition->size != new_process->size) && !(unavailable))
-                if(split_partition(location, new_process->size)) {
+            case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+
+                // Realiza el fraccionamiento de la particion (si es requerido)
+                if(split_partition(index_partition, new_process->size)) {
                     return -1;
                 }
 
-            break;
+                break;
+            }
         }
-    }
 
-    if(unavailable) {
-        log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d.\n", new_process->pid);
-        free(new_process);
-        return -1;
-    }
-    else {
         log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d.\n", new_process->pid);
+        t_Partition *partition = list_get(PARTITION_TABLE, index_partition);
         partition->pid = new_process->pid;
         partition->occupied = true;
         new_process->partition = partition;
@@ -461,7 +407,6 @@ int create_process(t_Payload *payload) {
             free(new_process);
             return -1;
         }
-    }
     
     if((status = pthread_mutex_unlock(&MUTEX_PARTITION_TABLE))) {
         log_error_pthread_mutex_unlock(status);
@@ -469,6 +414,83 @@ int create_process(t_Payload *payload) {
     }
 
     log_info(MINIMAL_LOGGER, "## Proceso <Creado> - PID:<%u> - TAMAÑO:<%zu>.\n", new_process->pid, new_process->size);
+
+    return 0;
+}
+
+int allocate_partition(size_t *index_partition, size_t required_size) {
+    if(index_partition == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    bool available = false;
+    t_Partition *partition, *aux_partition;
+
+    switch(MEMORY_ALLOCATION_ALGORITHM) {
+        case FIRST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
+
+            for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
+                partition = list_get(PARTITION_TABLE, i);
+                if((partition->occupied == false) && (partition->size >= required_size)) {
+                    available = true;
+                    *index_partition = i;
+                    break;
+                }
+            }
+
+            break;
+        }
+
+        case BEST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
+
+            for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
+                aux_partition = list_get(PARTITION_TABLE, i);
+                if((aux_partition->occupied == false) && (aux_partition->size >= required_size)) {
+                    if(!available) {
+                        available = true;
+                        partition = aux_partition;
+                        *index_partition = i;
+                    }
+                    else {
+                        if(aux_partition->size < partition->size) {
+                            partition = aux_partition;
+                            *index_partition = i;
+                        }
+                    }
+                }
+            }
+
+            break;
+        }
+
+        case WORST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
+
+            for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
+                aux_partition = list_get(PARTITION_TABLE, i);
+                if((aux_partition->occupied == false) && (aux_partition->size >= required_size)) {
+                    if(!available) {
+                        available = true;
+                        partition = aux_partition;
+                        *index_partition = i;
+                    }
+                    else {
+                        if(aux_partition->size > partition->size) {
+                            partition = aux_partition;
+                            *index_partition = i;
+                        }
+                    }
+                }
+            }
+
+            break;
+        }
+    }
+
+    if(!available) {
+        errno = ENOMEM;
+        return -1;
+    }
 
     return 0;
 }
@@ -497,22 +519,27 @@ int add_element_to_array_process (t_Memory_Process* process) {
     return 0;
 }
 
-int split_partition(int position, size_t size) {
+int split_partition(size_t index_partition, size_t required_size) {
 
-    t_Partition* old_partition = list_get(PARTITION_TABLE, position);
-    t_Partition* new_partition = malloc(sizeof(t_Partition));
+    t_Partition *old_partition = list_get(PARTITION_TABLE, index_partition);
+
+    if(old_partition->size == required_size) {
+        return 0;
+    }
+
+    t_Partition *new_partition = malloc(sizeof(t_Partition));
     if(new_partition == NULL) {
         fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
         exit(EXIT_FAILURE);
     }
 
-    new_partition->size = (old_partition->size - size);
-    new_partition->base = (old_partition->base + size);
+    new_partition->size = (old_partition->size - required_size);
+    new_partition->base = (old_partition->base + required_size);
     new_partition->occupied = false;
-    old_partition->size = size;
-    position++;
+    old_partition->size = required_size;
+    index_partition++;
 
-    list_add_in_index(PARTITION_TABLE, position, new_partition);
+    list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
 
     return 0;
 
@@ -691,7 +718,7 @@ int kill_thread(t_Payload *payload) {
     return 0;
 }
 
-int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
+int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count) {
     FILE* file;
     if((file = fopen(path, "r")) == NULL) {
         log_warning(MODULE_LOGGER, "%s: No se pudo abrir el archivo de pseudocodigo indicado.", path);
@@ -748,12 +775,13 @@ int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count) {
 }
 
 void listen_cpu(void) {
+    int status;
+
     t_Package *package = package_create();
     if(package == NULL) {
         // TODO
         return;
     }
-    int status;
 
     while(1) {
 

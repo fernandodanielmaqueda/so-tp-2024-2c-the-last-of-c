@@ -160,7 +160,8 @@ int read_memory(t_Payload *socketRecibido, int socket);
 
 void free_memory();
 
-int split_partition(int position, size_t size);
+int allocate_partition(size_t *index_partition, size_t required_size);
+int split_partition(size_t index_partition, size_t size);
 int add_element_to_array_process (t_Memory_Process* process);
 int verify_and_join_splited_partitions(t_PID pid);
 void free_threads(int pid);

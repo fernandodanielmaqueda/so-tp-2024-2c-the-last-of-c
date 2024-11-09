@@ -8,7 +8,7 @@ t_Connection CONNECTION_CPU_INTERRUPT;
 
 void initialize_sockets(void) {
 	int status;
-	
+
 	// [Client] Kernel -> [Server] CPU (Dispatch Port)
 	if((status = pthread_create(&CONNECTION_CPU_DISPATCH.thread_connection.thread, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_CPU_DISPATCH))) {
 		log_error_pthread_create(status);
