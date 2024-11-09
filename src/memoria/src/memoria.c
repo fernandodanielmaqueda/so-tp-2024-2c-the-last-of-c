@@ -509,8 +509,8 @@ int add_element_to_array_process (t_Memory_Process* process) {
         return -1;
     }
 
-    PID_COUNT++;
     ARRAY_PROCESS_MEMORY[PID_COUNT] = process;
+    PID_COUNT++;
     if((status = pthread_mutex_unlock(&MUTEX_ARRAY_PROCESS_MEMORY))) {
         log_error_pthread_mutex_unlock(status);
         // TODO
@@ -640,6 +640,19 @@ int verify_and_join_splited_partitions(t_PID pid) {
 
 int create_thread(t_Payload *payload) {
 
+    t_PID pid;
+    t_TID tid;
+    char *argument_path;
+
+    payload_remove(payload, &pid, sizeof(pid));
+    payload_remove(payload, &tid, sizeof(tid));
+    text_deserialize(payload, &argument_path);
+
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        return -1;
+    }
+
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
         // TODO
@@ -647,13 +660,7 @@ int create_thread(t_Payload *payload) {
         return -1;
     }
 
-    t_PID pid;
-    char *argument_path;
-
-    payload_remove(payload, &pid, sizeof(t_PID));
-    payload_remove(payload, &(new_thread->tid), sizeof(((t_Memory_Thread *)0)->tid));
-    text_deserialize(payload, &argument_path);
-
+    new_thread->tid = tid;
     new_thread->instructions_count = 0;
     new_thread->array_instructions = NULL;
 
@@ -704,10 +711,9 @@ int create_thread(t_Payload *payload) {
         return -1;
     }
 
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count + 1)); 
-    if(ARRAY_PROCESS_MEMORY == NULL) {
-        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", 
-                                    sizeof(t_Memory_Thread *) * (ARRAY_PROCESS_MEMORY[pid]->tid_count  +1));
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1)); 
+    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads == NULL) {
+        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1));
             for(size_t i = 0; i < new_thread->instructions_count; i++) {
                 free(new_thread->array_instructions[i]);
             }
@@ -716,8 +722,8 @@ int create_thread(t_Payload *payload) {
         return -1;
     }
 
-    ARRAY_PROCESS_MEMORY[pid]->tid_count++;
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[new_thread->tid] = new_thread;
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
+    (ARRAY_PROCESS_MEMORY[pid]->tid_count)++;
 
     return 0;
 }
