@@ -752,15 +752,23 @@ int destroy_thread(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
-    //Free instrucciones
-        if( ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] != NULL) {
-            for(size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count; 0 < y; y--)
-            {
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[y]);
-            }
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions);
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]);
-        }
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        return -1;
+    }
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        return -1;
+    }
+
+    // Free instrucciones
+    for(t_PC pc = 0; pc < ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count; pc++) {
+        free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc]);
+    }
+
+    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions);
+    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]);
 
     log_info(MINIMAL_LOGGER, "## Hilo Destruido - (PID:TID) - (%u:%u)", pid, tid);
 
