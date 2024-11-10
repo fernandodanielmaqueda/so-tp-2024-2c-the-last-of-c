@@ -69,11 +69,10 @@ typedef struct t_PCB {
 
     size_t size;
 
+    t_TID_Manager thread_manager;
+
     pthread_rwlock_t rwlock_resources;
     t_dictionary *dictionary_resources;
-
-    t_TID_Manager thread_manager;
-    t_TID thread_counter;
 } t_PCB;
 
 typedef struct t_TCB {

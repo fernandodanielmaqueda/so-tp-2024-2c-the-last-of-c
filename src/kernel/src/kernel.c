@@ -417,7 +417,7 @@ int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination) {
 }
 
 t_PCB *pcb_create(size_t size) {
-	int retval = 0;
+	int retval = 0, status;
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
 	if(pcb == NULL) {
@@ -435,10 +435,17 @@ t_PCB *pcb_create(size_t size) {
 	}
 	pthread_cleanup_push((void (*)(void *)) tid_manager_destroy, &(pcb->thread_manager));
 
+	if((status = pthread_rwlock_init(&(pcb->rwlock_resources), NULL))) {
+		log_error_pthread_rwlock_init(status);
+		retval = -1;
+		goto cleanup_tid_manager;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(pcb->rwlock_resources));
+
 	pcb->dictionary_resources = dictionary_create();
 	if(pcb->dictionary_resources == NULL) {
 		retval = -1;
-		goto cleanup_tid_manager;
+		goto cleanup_rwlock_resources;
 	}
 	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, pcb->dictionary_resources);
 
@@ -449,10 +456,21 @@ t_PCB *pcb_create(size_t size) {
 
 	cleanup_dictionary_resources:
 	pthread_cleanup_pop(retval);
+
+	cleanup_rwlock_resources:
+	pthread_cleanup_pop(0);
+	if(retval) {
+		if((status = pthread_rwlock_destroy(&(pcb->rwlock_resources)))) {
+			log_error_pthread_rwlock_destroy(status);
+		}
+	}
+
 	cleanup_tid_manager:
 	pthread_cleanup_pop(retval);
+
 	cleanup_pcb:
 	pthread_cleanup_pop(retval);
+
 	ret:
 	if(retval)
 		return NULL;
@@ -461,14 +479,22 @@ t_PCB *pcb_create(size_t size) {
 }
 
 int pcb_destroy(t_PCB *pcb) {
-	int retval = 0;
+	int retval = 0, status;
 	
 	if(pid_release(&PID_MANAGER, pcb->PID)) {
-		// TODO
 		retval = -1;
 	}
 
 	dictionary_destroy(pcb->dictionary_resources);
+
+	if((status = pthread_rwlock_destroy(&(pcb->rwlock_resources)))) {
+		log_error_pthread_rwlock_destroy(status);
+		retval = -1;
+	}
+
+	if(tid_manager_destroy(&(pcb->thread_manager))) {
+		retval = -1;
+	}
 
 	free(pcb);
 
@@ -476,13 +502,15 @@ int pcb_destroy(t_PCB *pcb) {
 }
 
 t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
-	int status;
+	int retval = 0, status;
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
 		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
-		return NULL;
+		retval = -1;
+		goto ret;
 	}
+	pthread_cleanup_push((void (*)(void *)) free, tcb);
 
 	tcb->pcb = pcb;
 
@@ -496,40 +524,79 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 
 	payload_init(&(tcb->syscall_instruction));
 
-	tcb->shared_list_blocked_thread_join.list = list_create();
 	if((status = pthread_mutex_init(&(tcb->shared_list_blocked_thread_join.mutex), NULL))) {
 		log_error_pthread_mutex_init(status);
-		// TODO
+		retval = -1;
+		goto cleanup_tcb;
 	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(tcb->shared_list_blocked_thread_join.mutex));
+
+	tcb->shared_list_blocked_thread_join.list = list_create();
+	if(tcb->shared_list_blocked_thread_join.list == NULL) {
+		retval = -1;
+		goto cleanup_mutex_blocked_thread_join;
+	}
+	pthread_cleanup_push((void (*)(void *)) list_destroy, (void *) tcb->shared_list_blocked_thread_join.list);
 
 	tcb->dictionary_assigned_resources = dictionary_create();
+	if(tcb->dictionary_assigned_resources == NULL) {
+		retval = -1;
+		goto cleanup_list_blocked_thread_join;
+	}
+	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, tcb->dictionary_assigned_resources);
 
-	tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID));
+	if(tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID))) {
+		retval = -1;
+		goto cleanup_dictionary_assigned_resources;
+	}
 
-	return tcb;
+	cleanup_dictionary_assigned_resources:
+	pthread_cleanup_pop(retval);
+
+	cleanup_list_blocked_thread_join:
+	pthread_cleanup_pop(retval);
+
+	cleanup_mutex_blocked_thread_join:
+	pthread_cleanup_pop(0);
+	if(retval) {
+		if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
+			log_error_pthread_mutex_destroy(status);
+		}
+	}
+
+	cleanup_tcb:
+	pthread_cleanup_pop(retval);
+
+	ret:
+	if(retval)
+		return NULL;
+	else
+		return tcb;
 }
 
 int tcb_destroy(t_TCB *tcb) {
-	int status;
+	int retval = 0, status;
 
-	tid_release(&(tcb->pcb->thread_manager), tcb->TID);
-	
-	free(tcb->pseudocode_filename);
-
-	payload_destroy(&(tcb->syscall_instruction));
-
-	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) pcb_destroy);
-
-	if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
-		// TODO
+	if(tid_release(&(tcb->pcb->thread_manager), tcb->TID)) {
+		retval = -1;
 	}
 
 	dictionary_destroy(tcb->dictionary_assigned_resources);
 
+	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) tcb_destroy);
+
+	if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
+		log_error_pthread_mutex_destroy(status);
+		retval = -1;
+	}
+
+	payload_destroy(&(tcb->syscall_instruction));
+
+	free(tcb->pseudocode_filename);
+
 	free(tcb);
 
-	return 0;
+	return retval;
 }
 
 int pid_manager_init(t_PID_Manager *id_manager) {
