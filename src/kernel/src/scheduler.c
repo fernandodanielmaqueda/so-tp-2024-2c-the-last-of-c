@@ -247,8 +247,6 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
-			log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
-
 			if(insert_state_ready(((t_TCB **) (pcb->thread_manager.array))[0])) {
 				error_pthread();
 			}

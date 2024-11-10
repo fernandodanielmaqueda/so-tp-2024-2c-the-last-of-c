@@ -362,9 +362,11 @@ int get_state_exec(t_TCB **tcb) {
 			*tcb = NULL;
 		}
 		else {
-			*tcb = TCB_EXEC;
+			t_TCB *aux_tcb;
+			aux_tcb = TCB_EXEC;
 			TCB_EXEC = NULL;
-			(*tcb)->location = NULL;
+			aux_tcb->location = NULL;
+			*tcb = aux_tcb;
 		}
 	if((status = pthread_mutex_unlock(&MUTEX_EXEC))) {
 		log_error_pthread_mutex_unlock(status);
@@ -537,6 +539,10 @@ int insert_state_ready(t_TCB *tcb) {
 		}
 
 	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+
+	if(previous_state == NEW_STATE) {
+		log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", tcb->pcb->PID, tcb->TID);
+	}
 
 	if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
 		log_error_sem_post();

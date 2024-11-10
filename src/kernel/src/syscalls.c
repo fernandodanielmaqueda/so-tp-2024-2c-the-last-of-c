@@ -129,7 +129,6 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     if(array_list_ready_update(new_tcb->priority)) {
         error_pthread();
     }
-    log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", new_tcb->pcb->PID, new_tcb->TID);
     insert_state_ready(new_tcb);
 
     SHOULD_REDISPATCH = 1;
