@@ -211,16 +211,16 @@ void *long_term_scheduler_new(void) {
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
 				if(send_thread_create(pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename, connection_memory.fd_connection)) {
-					log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename);
+					log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename);
 					error_pthread();
 				}
-				log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creacion de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename);
+				log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, ((t_TCB **) (pcb->thread_manager.array))[0]->pseudocode_filename);
 
 				if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
-					log_error(MODULE_LOGGER, "[%d] Error al recibir confirmacion de creacion de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
+					log_error(MODULE_LOGGER, "[%d] Error al recibir confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
 					error_pthread();
 				}
-				log_trace(MODULE_LOGGER, "[%d] Se recibe confirmacion de creacion de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
+				log_trace(MODULE_LOGGER, "[%d] Se recibe confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, ((t_TCB **) (pcb->thread_manager.array))[0]->TID);
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.fd_connection)) {

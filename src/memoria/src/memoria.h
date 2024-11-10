@@ -113,20 +113,20 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
  * @brief Busca el archivo de pseudocodigo y crea la estructura dentro de memoria
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-int create_process(t_Payload *payload);
+int create_process(int fd_client, t_Payload *payload);
 
 /**
  * @brief Elimina el proceso, marca el marco como disponible y libera la pagina
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-int kill_process (t_Payload *payload);
+int destroy_process(int fd_client, t_Payload *payload);
 
 /**
  * @brief Busca la lista de instruccion y devuelve la instruccion buscada
  * @param pid Program counter requerido.
  * @param pc Program counter requerido.
  */
-void seek_instruccion(t_Payload *socketRecibido);
+void seek_instruccion(t_Payload *payload);
 
 /**
  * @brief Crea la lista de instrucciones asociada al archivo pasado por parametro
@@ -140,7 +140,7 @@ void create_instruction(FILE *file, t_list *list_instruction);
  * @param path Path donde se encuentra el archivo.
  * @param list_instruction Lista a llenarse con las instrucciones del archivo.
  */
-int parse_pseudocode_file(char *path, char*** array_instruction, t_PC* count);
+int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count);
 
 /**
  * @brief Funcion que encapsula al hilo escucha cpu
@@ -156,19 +156,19 @@ void listen_kernel(int fd_client);
 
 int write_memory(t_Payload *socketRecibido);
 
-int read_memory(t_Payload *socketRecibido, int socket);
+int read_memory(t_Payload *socketRecibido);
 
 void free_memory();
 
 int allocate_partition(size_t *index_partition, size_t required_size);
 int split_partition(size_t index_partition, size_t size);
-int add_element_to_array_process (t_Memory_Process* process);
+int add_element_to_array_process (t_Memory_Process *process);
 int verify_and_join_splited_partitions(t_PID pid);
-void free_threads(int pid);
-int create_thread(t_Payload *payload);
-int destroy_thread(t_Payload *payload);
-int treat_memory_dump(t_Payload *payload);
-void* attend_memory_dump(void* arg);
+void free_threads(t_PID pid);
+int create_thread(int fd_client, t_Payload *payload);
+int destroy_thread(int fd_client, t_Payload *payload);
+int treat_memory_dump(int fd_client, t_Payload *payload);
+void* attend_memory_dump(void *arg);
 void seek_cpu_context(t_Payload *payload);
 void update_cpu_context(t_Payload *payload);
 

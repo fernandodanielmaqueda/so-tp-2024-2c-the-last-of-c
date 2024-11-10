@@ -62,11 +62,9 @@ int module(int argc, char* argv[]) {
 
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
-    initialize_sockets();
-
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-    //listen_cpu();
+    initialize_sockets();
 
 	//finish_threads();
     free_memory();
@@ -301,32 +299,27 @@ void listen_kernel(int fd_client) {
     switch(package->header) {
 
         case PROCESS_CREATE_HEADER:
-            log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion proceso nuevo recibido.", fd_client);
-            result = create_process(&(package->payload));
+            result = create_process(fd_client, &(package->payload));
             send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client);
             break;
         
         case PROCESS_DESTROY_HEADER:
-            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar proceso recibido.", fd_client);
-            result = kill_process(&(package->payload));
+            result = destroy_process(fd_client, &(package->payload));
             send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
             break;
         
         case THREAD_CREATE_HEADER:
-            log_info(MODULE_LOGGER, "[%d] KERNEL: Creacion hilo nuevo recibido.", fd_client);
-            result = create_thread(&(package->payload));
+            result = create_thread(fd_client, &(package->payload));
             send_result_with_header(THREAD_CREATE_HEADER, result, fd_client);
             break;
             
         case THREAD_DESTROY_HEADER:
-            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-            result = destroy_thread(&(package->payload));
+            result = destroy_thread(fd_client, &(package->payload));
             send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client);
             break;
             
         case MEMORY_DUMP_HEADER:
-            log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-            result = treat_memory_dump(&(package->payload));
+            result = treat_memory_dump(fd_client, &(package->payload));
             if (result == (-1)) send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client);
             break;
 
@@ -341,9 +334,17 @@ void listen_kernel(int fd_client) {
 	return;
 }
 
-int create_process(t_Payload *payload) {
+int create_process(int fd_client, t_Payload *payload) {
 
     int status;
+
+    t_PID pid;
+    size_t size;
+
+    payload_remove(payload, &pid, sizeof(pid));
+    size_deserialize(payload, &size);
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
 
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
@@ -352,8 +353,8 @@ int create_process(t_Payload *payload) {
         return -1;
     }
 
-    payload_remove(payload, &(new_process->pid), sizeof(((t_Memory_Process *)0)->pid));
-    size_deserialize(payload, &(new_process->size));
+    new_process->pid = pid;
+    new_process->size = size;
 
     //ASIGNAR PARTICION
     if((status = pthread_mutex_lock(&MUTEX_PARTITION_TABLE))) {
@@ -545,12 +546,21 @@ int split_partition(size_t index_partition, size_t required_size) {
 
 }
 
-int kill_process(t_Payload *payload) {
-    
+int destroy_process(int fd_client, t_Payload *payload) {
+
     int status;
+
     t_PID pid;
 
     payload_remove(payload, &pid, sizeof(t_PID));
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
+
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        return -1;
+    }
+
     size_t size = ARRAY_PROCESS_MEMORY[pid]->size;
 
     //Liberacion de particion
@@ -638,7 +648,7 @@ int verify_and_join_splited_partitions(t_PID pid) {
     return 0;
 }
 
-int create_thread(t_Payload *payload) {
+int create_thread(int fd_client, t_Payload *payload) {
 
     t_PID pid;
     t_TID tid;
@@ -647,6 +657,8 @@ int create_thread(t_Payload *payload) {
     payload_remove(payload, &pid, sizeof(pid));
     payload_remove(payload, &tid, sizeof(tid));
     text_deserialize(payload, &argument_path);
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -730,12 +742,15 @@ int create_thread(t_Payload *payload) {
     return 0;
 }
 
-int destroy_thread(t_Payload *payload) {
+int destroy_thread(int fd_client, t_Payload *payload) {
+
     t_PID pid;
     t_TID tid;
 
     payload_remove(payload, &(pid), sizeof(t_PID));
     payload_remove(payload, &(tid), sizeof(t_TID));
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
     //Free instrucciones
         if( ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] != NULL) {
@@ -809,7 +824,7 @@ int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count) {
 }
 
 void listen_cpu(void) {
-    int status;
+    int result = 0, status;
 
     t_Package *package;
 
@@ -829,39 +844,34 @@ void listen_cpu(void) {
 
         switch(package->header) {
             case INSTRUCTION_REQUEST_HEADER:
-                log_info(MODULE_LOGGER, "CPU: Pedido de instruccion recibido.");
                 seek_instruccion(&(package->payload));
                 package_destroy(package);
                 break;
-                
+
             case READ_REQUEST_HEADER:
-                log_info(MODULE_LOGGER, "CPU: Pedido de lectura recibido.");
-                if(read_memory(&(package->payload), CLIENT_CPU->fd_client))
-                    send_result_with_header(READ_REQUEST_HEADER, 1, CLIENT_CPU->fd_client);
+                result = read_memory(&(package->payload));
+                send_result_with_header(READ_REQUEST_HEADER, result, CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
-                
+
             case WRITE_REQUEST_HEADER:
-                log_info(MODULE_LOGGER, "CPU: Pedido de escritura recibido.");
-                int result_write = write_memory(&(package->payload));
-                send_result_with_header(WRITE_REQUEST_HEADER, result_write, CLIENT_CPU->fd_client);
+                result = write_memory(&(package->payload));
+                send_result_with_header(WRITE_REQUEST_HEADER, result, CLIENT_CPU->fd_client);
                 package_destroy(package);
                 break;
-                
+
             case EXEC_CONTEXT_REQUEST_HEADER:
-                log_info(MODULE_LOGGER, "CPU: Pedido de registros recibido.");
                 seek_cpu_context(&(package->payload));
                 package_destroy(package);
                 break;
-                
+
             case EXEC_CONTEXT_UPDATE_HEADER:
-                log_info(MODULE_LOGGER, "CPU: Actualizacion de registros recibido.");
                 update_cpu_context(&(package->payload));
                 package_destroy(package);
                 break;
-            
+
             default:
-                log_warning(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+                log_error(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
                 package_destroy(package);
                 break;
         }
@@ -879,6 +889,8 @@ void seek_instruccion(t_Payload *payload) {
     payload_remove(payload, &pid, sizeof(pid));
     payload_remove(payload, &tid, sizeof(tid));
     payload_remove(payload, &pc, sizeof(pc));
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de instrucción de [Cliente] %s [PID: %u - TID: %u - PC: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -908,42 +920,33 @@ void seek_instruccion(t_Payload *payload) {
     return;
 }
 
-int read_memory(t_Payload *payload, int socket) {
-    
+int read_memory(t_Payload *payload) {
+
     usleep(RESPONSE_DELAY * 1000);
-    
+
     t_PID pid;
     t_TID tid;
     size_t physical_address;
     size_t bytes;
-    
+
     payload_remove(payload, &pid, sizeof(pid));
     payload_remove(payload, &tid, sizeof(tid));
     size_deserialize(payload, &physical_address);
     size_deserialize(payload, &bytes);
 
+    log_info(MODULE_LOGGER, "[%d] Se recibe lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Bytes: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+
     if(bytes > 4) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
-        if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, socket)) {
-            // TODO
-        }
         return -1;
     }
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
         log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
-        if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, socket)) {
-            // TODO
-        }
         return -1;
     }
     
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
-
-    if(send_data_with_header(READ_REQUEST_HEADER, posicion, bytes, socket)) {
-        // TODO
-        return -1;
-    }
     
 //FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
     log_info(MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
@@ -953,20 +956,22 @@ int read_memory(t_Payload *payload, int socket) {
 }
 
 int write_memory(t_Payload *payload) {
-    
+
     usleep(RESPONSE_DELAY * 1000);
-    
+
     t_PID pid;
     t_TID tid;
     size_t physical_address;
     void *data;
     size_t bytes;
-    
+
     payload_remove(payload, &pid, sizeof(pid));
     payload_remove(payload, &tid, sizeof(tid));
     size_deserialize(payload, &physical_address);
     data_deserialize(payload, &data, &bytes);
-    
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Bytes: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
     if(bytes > 4) {
@@ -996,7 +1001,7 @@ int write_memory(t_Payload *payload) {
     return 0;
 }
 
-void free_threads(int pid) {
+void free_threads(t_PID pid) {
 
     for(size_t i = ARRAY_PROCESS_MEMORY[pid]->tid_count; 0 < i; i--)
     {
@@ -1015,7 +1020,7 @@ void free_threads(int pid) {
 
 }
 
-int treat_memory_dump(t_Payload *payload) {
+int treat_memory_dump(int fd_client, t_Payload *payload) {
     /*
     t_FS_Data* data = malloc(sizeof(t_FS_Data));
     if (data == NULL) {
@@ -1033,6 +1038,8 @@ int treat_memory_dump(t_Payload *payload) {
 
     payload_remove(payload, &(pid), sizeof(t_PID));
     payload_remove(payload, &(tid), sizeof(t_TID));
+
+    log_info(MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
     char *namefile = string_new();
     sprintf(namefile, "<%u><%u><%ld>.dmp", pid, tid, (long)current_time);
@@ -1135,6 +1142,8 @@ void seek_cpu_context(t_Payload *payload) {
     payload_remove(payload, &pid, sizeof(t_PID));
     payload_remove(payload, &tid, sizeof(t_TID));
 
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
         return;
@@ -1171,7 +1180,9 @@ void update_cpu_context(t_Payload *payload) {
     payload_remove(payload, &(pid), sizeof(t_PID));
     payload_remove(payload, &(tid), sizeof(t_TID));
     exec_context_deserialize(payload, &(context));
-    
+
+    log_info(MODULE_LOGGER, "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+
     if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL) {
         log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
         return;
