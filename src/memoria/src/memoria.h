@@ -166,7 +166,7 @@ int add_element_to_array_process (t_Memory_Process* process);
 int verify_and_join_splited_partitions(t_PID pid);
 void free_threads(int pid);
 int create_thread(t_Payload *payload);
-int kill_thread(t_Payload *payload);
+int destroy_thread(t_Payload *payload);
 int treat_memory_dump(t_Payload *payload);
 void* attend_memory_dump(void* arg);
 void seek_cpu_context(t_Payload *payload);

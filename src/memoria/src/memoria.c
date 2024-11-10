@@ -320,7 +320,7 @@ void listen_kernel(int fd_client) {
             
         case THREAD_DESTROY_HEADER:
             log_info(MODULE_LOGGER, "[%d] KERNEL: Finalizar hilo recibido.", fd_client);
-            result = kill_thread(&(package->payload));
+            result = destroy_thread(&(package->payload));
             send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client);
             break;
             
@@ -413,7 +413,7 @@ int create_process(t_Payload *payload) {
         // TODO
     }
 
-    log_info(MINIMAL_LOGGER, "## Proceso <Creado> - PID:<%u> - TAMAÑO:<%zu>.\n", new_process->pid, new_process->size);
+    log_info(MINIMAL_LOGGER, "## Proceso Creado - PID: %u - TAMAÑO: %zu", new_process->pid, new_process->size);
 
     return 0;
 }
@@ -574,7 +574,7 @@ int kill_process(t_Payload *payload) {
     //Liberacion de threads con sus struct
     free_threads(pid);
     
-    log_info(MINIMAL_LOGGER, "## Proceso <Destruido> - PID:<%u> - TAMAÑO:<%zu>.\n", pid, size);
+    log_info(MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
     
     return 0;
 }
@@ -725,10 +725,12 @@ int create_thread(t_Payload *payload) {
     ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
     (ARRAY_PROCESS_MEMORY[pid]->tid_count)++;
 
+    log_info(MINIMAL_LOGGER, "## Hilo Creado - (PID:TID) - (%u:%u)", pid, tid);
+
     return 0;
 }
 
-int kill_thread(t_Payload *payload) {
+int destroy_thread(t_Payload *payload) {
     t_PID pid;
     t_TID tid;
 
@@ -744,6 +746,8 @@ int kill_thread(t_Payload *payload) {
                 free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions);
                 free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]);
         }
+
+    log_info(MINIMAL_LOGGER, "## Hilo Destruido - (PID:TID) - (%u:%u)", pid, tid);
 
     return 0;
 }
@@ -899,7 +903,7 @@ void seek_instruccion(t_Payload *payload) {
     }
 
     //FIX REQUIRED --> <> de instruccion
-    log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:<%u>) - (TID:<%u>) - Instruccion: <%s>.\n", pid, tid, instruccionBuscada);
+    log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:TID) - (%u:%u) - Instruccion: %s", pid, tid, instruccionBuscada);
 
     return;
 }
@@ -942,7 +946,7 @@ int read_memory(t_Payload *payload, int socket) {
     }
     
 //FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
-    log_info(MINIMAL_LOGGER, "## <Lectura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
 
     return 0;
 
@@ -987,7 +991,7 @@ int write_memory(t_Payload *payload) {
     }
 
 //FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
-    log_info(MINIMAL_LOGGER, "## <Escritura> - (PID:<%u>) - (TID:<%u>) - Dir. Fisica: <%zu> - Tamaño: <%zu>.\n", pid, tid, physical_address, bytes);
+    log_info(MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu> - Tamaño: %zu", pid, tid, physical_address, bytes);
 
     return 0;
 }
@@ -1078,7 +1082,7 @@ int treat_memory_dump(t_Payload *payload) {
         // TODO
     }
     
-    log_info(MINIMAL_LOGGER, "## Memory dump solicitado - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
+    log_info(MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
     return 0;
 }
@@ -1151,7 +1155,7 @@ void seek_cpu_context(t_Payload *payload) {
         return;
     }
     
-    log_info(MINIMAL_LOGGER, "## Contexto <Solicitado> - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
+    log_info(MINIMAL_LOGGER, "## Contexto Solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
     return;
 }
@@ -1175,7 +1179,7 @@ void update_cpu_context(t_Payload *payload) {
 
     ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers = context.cpu_registers;
     
-    log_info(MINIMAL_LOGGER, "## Contexto <Actualizado> - (PID:<%u>) - (TID:<%u>).\n", pid, tid);
+    log_info(MINIMAL_LOGGER, "## Contexto Actualizado - (PID:TID) - (%u:%u)", pid, tid);
 
     return;
 }
