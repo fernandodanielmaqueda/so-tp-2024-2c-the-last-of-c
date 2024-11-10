@@ -26,7 +26,7 @@ int text_serialize(t_Payload *payload, char *source) {
       return -1;
   }
 
-  text_log(source);
+  text_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -57,14 +57,15 @@ int text_deserialize(t_Payload *payload, char **destination) {
     }
   }
 
-  text_log(*destination);
+  text_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int text_log(char *text) {
+int text_log(e_Serialization serialization, char *text) {
 
   log_info(SERIALIZE_LOGGER,
-    "text: %s"
+    "[%s] text: %s"
+    , SERIALIZATION_NAMES[serialization]
     , (text != NULL) ? text : "(nil)"
   );
 

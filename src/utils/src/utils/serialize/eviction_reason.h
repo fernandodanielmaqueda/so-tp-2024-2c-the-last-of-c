@@ -49,6 +49,6 @@ int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destinati
  * @brief Loguea un e_Eviction_Reason.
  * @param eviction_reason e_Eviction_Reason a loguear.
  */
-int eviction_reason_log(e_Eviction_Reason eviction_reason);
+int eviction_reason_log(e_Serialization serialization, e_Eviction_Reason eviction_reason);
 
 #endif // UTILS_SERIALIZE_EVICTION_REASON_H

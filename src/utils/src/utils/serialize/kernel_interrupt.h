@@ -45,6 +45,6 @@ int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destina
  * @brief Loguea un e_Kernel_Interrupt.
  * @param kernel_interrupt e_Kernel_Interrupt a loguear.
  */
-int kernel_interrupt_log(e_Kernel_Interrupt kernel_interrupt);
+int kernel_interrupt_log(e_Serialization serialization, e_Kernel_Interrupt kernel_interrupt);
 
 #endif // UTILS_SERIALIZE_KERNEL_INTERRUPT_H

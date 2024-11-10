@@ -23,7 +23,7 @@ int data_serialize(t_Payload *payload, void *data, size_t size) {
       return -1;
   }
 
-  data_log(data, size);
+  data_log(SERIALIZE_SERIALIZATION, data, size);
   return 0;
 }
 
@@ -59,18 +59,19 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
 
   }
 
-  data_log(*data, (size_t) size_serialized);
+  data_log(DESERIALIZE_SERIALIZATION, *data, (size_t) size_serialized);
   return 0;
 }
 
-int data_log(void *data, size_t size) {
+int data_log(e_Serialization serialization, void *data, size_t size) {
   char *dump_string = mem_hexstring(data, size);
 
   log_info(SERIALIZE_LOGGER,
-    "data:\n"
+    "[%s] data:\n"
     "* size: %zu\n"
     "* stream: %p\n"
     "%s"
+    , SERIALIZATION_NAMES[serialization]
     , size
     , data
     , dump_string

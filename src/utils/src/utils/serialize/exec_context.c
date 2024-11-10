@@ -96,7 +96,7 @@ int exec_context_serialize(t_Payload *payload, t_Exec_Context source) {
   if(payload_add(payload, &(source.limit), sizeof(((t_Exec_Context *)0)->limit)))
     return -1;
 
-  exec_context_log(source);
+  exec_context_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -129,13 +129,13 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
   if(payload_remove(payload, &(destination->limit), sizeof(((t_Exec_Context *)0)->limit)))
     return -1;
 
-  exec_context_log(*destination);
+  exec_context_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int exec_context_log(t_Exec_Context source) {
+int exec_context_log(e_Serialization serialization, t_Exec_Context source) {
   log_info(SERIALIZE_LOGGER,
-    "t_Exec_Context:\n"
+    "[%s] t_Exec_Context:\n"
     "* PC: %u\n"
     "* AX: %u\n"
     "* BX: %u\n"
@@ -147,6 +147,7 @@ int exec_context_log(t_Exec_Context source) {
     "* HX: %u\n"
     "* base: %u\n"
     "* limit: %u"
+    , SERIALIZATION_NAMES[serialization]
     , source.cpu_registers.PC
     , source.cpu_registers.AX
     , source.cpu_registers.BX

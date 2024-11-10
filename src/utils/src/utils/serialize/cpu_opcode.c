@@ -38,7 +38,7 @@ int cpu_opcode_serialize(t_Payload *payload, e_CPU_OpCode source) {
     return -1;
   }
 
-  cpu_opcode_log(source);
+  cpu_opcode_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -55,13 +55,14 @@ int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
 
   *destination = (e_CPU_OpCode) aux;
 
-  cpu_opcode_log(*destination);
+  cpu_opcode_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int cpu_opcode_log(e_CPU_OpCode cpu_opcode) {
+int cpu_opcode_log(e_Serialization serialization, e_CPU_OpCode cpu_opcode) {
   log_info(SERIALIZE_LOGGER,
-    "e_CPU_OpCode: %s"
+    "[%s] e_CPU_OpCode: %s"
+    , SERIALIZATION_NAMES[serialization]
     , CPU_OPCODE_NAMES[cpu_opcode]
   );
 

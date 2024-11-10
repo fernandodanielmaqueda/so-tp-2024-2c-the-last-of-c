@@ -24,7 +24,7 @@ int eviction_reason_serialize(t_Payload *payload, e_Eviction_Reason source) {
   if(payload_add(payload, &aux, sizeof(aux)))
     return -1;
 
-  eviction_reason_log(source);
+  eviction_reason_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -41,13 +41,14 @@ int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destinati
 
   *destination = (e_Eviction_Reason) aux;
   
-  eviction_reason_log(*destination);
+  eviction_reason_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int eviction_reason_log(e_Eviction_Reason eviction_reason) {
+int eviction_reason_log(e_Serialization serialization, e_Eviction_Reason eviction_reason) {
   log_info(SERIALIZE_LOGGER,
-    "e_Eviction_Reason: %s"
+    "[%s] e_Eviction_Reason: %s"
+    , SERIALIZATION_NAMES[serialization]
     , EVICTION_REASON_NAMES[eviction_reason]
   );
 

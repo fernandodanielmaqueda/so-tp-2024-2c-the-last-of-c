@@ -39,6 +39,6 @@ int subpayload_deserialize(t_Payload *payload, t_Payload *destination);
  * @brief Loguea un t_Payload.
  * @param subpayload t_Payload a loguear.
  */
-int subpayload_log(t_Payload source);
+int subpayload_log(e_Serialization serialization, t_Payload source);
 
 #endif // UTILS_SERIALIZE_SUBPAYLOAD_H

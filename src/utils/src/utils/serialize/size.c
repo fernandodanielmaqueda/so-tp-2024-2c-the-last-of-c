@@ -81,7 +81,7 @@ int size_serialize(t_Payload *payload, size_t source) {
   if(payload_add(payload, &size_serialized, sizeof(size_serialized)))
     return -1;
 
-  size_log(source);
+  size_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -98,13 +98,14 @@ int size_deserialize(t_Payload *payload, size_t *destination) {
   
   *destination = (size_t) size_serialized;
 
-  size_log(*destination);
+  size_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int size_log(size_t source) {
+int size_log(e_Serialization serialization, size_t source) {
   log_info(SERIALIZE_LOGGER,
-    "size_t: %zu"
+    "[%s] size_t: %zu"
+    , SERIALIZATION_NAMES[serialization]
     , source
   );
 

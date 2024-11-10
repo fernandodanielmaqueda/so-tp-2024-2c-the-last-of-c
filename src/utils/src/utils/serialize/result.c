@@ -18,7 +18,7 @@ int result_serialize(t_Payload *payload, int source) {
   if(payload_add(payload, &source_serialized, sizeof(source_serialized)))
     return -1;
 
-  result_log(source_serialized);
+  result_log(SERIALIZE_SERIALIZATION, source_serialized);
   return 0;
 }
 
@@ -34,13 +34,14 @@ int result_deserialize(t_Payload *payload, int *destination) {
   
   *destination = (int) destination_serialized;
     
-  result_log(destination_serialized);
+  result_log(DESERIALIZE_SERIALIZATION, destination_serialized);
   return 0;
 }
 
-int result_log(t_Result source) {
+int result_log(e_Serialization serialization, t_Result source) {
   log_info(SERIALIZE_LOGGER,
-    "t_Result: %d"
+    "[%s] t_Result: %d"
+    , SERIALIZATION_NAMES[serialization]
     , source
   );
 

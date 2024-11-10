@@ -27,7 +27,7 @@ int port_type_serialize(t_Payload *payload, e_Port_Type source) {
   if(payload_add(payload, &aux, sizeof(aux)))
     return -1;
 
-  port_type_log(source);
+  port_type_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -44,13 +44,14 @@ int port_type_deserialize(t_Payload *payload, e_Port_Type *destination) {
 
   *destination = (e_Port_Type) aux;
   
-  port_type_log(*destination);
+  port_type_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int port_type_log(e_Port_Type source) {
+int port_type_log(e_Serialization serialization, e_Port_Type source) {
   log_info(SERIALIZE_LOGGER,
-    "e_Port_Type: %s"
+    "[%s] e_Port_Type: %s"
+    , SERIALIZATION_NAMES[serialization]
     , PORT_NAMES[source]
   );
 

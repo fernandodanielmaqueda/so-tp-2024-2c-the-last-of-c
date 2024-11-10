@@ -50,6 +50,6 @@ int port_type_deserialize(t_Payload *payload, e_Port_Type *port_type);
  * @brief Loguea un e_Port_Type.
  * @param port_type e_Port_Type a loguear.
  */
-int port_type_log(e_Port_Type port_type);
+int port_type_log(e_Serialization serialization, e_Port_Type port_type);
 
 #endif // UTILS_SERIALIZE_PORT_TYPE_H

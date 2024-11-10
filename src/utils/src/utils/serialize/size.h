@@ -50,6 +50,6 @@ int size_deserialize(t_Payload *payload, size_t *destination);
  * @brief Loguea un size_t.
  * @param source size_t a loguear.
  */
-int size_log(size_t source);
+int size_log(e_Serialization serialization, size_t source);
 
 #endif // UTILS_SERIALIZE_SIZE_H

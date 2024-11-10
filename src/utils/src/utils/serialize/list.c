@@ -22,7 +22,7 @@ int list_serialize(t_Payload *payload, t_list source, int (*element_serializer)(
     element = element->next;
   }
 
-  list_log(source);
+  list_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -59,11 +59,11 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
     last_element = &(new_element->next);
   }
 
-  list_log(*destination);
+  list_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int list_log(t_list list) {
+int list_log(e_Serialization serialization, t_list list) {
   char *string_elements = string_new();
   if(string_elements == NULL) {
     log_warning(SERIALIZE_LOGGER, "string_new: No se pudo reservar memoria para loguear los elementos de la lista");
@@ -78,10 +78,11 @@ int list_log(t_list list) {
   }
 
   log_info(SERIALIZE_LOGGER,
-    "t_list:\n"
+    "[%s] t_list:\n"
     "* elements_count: %d\n"
     "* head: %p\n"
     "%s"
+    , SERIALIZATION_NAMES[serialization]
     , list.elements_count
     , (void *) list.head
     , string_elements

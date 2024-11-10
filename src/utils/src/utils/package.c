@@ -87,11 +87,11 @@ int package_send(t_Package *package, int fd_socket) {
   payload_seek(&(package->payload), previous_offset, SEEK_CUR);
 
   if(bytes == -1) {
-      log_warning(SERIALIZE_LOGGER, "send: %s\n", strerror(errno));
+      log_warning(SERIALIZE_LOGGER, "[%d] send: %s\n", fd_socket, strerror(errno));
       return -1;
   }
   if(bytes != bufferSize) {
-      log_warning(SERIALIZE_LOGGER, "send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", bufferSize, bytes);
+      log_warning(SERIALIZE_LOGGER, "[%d] send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", fd_socket, bufferSize, bytes);
       return -1;
   }
 

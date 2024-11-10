@@ -42,6 +42,6 @@ int result_deserialize(t_Payload *payload, int *destination);
  * @brief Loguea un t_Result.
  * @param result t_Result a loguear.
  */
-int result_log(t_Result result);
+int result_log(e_Serialization serialization, t_Result result);
 
 #endif // UTILS_SERIALIZE_RESULT_H

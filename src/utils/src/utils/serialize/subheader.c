@@ -16,7 +16,7 @@ int subheader_serialize(t_Payload *payload, e_Header source) {
   if(payload_add(payload, &aux, sizeof(aux)))
     return -1;
 
-  subheader_log(source);
+  subheader_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -33,13 +33,14 @@ int subheader_deserialize(t_Payload *payload, e_Header *destination) {
 
   *destination = (e_Header) aux;
   
-  subheader_log(*destination);
+  subheader_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int subheader_log(e_Header source) {
+int subheader_log(e_Serialization serialization, e_Header source) {
   log_info(SERIALIZE_LOGGER,
-    "e_Header: %s"
+    "[%s] e_Header: %s"
+    , SERIALIZATION_NAMES[serialization]
     , HEADER_NAMES[source]
   );
 

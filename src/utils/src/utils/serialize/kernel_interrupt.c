@@ -21,7 +21,7 @@ int kernel_interrupt_serialize(t_Payload *payload, e_Kernel_Interrupt source) {
   if(payload_add(payload, &aux, sizeof(aux)))
     return -1;
 
-  kernel_interrupt_log(source);
+  kernel_interrupt_log(SERIALIZE_SERIALIZATION, source);
   return 0;
 }
 
@@ -38,13 +38,14 @@ int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destina
 
   *destination = (e_Kernel_Interrupt) aux;
   
-  kernel_interrupt_log(*destination);
+  kernel_interrupt_log(DESERIALIZE_SERIALIZATION, *destination);
   return 0;
 }
 
-int kernel_interrupt_log(e_Kernel_Interrupt source) {
+int kernel_interrupt_log(e_Serialization serialization, e_Kernel_Interrupt source) {
   log_info(SERIALIZE_LOGGER,
-    "e_Kernel_Interrupt: %s"
+    "[%s] e_Kernel_Interrupt: %s"
+    , SERIALIZATION_NAMES[serialization]
     , KERNEL_INTERRUPT_NAMES[source]
   );
 

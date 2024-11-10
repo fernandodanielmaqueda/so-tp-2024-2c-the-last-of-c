@@ -3,6 +3,11 @@
 
 #include "payload.h"
 
+const char *SERIALIZATION_NAMES[] = {
+  [SERIALIZE_SERIALIZATION] = "Serializado",
+  [DESERIALIZE_SERIALIZATION] = "Deserializado"
+};
+
 void payload_init(t_Payload *payload) {
   if(payload == NULL)
     return;

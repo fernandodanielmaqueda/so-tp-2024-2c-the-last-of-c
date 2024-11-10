@@ -20,6 +20,13 @@ typedef struct t_Payload {
     size_t offset;
 } t_Payload;
 
+typedef enum e_Serialization {
+    SERIALIZE_SERIALIZATION,
+    DESERIALIZE_SERIALIZATION
+} e_Serialization;
+
+extern const char *SERIALIZATION_NAMES[];
+
 extern t_log *SERIALIZE_LOGGER;
 
 /**
