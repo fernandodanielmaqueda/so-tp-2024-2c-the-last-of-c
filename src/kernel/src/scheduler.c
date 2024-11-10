@@ -547,6 +547,9 @@ void *short_term_scheduler(void) {
 
 			}
 
+			payload_init(&syscall_instruction);
+			pthread_cleanup_push((void (*)(void *)) payload_destroy, &syscall_instruction);
+
 			if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.fd_connection)) {
 				log_error(MODULE_LOGGER, "[%d] Error al recibir desalojo de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 				error_pthread();
@@ -716,6 +719,8 @@ void *short_term_scheduler(void) {
 				log_error_pthread_rwlock_unlock(status);
 				error_pthread();
 			}
+
+			pthread_cleanup_pop(1); // syscall_instruction
 		} while(SHOULD_REDISPATCH);
 	}
 
