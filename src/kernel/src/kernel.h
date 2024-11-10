@@ -136,8 +136,6 @@ int module(int, char*[]);
 int read_module_config(t_config *module_config);
 int find_scheduling_algorithm(char *name, e_Scheduling_Algorithm *destination);
 
-int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
-
 t_PCB *pcb_create(size_t size);
 int pcb_destroy(t_PCB *pcb);
 
@@ -161,6 +159,7 @@ bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
+int thread_create(t_PCB *pcb, t_TID tid);
 
 int array_list_ready_init(void);
 int array_list_ready_update(t_Priority priority);

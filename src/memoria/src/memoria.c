@@ -62,7 +62,7 @@ int module(int argc, char* argv[]) {
 
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
-    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
+    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
 
     initialize_sockets();
 
@@ -369,7 +369,7 @@ int create_process(int fd_client, t_Payload *payload) {
         }
 
         if(!available) {
-            log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d.\n", new_process->pid);
+            log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d", new_process->pid);
             free(new_process);
             return -1;
         }
@@ -391,7 +391,7 @@ int create_process(int fd_client, t_Payload *payload) {
             }
         }
 
-        log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d.\n", new_process->pid);
+        log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d", new_process->pid);
         t_Partition *partition = list_get(PARTITION_TABLE, index_partition);
         partition->pid = new_process->pid;
         partition->occupied = true;
@@ -404,7 +404,7 @@ int create_process(int fd_client, t_Payload *payload) {
         new_process->array_memory_threads = NULL;
 
         if(add_element_to_array_process(new_process)) {
-            log_debug(MODULE_LOGGER, "[ERROR] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d.\n", new_process->pid);
+            log_debug(MODULE_LOGGER, "[ERROR] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d", new_process->pid);
             free(new_process);
             return -1;
         }
@@ -903,14 +903,14 @@ void seek_instruccion(t_Payload *payload) {
     }
 
     if(pc >= (ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count)) {
-        log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo PID-TID: %d-%d.\n", pid, tid);
+        log_debug(MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo (PID:TID): (%u:%u)", pid, tid);
         return;
     }
 
     char *instruccionBuscada = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
 
     if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruccionBuscada, CLIENT_CPU->fd_client)) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d.\n", pid);
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d", pid);
         return;
     }
 
@@ -937,12 +937,12 @@ int read_memory(t_Payload *payload) {
     log_info(MODULE_LOGGER, "[%d] Se recibe lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Bytes: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
     if(bytes > 4) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de 4 bytes(BYTES: <%zd>)", pid, tid, bytes);
         return -1;
     }
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
         return -1;
     }
     
@@ -975,7 +975,7 @@ int write_memory(t_Payload *payload) {
     void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
 
     if(bytes > 4) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de 4 bytes(BYTES: <%zd>).\n", pid, tid, bytes);
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID): (%d:%d) supera el limite de 4 bytes(BYTES: <%zd>)", pid, tid, bytes);
         if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
             // TODO
         }
@@ -983,7 +983,7 @@ int write_memory(t_Payload *payload) {
     }
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso PID-TID: <%d-%d> supera el limite de particion.\n", pid, tid);
+        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
         if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
             // TODO
         }
@@ -1058,7 +1058,7 @@ int treat_memory_dump(int fd_client, t_Payload *payload) {
 /*
     pthread_t hilo_FS;
     if (pthread_create(&hilo_FS, NULL, attend_memory_dump, (void*)data) != 0) {
-        printf("No se pudo crear el hilo correspondiente con FileSystem --> PID-TID: <%u><%u>.\n", data->pid, data->tid);
+        printf("No se pudo crear el hilo correspondiente con FileSystem --> (PID:TID): (%u:%u)\n", data->pid, data->tid);
         free(data->namefile);
         free(data);
         return -1;
@@ -1160,7 +1160,7 @@ void seek_cpu_context(t_Payload *payload) {
     context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
 
     if(send_exec_context(context, CLIENT_CPU->fd_client) == (-1)) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar el contexto del proceso %d.\n", pid);
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar el contexto del proceso %d", pid);
         return;
     }
     
@@ -1184,7 +1184,7 @@ void update_cpu_context(t_Payload *payload) {
     log_info(MODULE_LOGGER, "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
 
     if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo PID-TID: %d-%d.\n", pid, tid);
+        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo (PID:TID): (%u:%u)", pid, tid);
         return;
     }
 

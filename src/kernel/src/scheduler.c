@@ -228,6 +228,10 @@ void *long_term_scheduler_new(void) {
 				error_pthread();
 			}
 
+		if(thread_create(pcb, ((t_TCB **) (pcb->thread_manager.array))[0]->TID)) {
+			error_pthread();
+		}
+
 		cleanup_pcb:
 		pthread_cleanup_pop(0); // reinsert_state_new
 		if(result) {

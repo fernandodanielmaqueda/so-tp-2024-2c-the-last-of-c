@@ -125,6 +125,10 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         error_pthread();
     }
 
+    if(thread_create(TCB_EXEC->pcb, new_tcb->TID)) {
+        error_pthread();
+    }
+
     // Ya tengo rdlock de SCHEDULING_RWLOCK
     if(array_list_ready_update(new_tcb->priority)) {
         error_pthread();

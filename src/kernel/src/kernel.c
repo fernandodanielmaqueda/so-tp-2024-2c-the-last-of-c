@@ -788,6 +788,38 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	return retval;
 }
 
+int thread_create(t_PCB *pcb, t_TID tid) {
+	int retval = 0;
+
+	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+
+	client_thread_connect_to_server(&connection_memory);
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
+
+		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.fd_connection)) {
+			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+			retval = -1;
+			goto cleanup_connection;
+		}
+		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+
+		if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
+			log_error(MODULE_LOGGER, "[%d] Error al recibir confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+			retval = -1;
+			goto cleanup_connection;
+		}
+		log_trace(MODULE_LOGGER, "[%d] Se recibe confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+
+	cleanup_connection:
+	pthread_cleanup_pop(0);
+	if(close(connection_memory.fd_connection)) {
+		log_error_close();
+		return -1;
+	}
+
+	return retval;
+}
+
 int array_list_ready_init(void) {
 	// Todos los algoritmos de planificación requieren la lista de READY 0
 	return array_list_ready_resize(0);
