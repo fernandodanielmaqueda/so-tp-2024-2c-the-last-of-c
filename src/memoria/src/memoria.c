@@ -157,7 +157,8 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
     MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
 
-    switch(MEMORY_MANAGEMENT_SCHEME) { ///CREACION DE PARTICIONES INICIAL
+     // Creación inicial de particiones
+    switch(MEMORY_MANAGEMENT_SCHEME) {
 
         case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
         { 
@@ -190,7 +191,6 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
                 new_partition->base = base;
                 new_partition->occupied = false;
-                new_partition->pid = -1;
 
                 list_add(PARTITION_TABLE, new_partition);
 
@@ -215,10 +215,9 @@ int read_module_config(t_config* MODULE_CONFIG) {
                 return -1;
             }
 
-            new_partition->size = MEMORY_SIZE;
             new_partition->base = 0;
+            new_partition->size = MEMORY_SIZE;
             new_partition->occupied = false;
-            new_partition->pid = -1;
 
             list_add(PARTITION_TABLE, new_partition);
             break;
@@ -299,12 +298,12 @@ void listen_kernel(int fd_client) {
     switch(package->header) {
 
         case PROCESS_CREATE_HEADER:
-            result = create_process(fd_client, &(package->payload));
+            result = attend_process_create(fd_client, &(package->payload));
             send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client);
             break;
         
         case PROCESS_DESTROY_HEADER:
-            result = destroy_process(fd_client, &(package->payload));
+            result = attend_process_destroy(fd_client, &(package->payload));
             send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
             break;
         
@@ -334,7 +333,7 @@ void listen_kernel(int fd_client) {
 	return;
 }
 
-int create_process(int fd_client, t_Payload *payload) {
+int attend_process_create(int fd_client, t_Payload *payload) {
 
     int status;
 
@@ -346,6 +345,8 @@ int create_process(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
 
+    // TODO: ¿Y si el proceso ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
+
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
         // TODO
@@ -356,7 +357,7 @@ int create_process(int fd_client, t_Payload *payload) {
     new_process->pid = pid;
     new_process->size = size;
 
-    //ASIGNAR PARTICION
+    // Asignar partición
     if((status = pthread_mutex_lock(&MUTEX_PARTITION_TABLE))) {
         log_error_pthread_mutex_lock(status);
         // TODO
@@ -393,8 +394,8 @@ int create_process(int fd_client, t_Payload *payload) {
 
         log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d", new_process->pid);
         t_Partition *partition = list_get(PARTITION_TABLE, index_partition);
-        partition->pid = new_process->pid;
         partition->occupied = true;
+        partition->pid = pid;
         new_process->partition = partition;
         if((status = pthread_mutex_init(&(new_process->mutex_array_memory_threads), NULL))) {
             log_error_pthread_mutex_init(status);
@@ -537,7 +538,9 @@ int split_partition(size_t index_partition, size_t required_size) {
     new_partition->size = (old_partition->size - required_size);
     new_partition->base = (old_partition->base + required_size);
     new_partition->occupied = false;
+
     old_partition->size = required_size;
+
     index_partition++;
 
     list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
@@ -546,13 +549,13 @@ int split_partition(size_t index_partition, size_t required_size) {
 
 }
 
-int destroy_process(int fd_client, t_Payload *payload) {
+int attend_process_destroy(int fd_client, t_Payload *payload) {
 
     int status;
 
     t_PID pid;
 
-    payload_remove(payload, &pid, sizeof(t_PID));
+    payload_remove(payload, &pid, sizeof(pid));
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
 
@@ -561,90 +564,113 @@ int destroy_process(int fd_client, t_Payload *payload) {
         return -1;
     }
 
-    size_t size = ARRAY_PROCESS_MEMORY[pid]->size;
+    size_t size;
+    t_Memory_Process *process;
 
-    //Liberacion de particion
+    // Liberacion de particion
     if((status = pthread_mutex_lock(&MUTEX_PARTITION_TABLE))) {
         log_error_pthread_mutex_lock(status);
         // TODO
     }
-    ARRAY_PROCESS_MEMORY[pid]->partition->occupied = false;
-    ARRAY_PROCESS_MEMORY[pid]->partition->pid = -1;
-    ARRAY_PROCESS_MEMORY[pid]->partition = NULL;
-    ARRAY_PROCESS_MEMORY[pid]->size = -1;
-    if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME)
-        if(verify_and_join_splited_partitions(pid)) {
-            return -1;
-        }
+        process = ARRAY_PROCESS_MEMORY[pid];
+        ARRAY_PROCESS_MEMORY[pid] = NULL;
+        process->partition->occupied = false;
+
+        if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME)
+            if(verify_and_join_splited_partitions(process->partition)) {
+                return -1;
+            }
+
     if((status = pthread_mutex_unlock(&MUTEX_PARTITION_TABLE))) {
         log_error_pthread_mutex_unlock(status);
         // TODO
     }
 
-    //Liberacion de threads con sus struct
-    free_threads(pid);
-    
+    size = process->size;
+
+    if(process_destroy(process)) {
+        return -1;
+    }
+
     log_info(MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
     
     return 0;
 }
 
-int verify_and_join_splited_partitions(t_PID pid) {
+int process_destroy(t_Memory_Process *process) {
+    int retval = 0, status;
 
-    int position = -1;
-    t_Partition* partition;
-    size_t count = list_size(PARTITION_TABLE);
-    for(size_t i = 0; i < count; i++)
-    {
-        partition = list_get(PARTITION_TABLE, i);
-        if(partition->pid == pid) {
-            position = i;
-            break;
-        }
+    // Liberacion de threads con sus struct
+    free_threads(process);
+
+    if((status = pthread_mutex_destroy(&(process->mutex_array_memory_threads)))) {
+        log_error_pthread_mutex_destroy(status);
+        retval = -1;
     }
 
-    if(position == (-1))
-        return 1;
-    if((position != 0) && (position != (count-1))) { //No es 1er ni ultima posicion
-        t_Partition* aux_partition_left;
-        t_Partition* aux_partition_right;
-        aux_partition_left = list_get(PARTITION_TABLE, (position -1));
-        aux_partition_right = list_get(PARTITION_TABLE, (position +1));
-        if(aux_partition_right->occupied == false) {
-            partition->size += aux_partition_right->size;
-            //free(aux_partition_right);
-            list_remove_and_destroy_element(PARTITION_TABLE, (position +1), free);
-        }
-        if(aux_partition_left->occupied == false) {
-            aux_partition_left->size += partition->size;
-            //free(partition);
-            list_remove_and_destroy_element(PARTITION_TABLE, position, free);
-        }
-        return 0;
+    free(process);
+
+    return retval;
+}
+
+int verify_and_join_splited_partitions(t_Partition *partition) {
+
+    t_link_element *current = PARTITION_TABLE->head;
+    size_t i;
+    for(i = 0; partition != (current->data); i++) {
+        current = current->next;
     }
 
-    if((position != 0) && (position == (count -1))) { //Es ultima posicion --> contempla que el len > 1
-        t_Partition* aux_partition_left;
-        aux_partition_left = list_get(PARTITION_TABLE, (position -1));
-        if(aux_partition_left->occupied == false) {
-            aux_partition_left->size += partition->size;
-            //free(partition);
-            list_remove_and_destroy_element(PARTITION_TABLE, position, free);
-        }
-        return 0;
-    }
-
-    if((position == 0) && (position != (count - 1))) { //Es primer posicion --> contempla que el len > 1
-        t_Partition* aux_partition_right;
-        aux_partition_right = list_get(PARTITION_TABLE, (position +1));
-        if(aux_partition_right->occupied == false) {
-            partition->size += aux_partition_right->size;
-            //free(aux_partition_right);
-            list_remove_and_destroy_element(PARTITION_TABLE, (position +1), free);
-        }
-        return 0;
-    }
+    // No es la primera ni la última partición
+    if((i != 0) && (i != (list_size(PARTITION_TABLE) - 1))) {
+        t_Partition *aux_partition_right;
+        t_Partition *aux_partition_left;
     
+        aux_partition_right = list_get(PARTITION_TABLE, (i + 1));
+        aux_partition_left = list_get(PARTITION_TABLE, (i - 1));
+
+        if(!(aux_partition_right->occupied)) {
+            partition->size += aux_partition_right->size;
+            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), free);
+        }
+
+        if(!(aux_partition_left->occupied)) {
+            aux_partition_left->size += partition->size;
+            list_remove_and_destroy_element(PARTITION_TABLE, i, free);
+        }
+
+        return 0;
+    }
+
+    // Es la primera partición (con cantidad de particiones > 1)
+    if((i == 0) && (i != (list_size(PARTITION_TABLE) - 1))) {
+        t_Partition *aux_partition_right;
+
+        aux_partition_right = list_get(PARTITION_TABLE, (i + 1));
+
+        if(!(aux_partition_right->occupied)) {
+            partition->size += aux_partition_right->size;
+            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), free);
+        }
+
+        return 0;
+    }
+
+    // Es la última partición (con cantidad de particiones > 1)
+    if((i != 0) && (i == (list_size(PARTITION_TABLE) - 1))) {
+        t_Partition *aux_partition_left;
+
+        aux_partition_left = list_get(PARTITION_TABLE, (i - 1));
+
+        if(!(aux_partition_left->occupied)) {
+            aux_partition_left->size += partition->size;
+            list_remove_and_destroy_element(PARTITION_TABLE, i, free);
+        }
+
+        return 0;
+    }
+
+    // Es la única partición
     return 0;
 }
 
@@ -857,14 +883,12 @@ void listen_cpu(void) {
                 break;
 
             case READ_REQUEST_HEADER:
-                result = read_memory(&(package->payload));
-                send_result_with_header(READ_REQUEST_HEADER, result, CLIENT_CPU->fd_client);
+                read_memory(&(package->payload));
                 package_destroy(package);
                 break;
 
             case WRITE_REQUEST_HEADER:
-                result = write_memory(&(package->payload));
-                send_result_with_header(WRITE_REQUEST_HEADER, result, CLIENT_CPU->fd_client);
+                write_memory(&(package->payload));
                 package_destroy(package);
                 break;
 
@@ -942,21 +966,13 @@ int read_memory(t_Payload *payload) {
     size_deserialize(payload, &physical_address);
     size_deserialize(payload, &bytes);
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Bytes: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    log_info(MODULE_LOGGER, "[%d] Se recibe lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
-    if(bytes > 4) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de 4 bytes(BYTES: <%zd>)", pid, tid, bytes);
-        return -1;
-    }
-    
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
+        log_warning(MODULE_LOGGER, "Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
         return -1;
     }
     
-    void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
-    
-//FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
     log_info(MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
 
     return 0;
@@ -978,20 +994,10 @@ int write_memory(t_Payload *payload) {
     size_deserialize(payload, &physical_address);
     data_deserialize(payload, &data, &bytes);
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Bytes: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
-
-    void *posicion = (void *)(((uint8_t *) MAIN_MEMORY) + physical_address);
-
-    if(bytes > 4) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID): (%d:%d) supera el limite de 4 bytes(BYTES: <%zd>)", pid, tid, bytes);
-        if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
-            // TODO
-        }
-        return -1;
-    }
+    log_info(MODULE_LOGGER, "[%d] Se recibe escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
     
     if((ARRAY_PROCESS_MEMORY[pid]->partition->size) >= (physical_address + 4)) {
-        log_debug(MODULE_LOGGER, "[ERROR] Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
+        log_warning(MODULE_LOGGER, "Bytes recibidos para el proceso (PID:TID) (%u:%u) supera el limite de particion", pid, tid);
         if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
             // TODO
         }
@@ -1009,22 +1015,20 @@ int write_memory(t_Payload *payload) {
     return 0;
 }
 
-void free_threads(t_PID pid) {
+void free_threads(t_Memory_Process *process) {
 
-    for(size_t i = ARRAY_PROCESS_MEMORY[pid]->tid_count; 0 < i; i--)
-    {
+    for(t_PID pid = 0; pid < process->tid_count; pid++) {
         //Free instrucciones
-        if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i] != NULL) {
-            for(size_t y = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->instructions_count; 0 < y; y--)
-            {
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions[y]);
+        if(process->array_memory_threads[pid] != NULL) {
+            for(t_PC pc = 0; pc < process->array_memory_threads[pid]->instructions_count; pc++) {
+                free(process->array_memory_threads[pid]->array_instructions[pc]);
             }
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]->array_instructions);
-                free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[i]);
+            free(process->array_memory_threads[pid]->array_instructions);
+            free(process->array_memory_threads[pid]);
         }
     }
     
-    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads);
+    free(process->array_memory_threads);
 
 }
 
@@ -1165,7 +1169,7 @@ void seek_cpu_context(t_Payload *payload) {
     t_Exec_Context context;
     context.cpu_registers = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers;
     context.base = ARRAY_PROCESS_MEMORY[pid]->partition->base;
-    context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
+    context.limit = ARRAY_PROCESS_MEMORY[pid]->size;
 
     if(send_exec_context(context, CLIENT_CPU->fd_client) == (-1)) {
         log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar el contexto del proceso %d", pid);
@@ -1206,26 +1210,22 @@ void update_cpu_context(t_Payload *payload) {
 void free_memory(void) {
     int status;
 
-    //Free particiones
-    for(size_t i = 0; i < list_size(PARTITION_TABLE); i++)
-    {
+    // Free particiones
+    for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
         t_Partition* partition = list_get(PARTITION_TABLE, i);
         free(partition);
     }
 
-    for(size_t i = PID_COUNT; 0 < i; i--) //Free procesos
-    {
-        if(ARRAY_PROCESS_MEMORY[i]->size != (-1)) free_threads(i);
-        
-        if((status = pthread_mutex_destroy(&(ARRAY_PROCESS_MEMORY[i]->mutex_array_memory_threads)))) {
-            log_error_pthread_mutex_destroy(status);
-            // TODO
+    // Free procesos
+    for(t_PID pid = 0; pid < PID_COUNT; pid++) {
+        if(ARRAY_PROCESS_MEMORY[pid] != NULL) {
+            process_destroy(ARRAY_PROCESS_MEMORY[pid]);
         }
 
-        free(ARRAY_PROCESS_MEMORY[i]);
+        ARRAY_PROCESS_MEMORY[pid] = NULL;
     }
 
     free(ARRAY_PROCESS_MEMORY);
     free(MAIN_MEMORY);
-    
+
 }
