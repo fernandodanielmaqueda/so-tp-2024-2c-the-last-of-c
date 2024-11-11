@@ -445,7 +445,7 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     // La dirección lógica es el desplazamiento desde la base
 
     // Verifico que no haya segmentation fault
-    if((physical_address + bytes) >= EXEC_CONTEXT.limit) {
+    if((physical_address + bytes) >= (EXEC_CONTEXT.base + EXEC_CONTEXT.limit)) {
         log_warning(MODULE_LOGGER, "mmu: %s", strerror(EFAULT));
         errno = EFAULT;
         return -1;
@@ -457,9 +457,9 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     return 0;
 }
 
-int write_memory(size_t physical_address, void *source, size_t bytes) {
+int request_memory_write(size_t physical_address, void *source, size_t bytes) {
     if(source == NULL) {
-        log_error(MODULE_LOGGER, "write_memory: %s", strerror(EINVAL));
+        log_error(MODULE_LOGGER, "request_memory_write: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
@@ -477,9 +477,9 @@ int write_memory(size_t physical_address, void *source, size_t bytes) {
     return 0;
 }
 
-int read_memory(size_t physical_address, void *destination, size_t bytes) {
+int request_memory_read(size_t physical_address, void *destination, size_t bytes) {
     if(destination == NULL) {
-        log_error(MODULE_LOGGER, "read_memory: %s", strerror(EINVAL));
+        log_error(MODULE_LOGGER, "request_memory_read: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
@@ -498,7 +498,7 @@ int read_memory(size_t physical_address, void *destination, size_t bytes) {
     }
 
     if(bufferSize != bytes) {
-        log_error(MODULE_LOGGER, "read_memory: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
+        log_error(MODULE_LOGGER, "request_memory_read: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
         errno = EIO;
         free(buffer);
         return -1;

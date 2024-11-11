@@ -61,7 +61,7 @@ int cpu_fetch_next_instruction(char **line);
 
 int mmu(size_t logical_address, size_t bytes, size_t *destination);
 
-int write_memory(size_t physical_address, void *source, size_t bytes);
-int read_memory(size_t physical_address, void *destination, size_t bytes);
+int request_memory_write(size_t physical_address, void *source, size_t bytes);
+int request_memory_read(size_t physical_address, void *destination, size_t bytes);
 
 #endif // CPU_H
