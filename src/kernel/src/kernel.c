@@ -855,7 +855,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	return retval;
 }
 
-int thread_create(t_PCB *pcb, t_TID tid) {
+int request_thread_create(t_PCB *pcb, t_TID tid) {
 	int retval = 0;
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};

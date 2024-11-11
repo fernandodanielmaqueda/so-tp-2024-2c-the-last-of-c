@@ -125,7 +125,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         error_pthread();
     }
 
-    if(thread_create(TCB_EXEC->pcb, new_tcb->TID)) {
+    if(request_thread_create(TCB_EXEC->pcb, new_tcb->TID)) {
         error_pthread();
     }
 
