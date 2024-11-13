@@ -50,7 +50,7 @@ typedef struct t_Partition {
     size_t base; // Desplazamiento/Offset
 
     bool occupied;
-    t_PID pid; // PID del proceso que la ocupa
+    t_PID pid; // PID del proceso que la ocupa (TODO: ¿Podría ser un t_Memory_Process*?)
 } t_Partition;
 
 typedef struct t_Memory_Thread {
@@ -67,7 +67,7 @@ typedef struct t_Memory_Process {
 
     t_TID tid_count;
     t_Memory_Thread **array_memory_threads;
-    pthread_mutex_t mutex_array_memory_threads;
+    pthread_rwlock_t rwlock_array_memory_threads;
 } t_Memory_Process;
 
 typedef struct t_FS_Data{
@@ -89,12 +89,12 @@ extern e_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHM;
 
 extern void *MAIN_MEMORY;
 
+extern pthread_rwlock_t RWLOCK_PROCESSES_AND_PARTITIONS;
+
 extern t_list *PARTITION_TABLE;
-extern pthread_mutex_t MUTEX_PARTITION_TABLE;
 
 extern t_PID PID_COUNT;
 extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
-extern pthread_mutex_t MUTEX_ARRAY_PROCESS_MEMORY;
 
 int module(int, char*[]);
 
@@ -112,13 +112,13 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
  * @brief Busca el archivo de pseudocodigo y crea la estructura dentro de memoria
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-int attend_process_create(int fd_client, t_Payload *payload);
+void attend_process_create(int fd_client, t_Payload *payload);
 
 /**
  * @brief Elimina el proceso, marca el marco como disponible y libera la pagina
  * @param socketRecibido Socket desde donde se va a recibir el pcb.
  */
-int attend_process_destroy(int fd_client, t_Payload *payload);
+void attend_process_destroy(int fd_client, t_Payload *payload);
 
 
 int process_destroy(t_Memory_Process *process);
@@ -163,15 +163,14 @@ int read_memory(t_Payload *payload);
 
 void free_memory();
 
-int allocate_partition(size_t *index_partition, size_t required_size);
+void allocate_partition(t_Partition **partition, size_t required_size);
 int split_partition(size_t index_partition, size_t size);
 int add_element_to_array_process (t_Memory_Process *process);
 int verify_and_join_splited_partitions(t_Partition *partition);
 void free_threads(t_Memory_Process *process);
-int create_thread(int fd_client, t_Payload *payload);
-int destroy_thread(int fd_client, t_Payload *payload);
-int treat_memory_dump(int fd_client, t_Payload *payload);
-void* attend_memory_dump(void *arg);
+void attend_thread_create(int fd_client, t_Payload *payload);
+int attend_thread_destroy(int fd_client, t_Payload *payload);
+int attend_memory_dump(int fd_client, t_Payload *payload);
 void seek_cpu_context(t_Payload *payload);
 void update_cpu_context(t_Payload *payload);
 

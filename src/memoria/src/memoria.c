@@ -25,14 +25,12 @@ e_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHM;
 
 void *MAIN_MEMORY;
 
+pthread_rwlock_t RWLOCK_PROCESSES_AND_PARTITIONS;
+
 t_list *PARTITION_TABLE;
-pthread_mutex_t MUTEX_PARTITION_TABLE;
 
 t_PID PID_COUNT = 0;
 t_Memory_Process **ARRAY_PROCESS_MEMORY = NULL;
-pthread_mutex_t MUTEX_ARRAY_PROCESS_MEMORY;
-
-pthread_mutex_t MUTEX_FILESYSTEM_MEMDUMP;
 
 int module(int argc, char* argv[]) {
     int status;
@@ -89,18 +87,8 @@ void initialize_global_variables(void) {
         // TODO
     }
 
-    if((status = pthread_mutex_init(&(MUTEX_PARTITION_TABLE), NULL))) {
-        log_error_pthread_mutex_init(status);
-        // TODO
-    }
-
-    if((status = pthread_mutex_init(&(MUTEX_ARRAY_PROCESS_MEMORY), NULL))) {
-        log_error_pthread_mutex_init(status);
-        // TODO
-    }
-    
-    if((status = pthread_mutex_init(&(MUTEX_FILESYSTEM_MEMDUMP), NULL))) {
-        log_error_pthread_mutex_init(status);
+    if((status = pthread_rwlock_init(&RWLOCK_PROCESSES_AND_PARTITIONS, NULL))) {
+        log_error_pthread_rwlock_init(status);
         // TODO
     }
 }
@@ -118,18 +106,8 @@ void finish_global_variables(void) {
         // TODO
     }
 
-    if((status = pthread_mutex_destroy(&(MUTEX_PARTITION_TABLE)))) {
-        log_error_pthread_mutex_destroy(status);
-        // TODO
-    }
-
-    if((status = pthread_mutex_destroy(&(MUTEX_ARRAY_PROCESS_MEMORY)))) {
-        log_error_pthread_mutex_destroy(status);
-        // TODO
-    }
-    
-    if((status = pthread_mutex_destroy(&(MUTEX_FILESYSTEM_MEMDUMP)))) {
-        log_error_pthread_mutex_destroy(status);
+    if((status = pthread_rwlock_destroy(&(RWLOCK_PROCESSES_AND_PARTITIONS)))) {
+        log_error_pthread_rwlock_destroy(status);
         // TODO
     }
 }
@@ -285,41 +263,38 @@ void listen_kernel(int fd_client) {
     t_Package* package = package_create();
     if(package == NULL) {
         // TODO
-        return;
+        error_pthread();
     }
-    int result;
+    pthread_cleanup_push((void (*)(void *)) package_destroy, package);
 
     if(package_receive(package, fd_client)) {
         log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
-        return;
+        error_pthread();
     }
     log_trace(MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
 
     switch(package->header) {
 
         case PROCESS_CREATE_HEADER:
-            result = attend_process_create(fd_client, &(package->payload));
-            send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client);
+            attend_process_create(fd_client, &(package->payload));
             break;
-        
+
         case PROCESS_DESTROY_HEADER:
-            result = attend_process_destroy(fd_client, &(package->payload));
-            send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client);
+            attend_process_destroy(fd_client, &(package->payload));
             break;
         
         case THREAD_CREATE_HEADER:
-            result = create_thread(fd_client, &(package->payload));
-            send_result_with_header(THREAD_CREATE_HEADER, result, fd_client);
+            attend_thread_create(fd_client, &(package->payload));
             break;
             
         case THREAD_DESTROY_HEADER:
-            result = destroy_thread(fd_client, &(package->payload));
-            send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client);
+            attend_thread_destroy(fd_client, &(package->payload));
+            //send_result_with_header(THREAD_DESTROY_HEADER, ((retval || (partition == NULL)) ? 1 : 0), fd_client);
             break;
             
         case MEMORY_DUMP_HEADER:
-            result = treat_memory_dump(fd_client, &(package->payload));
-            if (result == (-1)) send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client);
+            attend_memory_dump(fd_client, &(package->payload));
+            //send_result_with_header(MEMORY_DUMP_HEADER, ((retval || (partition == NULL)) ? 1 : 0), fd_client);
             break;
 
         default:
@@ -328,14 +303,12 @@ void listen_kernel(int fd_client) {
 
     }
 
-    package_destroy(package);
-
-	return;
+    pthread_cleanup_pop(1); // package_destroy
 }
 
-int attend_process_create(int fd_client, t_Payload *payload) {
+void attend_process_create(int fd_client, t_Payload *payload) {
 
-    int status;
+    int retval = 0, status;
 
     t_PID pid;
     size_t size;
@@ -347,96 +320,92 @@ int attend_process_create(int fd_client, t_Payload *payload) {
 
     // TODO: ¿Y si el proceso ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
 
+    t_Partition *partition = NULL;
+
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
-        // TODO
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
-        return -1;
+        error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) free, new_process);
 
     new_process->pid = pid;
     new_process->size = size;
+    new_process->tid_count = 0;
+    new_process->array_memory_threads = NULL;
+
+    if((status = pthread_rwlock_init(&(new_process->rwlock_array_memory_threads), NULL))) {
+        log_error_pthread_rwlock_init(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
+
+    if((status = pthread_rwlock_wrlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_wrlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
 
     // Asignar partición
-    if((status = pthread_mutex_lock(&MUTEX_PARTITION_TABLE))) {
-        log_error_pthread_mutex_lock(status);
-        // TODO
+    allocate_partition(&partition, new_process->size);
+
+    if(partition == NULL) {
+        log_warning(MODULE_LOGGER, "[%d] No hay particiones disponibles para la solicitud de creación de proceso %u", fd_client, new_process->pid);
+        retval = -1;
+        goto cleanup_rwlock_proceses_and_partitions;
     }
-        bool available = true;
-        size_t index_partition;
 
-        if(allocate_partition(&index_partition, new_process->size)) {
-            available = false;
-        }
+    log_debug(MODULE_LOGGER, "[%d] Particion asignada para el pedido del proceso %u", fd_client, new_process->pid);
+    partition->occupied = true;
+    partition->pid = pid;
+    new_process->partition = partition;
 
-        if(!available) {
-            log_debug(MODULE_LOGGER, "[ERROR] No hay particiones disponibles para el pedido del proceso %d", new_process->pid);
-            free(new_process);
-            return -1;
-        }
-
-        switch(MEMORY_MANAGEMENT_SCHEME) {
-
-            case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-                break;
-            }
-
-            case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-
-                // Realiza el fraccionamiento de la particion (si es requerido)
-                if(split_partition(index_partition, new_process->size)) {
-                    return -1;
-                }
-
-                break;
-            }
-        }
-
-        log_debug(MODULE_LOGGER, "[OK] Particion asignada para el pedido del proceso %d", new_process->pid);
-        t_Partition *partition = list_get(PARTITION_TABLE, index_partition);
-        partition->occupied = true;
-        partition->pid = pid;
-        new_process->partition = partition;
-        if((status = pthread_mutex_init(&(new_process->mutex_array_memory_threads), NULL))) {
-            log_error_pthread_mutex_init(status);
-            // TODO
-        }
-        new_process->tid_count = 0;
-        new_process->array_memory_threads = NULL;
-
-        if(add_element_to_array_process(new_process)) {
-            log_debug(MODULE_LOGGER, "[ERROR] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d", new_process->pid);
-            free(new_process);
-            return -1;
-        }
-    
-    if((status = pthread_mutex_unlock(&MUTEX_PARTITION_TABLE))) {
-        log_error_pthread_mutex_unlock(status);
-        // TODO
+    if(add_element_to_array_process(new_process)) {
+        log_debug(MODULE_LOGGER, "[%d] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d", fd_client, new_process->pid);
+        error_pthread();
     }
 
     log_info(MINIMAL_LOGGER, "## Proceso Creado - PID: %u - TAMAÑO: %zu", new_process->pid, new_process->size);
 
-    return 0;
-}
-
-int allocate_partition(size_t *index_partition, size_t required_size) {
-    if(index_partition == NULL) {
-        errno = EINVAL;
-        return -1;
+    cleanup_rwlock_proceses_and_partitions:
+    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
+    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_unlock(status);
     }
 
-    bool available = false;
-    t_Partition *partition, *aux_partition;
+    pthread_cleanup_pop(0); // rwlock_array_memory_threads
+    if(partition == NULL) {
+        if((status = pthread_rwlock_destroy(&(new_process->rwlock_array_memory_threads)))) {
+            log_error_pthread_rwlock_destroy(status);
+        }
+    }
+
+    pthread_cleanup_pop(retval); // new_process
+
+    if(send_result_with_header(PROCESS_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
+        // TODO
+        error_pthread();
+    }
+}
+
+void allocate_partition(t_Partition **partition, size_t required_size) {
+    if(partition == NULL) {
+        error_pthread();
+    }
+
+    int retval = 0;
+    *partition = NULL;
+    size_t index_partition;
+    t_Partition *aux_partition;
 
     switch(MEMORY_ALLOCATION_ALGORITHM) {
         case FIRST_FIT_MEMORY_ALLOCATION_ALGORITHM: {
 
             for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
-                partition = list_get(PARTITION_TABLE, i);
-                if((partition->occupied == false) && (partition->size >= required_size)) {
-                    available = true;
-                    *index_partition = i;
+                aux_partition = list_get(PARTITION_TABLE, i);
+                if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
+                    *partition = aux_partition;
+                    index_partition = i;
                     break;
                 }
             }
@@ -448,16 +417,15 @@ int allocate_partition(size_t *index_partition, size_t required_size) {
 
             for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
                 aux_partition = list_get(PARTITION_TABLE, i);
-                if((aux_partition->occupied == false) && (aux_partition->size >= required_size)) {
-                    if(!available) {
-                        available = true;
-                        partition = aux_partition;
-                        *index_partition = i;
+                if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
+                    if((*partition) == NULL) {
+                        *partition = aux_partition;
+                        index_partition = i;
                     }
                     else {
-                        if(aux_partition->size < partition->size) {
-                            partition = aux_partition;
-                            *index_partition = i;
+                        if((aux_partition->size) < ((*partition)->size)) {
+                            *partition = aux_partition;
+                            index_partition = i;
                         }
                     }
                 }
@@ -470,16 +438,15 @@ int allocate_partition(size_t *index_partition, size_t required_size) {
 
             for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
                 aux_partition = list_get(PARTITION_TABLE, i);
-                if((aux_partition->occupied == false) && (aux_partition->size >= required_size)) {
-                    if(!available) {
-                        available = true;
-                        partition = aux_partition;
-                        *index_partition = i;
+                if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
+                    if((*partition) == NULL) {
+                        *partition = aux_partition;
+                        index_partition = i;
                     }
                     else {
-                        if(aux_partition->size > partition->size) {
-                            partition = aux_partition;
-                            *index_partition = i;
+                        if((aux_partition->size) > ((*partition)->size)) {
+                            *partition = aux_partition;
+                            index_partition = i;
                         }
                     }
                 }
@@ -489,21 +456,27 @@ int allocate_partition(size_t *index_partition, size_t required_size) {
         }
     }
 
-    if(!available) {
-        errno = ENOMEM;
-        return -1;
-    }
+    if((*partition) != NULL) {
+        // Realiza el fraccionamiento de la particion (si es requerido)
+        switch(MEMORY_MANAGEMENT_SCHEME) {
 
-    return 0;
+            case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+                break;
+            }
+
+            case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+
+                if(split_partition(index_partition, required_size)) {
+                    error_pthread();
+                }
+
+                break;
+            }
+        }
+    }
 }
 
-int add_element_to_array_process (t_Memory_Process* process) {
-    int status;
-
-    if((status = pthread_mutex_lock(&MUTEX_ARRAY_PROCESS_MEMORY))) {
-        log_error_pthread_mutex_lock(status);
-        // TODO
-    }
+int add_element_to_array_process(t_Memory_Process* process) {
 
     ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT + 1));    
     if(ARRAY_PROCESS_MEMORY == NULL) {
@@ -513,10 +486,6 @@ int add_element_to_array_process (t_Memory_Process* process) {
 
     ARRAY_PROCESS_MEMORY[PID_COUNT] = process;
     PID_COUNT++;
-    if((status = pthread_mutex_unlock(&MUTEX_ARRAY_PROCESS_MEMORY))) {
-        log_error_pthread_mutex_unlock(status);
-        // TODO
-    }
 
     return 0;
 }
@@ -549,7 +518,7 @@ int split_partition(size_t index_partition, size_t required_size) {
 
 }
 
-int attend_process_destroy(int fd_client, t_Payload *payload) {
+void attend_process_destroy(int fd_client, t_Payload *payload) {
 
     int status;
 
@@ -559,42 +528,47 @@ int attend_process_destroy(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        return -1;
-    }
-
     size_t size;
-    t_Memory_Process *process;
+    t_Memory_Process *process = NULL;
 
-    // Liberacion de particion
-    if((status = pthread_mutex_lock(&MUTEX_PARTITION_TABLE))) {
-        log_error_pthread_mutex_lock(status);
-        // TODO
+    if((status = pthread_rwlock_wrlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_wrlock(status);
+        error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+            goto cleanup_rwlock_proceses_and_partitions;
+        }
+
         process = ARRAY_PROCESS_MEMORY[pid];
         ARRAY_PROCESS_MEMORY[pid] = NULL;
         process->partition->occupied = false;
+        size = process->size;
 
         if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME)
             if(verify_and_join_splited_partitions(process->partition)) {
-                return -1;
+                error_pthread();
             }
 
-    if((status = pthread_mutex_unlock(&MUTEX_PARTITION_TABLE))) {
-        log_error_pthread_mutex_unlock(status);
-        // TODO
+    cleanup_rwlock_proceses_and_partitions:
+    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
+    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
     }
 
-    size = process->size;
-
     if(process_destroy(process)) {
-        return -1;
+        error_pthread();
     }
 
     log_info(MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
-    
-    return 0;
+
+    if(send_result_with_header(PROCESS_DESTROY_HEADER, ((process == NULL) ? 1 : 0), fd_client)) {
+        // TODO
+        error_pthread();
+    }
 }
 
 int process_destroy(t_Memory_Process *process) {
@@ -603,8 +577,8 @@ int process_destroy(t_Memory_Process *process) {
     // Liberacion de threads con sus struct
     free_threads(process);
 
-    if((status = pthread_mutex_destroy(&(process->mutex_array_memory_threads)))) {
-        log_error_pthread_mutex_destroy(status);
+    if((status = pthread_rwlock_destroy(&(process->rwlock_array_memory_threads)))) {
+        log_error_pthread_rwlock_destroy(status);
         retval = -1;
     }
 
@@ -674,7 +648,10 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
     return 0;
 }
 
-int create_thread(int fd_client, t_Payload *payload) {
+void attend_thread_create(int fd_client, t_Payload *payload) {
+    int retval = 0, status;
+
+    // TODO: ¿Y si el hilo ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
 
     t_PID pid;
     t_TID tid;
@@ -686,17 +663,12 @@ int create_thread(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        return -1;
-    }
-
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
-        // TODO
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo thread.", sizeof(t_Memory_Thread));
-        return -1;
+        error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) free, new_thread);
 
     new_thread->tid = tid;
     new_thread->instructions_count = 0;
@@ -718,9 +690,10 @@ int create_thread(int fd_client, t_Payload *payload) {
     // Ruta relativa
     target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
     if(target_path == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudo reservar memoria para la ruta relativa.");
-        exit(EXIT_FAILURE);
+        log_error(MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
+        error_pthread();
     }
+    pthread_cleanup_push((void (*)(void *)) free, target_path);
 
     register int i;
     for(i = 0; INSTRUCTIONS_PATH[i]; i++) {
@@ -739,36 +712,68 @@ int create_thread(int fd_client, t_Payload *payload) {
 
     log_debug(MODULE_LOGGER, "Ruta hacia el archivo de pseudocódigo: %s", target_path);
 
-    //inicializar instrucciones
+    // Inicializar instrucciones
     if(parse_pseudocode_file(target_path, &(new_thread->array_instructions), &(new_thread->instructions_count))) {
-        for(size_t i = 0; i < new_thread->instructions_count; i++) {
-            free(new_thread->array_instructions[i]);
+        // TODO
+        error_pthread();
+    }
+    // TODO
+
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_rdlock(status);
+        error_pthread();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+            retval = -1;
+            goto cleanup_rwlock_proceses_and_partitions;
         }
-        free(new_thread->array_instructions);
-        free(new_thread);
-        return -1;
-    }
 
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1)); 
-    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads == NULL) {
-        log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1));
-            for(size_t i = 0; i < new_thread->instructions_count; i++) {
-                free(new_thread->array_instructions[i]);
+        if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            log_error_pthread_rwlock_wrlock(status);
+            error_pthread();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1)); 
+            if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads == NULL) {
+                log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1));
+                error_pthread();
             }
-            free(new_thread->array_instructions);
-            free(new_thread);
-        return -1;
+
+            ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
+            (ARRAY_PROCESS_MEMORY[pid]->tid_count)++;
+
+            log_info(MINIMAL_LOGGER, "## Hilo Creado - (PID:TID) - (%u:%u)", pid, tid);
+
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            log_error_pthread_rwlock_unlock(status);
+            error_pthread();
+        }
+
+    cleanup_rwlock_proceses_and_partitions:
+    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
+    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+        log_error_pthread_rwlock_unlock(status);
+        error_pthread();
     }
 
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
-    (ARRAY_PROCESS_MEMORY[pid]->tid_count)++;
+    pthread_cleanup_pop(1); // target_path
 
-    log_info(MINIMAL_LOGGER, "## Hilo Creado - (PID:TID) - (%u:%u)", pid, tid);
+    pthread_cleanup_pop(retval); // new_thread
 
-    return 0;
+    if(send_result_with_header(THREAD_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
+        // TODO
+        error_pthread();
+    }
+    // TODO
+
 }
 
-int destroy_thread(int fd_client, t_Payload *payload) {
+int attend_thread_destroy(int fd_client, t_Payload *payload) {
 
     t_PID pid;
     t_TID tid;
@@ -1009,7 +1014,6 @@ int write_memory(t_Payload *payload) {
         return -1;
     }
 
-//FIX REQUIRED: se escribe 4 bytes segun definicion... se recibe menos?
     log_info(MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu> - Tamaño: %zu", pid, tid, physical_address, bytes);
 
     return 0;
@@ -1027,12 +1031,12 @@ void free_threads(t_Memory_Process *process) {
             free(process->array_memory_threads[pid]);
         }
     }
-    
+
     free(process->array_memory_threads);
 
 }
 
-int treat_memory_dump(int fd_client, t_Payload *payload) {
+int attend_memory_dump(int fd_client, t_Payload *payload) {
     /*
     t_FS_Data* data = malloc(sizeof(t_FS_Data));
     if (data == NULL) {
@@ -1067,80 +1071,20 @@ int treat_memory_dump(int fd_client, t_Payload *payload) {
     
 	t_Connection connection_fileSystem = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
-/*
-    pthread_t hilo_FS;
-    if (pthread_create(&hilo_FS, NULL, attend_memory_dump, (void*)data) != 0) {
-        printf("No se pudo crear el hilo correspondiente con FileSystem --> (PID:TID): (%u:%u)\n", data->pid, data->tid);
-        free(data->namefile);
-        free(data);
-        return -1;
-    }
-    pthread_detach(hilo_FS);
-*/    
-
-    int status = 0;
-    if((status = pthread_mutex_lock(&MUTEX_FILESYSTEM_MEMDUMP))) {
-        log_error_pthread_mutex_lock(status);
-        // TODO
-    }
-
     if(send_memory_dump(namefile, position, ARRAY_PROCESS_MEMORY[pid]->size ,connection_fileSystem.fd_connection)) {
         printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",pid, tid);
         free(namefile); 
         return -1;
     }
-    
+
     if(receive_expected_header(MEMORY_DUMP_HEADER, connection_fileSystem.fd_connection)) {
         printf("[DUMP] Filesystem no pudo resolver la peticion por el PID:<%u> TID:<%u>.",pid, tid);
         free(namefile); 
         return -1;
     }
-    
-    if((status = pthread_mutex_unlock(&MUTEX_FILESYSTEM_MEMDUMP))) {
-        log_error_pthread_mutex_unlock(status);
-        // TODO
-    }
-    
+
     log_info(MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
-    return 0;
-}
-
-
-void* attend_memory_dump(void* arg){
-/* 
-    t_FS_Data* data = (t_FS_Data*)arg;
-    int result = 0;
-    int status;
-
-    if((status = pthread_mutex_lock(&MUTEX_FILESYSTEM_MEMDUMP))) {
-        log_error_pthread_mutex_lock(status);
-        // TODO
-    }
-
- FIX REQUIRED
-    if(send_memory_dump(data.namefile, data.position, connection_filesystem.fd_connection)) {
-        printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",data.pid, data.tid");
-        free(namefile); 
-        result = -1;
-    }
-    if(result = (-1)) // Notificar error a hilo kernel
-    
-    //Checkiar como se recibe 
-    if(receive_expected_header(MEMORY_DUMP_HEADER, connection_filesystem.fd_connection)) {
-        printf("[DUMP] Filesystem no pudo resolver la peticion por el PID:<%u> TID:<%u>.",pid, tid);
-        free(namefile); 
-        result = -1;
-    }
-
-    if((status = pthread_mutex_unlock(&MUTEX_FILESYSTEM_MEMDUMP))) {
-        log_error_pthread_mutex_unlock(status);
-        // TODO
-    }
-
-    // Notificar resultado a hilo kernel
-
-*/  
     return 0;
 }
 
