@@ -47,6 +47,7 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 	int fd_new_client;
 	t_Client *new_client;
 
+  pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(server->fd_listen));
 	server_start(server);
 
 	while(1) {
@@ -73,6 +74,8 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
     new_client->server = server;
     client_handler(new_client);
 	}
+
+  pthread_cleanup_pop(1); // server->fd_listen
 
 	return NULL;
 }

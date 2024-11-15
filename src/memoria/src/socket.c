@@ -12,42 +12,17 @@ pthread_mutex_t MUTEX_CLIENT_CPU;
 t_Shared_List SHARED_LIST_JOBS_KERNEL = { .list = NULL };
 pthread_cond_t COND_JOBS_KERNEL;
 
-int initialize_sockets(void) {
-    int status;
-
-    if((status = pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL))) {
-        log_error_pthread_mutex_init(status);
-        // TODO
-    }
-
-	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
-    server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
-
-    return 0;
-}
-
-int finish_sockets(void) {
-    int retval = 0;
-
-	if(close(SERVER_MEMORY.fd_listen)) {
-        log_error_close();
-        retval = -1;
-    }
-
-    return retval;
-}
-
 void memory_client_handler(t_Client *new_client) {
     int status;
 
 	if((status = pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
         log_error_pthread_create(status);
-        // TODO
+        error_pthread();
     }
 
 	if((status = pthread_detach(new_client->thread_client_handler))) {
         log_error_pthread_detach(status);
-        // TODO
+        error_pthread();
     }
 }
 

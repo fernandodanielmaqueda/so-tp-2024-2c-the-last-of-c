@@ -65,13 +65,13 @@ void initialize_scheduling(void) {
 	// Long term scheduler
 	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_NEW.thread, NULL, (void *(*)(void *)) long_term_scheduler_new, NULL))) {
 		log_error_pthread_create(status);
-		pthread_exit(NULL);
+		error_pthread();
 	}
 	THREAD_LONG_TERM_SCHEDULER_NEW.running = true;
 
 	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT.thread, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
 		log_error_pthread_create(status);
-		pthread_exit(NULL);
+		error_pthread();
 	}
 	THREAD_LONG_TERM_SCHEDULER_EXIT.running = true;
 
@@ -85,7 +85,7 @@ void initialize_scheduling(void) {
 		case MLQ_SCHEDULING_ALGORITHM:
 			if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER.thread, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
 				log_error_pthread_create(status);
-				pthread_exit(NULL);
+				error_pthread();
 			}
 			THREAD_QUANTUM_INTERRUPTER.running = true;
 			break;
@@ -94,7 +94,7 @@ void initialize_scheduling(void) {
 	// IO Device
 	if((status = pthread_create(&THREAD_IO_DEVICE.thread, NULL, (void *(*)(void *)) io_device, NULL))) {
 		log_error_pthread_create(status);
-		pthread_exit(NULL);
+		error_pthread();
 	}
 	THREAD_IO_DEVICE.running = true;
 }
@@ -705,7 +705,7 @@ void *short_term_scheduler(void) {
 		} while(SHOULD_REDISPATCH);
 	}
 
-	pthread_exit(NULL);
+	error_pthread();
 }
 
 void *io_device(void) {
@@ -817,7 +817,7 @@ void *io_device(void) {
 		}
 	}
 
-	pthread_exit(NULL);
+	error_pthread();
 }
 
 int wait_free_memory(void) {
@@ -924,7 +924,7 @@ void *dump_memory_petitioner(void) {
 		error_pthread();
 	}
 
-	pthread_exit(NULL);
+	error_pthread();
 }
 
 int remove_dump_memory_thread(pthread_t *thread) {
