@@ -22,7 +22,6 @@
 #include "utils/arguments.h"
 #include "utils/send.h"
 #include "utils/socket.h"
-#include "socket.h"
 
 typedef enum e_Memory_Management_Scheme {
     FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME,
@@ -96,11 +95,11 @@ extern t_list *PARTITION_TABLE;
 extern t_PID PID_COUNT;
 extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
 
+#include "client_kernel.h"
+#include "client_cpu.h"
+#include "socket.h"
+
 int module(int, char*[]);
-
-void initialize_global_variables(void);
-
-void finish_global_variables(void);
 
 int read_module_config(t_config *module_config);
 
@@ -108,70 +107,8 @@ int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destin
 
 int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *destination);
 
-/**
- * @brief Busca el archivo de pseudocodigo y crea la estructura dentro de memoria
- * @param socketRecibido Socket desde donde se va a recibir el pcb.
- */
-void attend_process_create(int fd_client, t_Payload *payload);
-
-/**
- * @brief Elimina el proceso, marca el marco como disponible y libera la pagina
- * @param socketRecibido Socket desde donde se va a recibir el pcb.
- */
-void attend_process_destroy(int fd_client, t_Payload *payload);
-
-
-int process_destroy(t_Memory_Process *process);
-
-
-/**
- * @brief Busca la lista de instruccion y devuelve la instruccion buscada
- * @param pid Program counter requerido.
- * @param pc Program counter requerido.
- */
-void seek_instruccion(t_Payload *payload);
-
-/**
- * @brief Crea la lista de instrucciones asociada al archivo pasado por parametro
- * @param file Archivo a leer
- * @param list_instruction Lista a llenarse con las instrucciones del archivo.
- */
-void create_instruction(FILE *file, t_list *list_instruction);
-
-/**
- * @brief Busca un archivo, lo lee y crea una lista de instrucciones
- * @param path Path donde se encuentra el archivo.
- * @param list_instruction Lista a llenarse con las instrucciones del archivo.
- */
-int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count);
-
-/**
- * @brief Funcion que encapsula al hilo escucha cpu
- * @param socket Socket escuchado
- */
-void listen_cpu(void);
-
-/**
- * @brief Funcion que encapsula al hilo escucha kernel
- * @param socket Socket escuchado
- */
-void listen_kernel(int fd_client);
-
-int write_memory(t_Payload *payload);
-
-int read_memory(t_Payload *payload);
-
 void free_memory();
 
-void allocate_partition(t_Partition **partition, size_t required_size);
-int split_partition(size_t index_partition, size_t size);
-int add_element_to_array_process (t_Memory_Process *process);
-int verify_and_join_splited_partitions(t_Partition *partition);
 void free_threads(t_Memory_Process *process);
-void attend_thread_create(int fd_client, t_Payload *payload);
-int attend_thread_destroy(int fd_client, t_Payload *payload);
-int attend_memory_dump(int fd_client, t_Payload *payload);
-void seek_cpu_context(t_Payload *payload);
-void update_cpu_context(t_Payload *payload);
 
 #endif // MEMORIA_H
