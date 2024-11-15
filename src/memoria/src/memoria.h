@@ -89,7 +89,7 @@ extern e_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHM;
 
 extern void *MAIN_MEMORY;
 
-extern pthread_rwlock_t RWLOCK_PROCESSES_AND_PARTITIONS;
+extern pthread_rwlock_t RWLOCK_PARTITIONS_AND_PROCESSES;
 
 extern t_list *PARTITION_TABLE;
 

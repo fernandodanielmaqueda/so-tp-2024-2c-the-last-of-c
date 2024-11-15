@@ -25,7 +25,7 @@ e_Memory_Allocation_Algorithm MEMORY_ALLOCATION_ALGORITHM;
 
 void *MAIN_MEMORY;
 
-pthread_rwlock_t RWLOCK_PROCESSES_AND_PARTITIONS;
+pthread_rwlock_t RWLOCK_PARTITIONS_AND_PROCESSES;
 
 t_list *PARTITION_TABLE;
 
@@ -39,80 +39,170 @@ int module(int argc, char* argv[]) {
     MODULE_LOG_PATHNAME = "memoria.log";
     MODULE_CONFIG_PATHNAME = "memoria.config";
 
-    PARTITION_TABLE = list_create();
 
-	if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
-        // TODO
-        exit(EXIT_FAILURE);
+	// Bloquea todas las señales para este y los hilos creados
+	sigset_t set;
+	if(sigfillset(&set)) {
+		perror("sigfillset");
+		return EXIT_FAILURE;
+	}
+	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
+		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		return EXIT_FAILURE;
+	}
+
+
+    pthread_t thread_main = pthread_self();
+
+
+	// Crea hilo para manejar señales
+	if((status = pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main))) {
+		log_error_pthread_create(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
+
+
+    // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_init(&RWLOCK_PARTITIONS_AND_PROCESSES, NULL))) {
+        log_error_pthread_rwlock_init(status);
+        pthread_exit(NULL);
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_PARTITIONS_AND_PROCESSES);
 
-    initialize_loggers();
-    initialize_global_variables();
+    // PARTITION_TABLE
+    PARTITION_TABLE = list_create();
+    if(PARTITION_TABLE == NULL) {
+        log_error(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
+        pthread_exit(NULL);
+    }
+    pthread_cleanup_push((void (*)(void *)) list_destroy, PARTITION_TABLE);
+    //  TODO: pthread_cleanup_push((void (*)(void *)) , PARTITION_TABLE);
 
-    SHARED_LIST_CLIENTS_KERNEL.list = list_create();
-    SHARED_LIST_CONNECTIONS_FILESYSTEM.list = list_create();
 
-    MAIN_MEMORY = (void *) malloc(MEMORY_SIZE);
+	// Config
+	if((MODULE_CONFIG = config_create(MODULE_CONFIG_PATHNAME)) == NULL) {
+		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", MODULE_CONFIG_PATHNAME);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) config_destroy, MODULE_CONFIG);
+
+
+	// Parse config
+	if(read_module_config(MODULE_CONFIG)) {
+		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", MODULE_CONFIG_PATHNAME);
+		pthread_exit(NULL);
+	}
+
+	// Loggers
+	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
+	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
+	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
+	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
+	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+
+
+    // MAIN_MEMORY
+    MAIN_MEMORY = malloc(MEMORY_SIZE);
     if(MAIN_MEMORY == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
-        exit(EXIT_FAILURE);
+        pthread_exit(NULL);
     }
+	pthread_cleanup_push((void (*)(void *)) free, (void *) MAIN_MEMORY);
 
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
+
+	// COND_JOBS_KERNEL
+	if((status = pthread_cond_init(&COND_JOBS_KERNEL, NULL))) {
+		log_error_pthread_cond_init(status);
+		pthread_exit(NULL);
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_JOBS_KERNEL);
+
+    // MUTEX_JOBS_KERNEL
+    if((status = pthread_mutex_init(&(SHARED_LIST_JOBS_KERNEL.mutex), NULL))) {
+        log_error_pthread_mutex_init(status);
+        pthread_exit(NULL);
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_JOBS_KERNEL.mutex));
+
+    // LIST_JOBS_KERNEL
+    SHARED_LIST_JOBS_KERNEL.list = list_create();
+    if(SHARED_LIST_JOBS_KERNEL.list == NULL) {
+        log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
+        pthread_exit(NULL);
+    }
+    pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_JOBS_KERNEL.list);
+
+
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
 
-    initialize_sockets();
 
-	//finish_threads();
-    free_memory();
-	finish_sockets();
-	//finish_configs();
-	finish_loggers();
-    finish_global_variables();
+	// Sockets
+	pthread_cleanup_push((void (*)(void *)) finish_sockets, NULL);
+	initialize_sockets();
 
-   return 0;
+
+	// Cleanup
+
+	pthread_cleanup_pop(1); // Sockets
+	pthread_cleanup_pop(1); // LIST_JOBS_KERNEL
+	pthread_cleanup_pop(1); // MUTEX_JOBS_KERNEL
+	pthread_cleanup_pop(1); // COND_JOBS_KERNEL
+	pthread_cleanup_pop(1); // MAIN_MEMORY
+	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
+	pthread_cleanup_pop(1); // MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_CONFIG
+	pthread_cleanup_pop(1); // PARTITION_TABLE
+	pthread_cleanup_pop(1); // RWLOCK_PARTITIONS_AND_PROCESSES
+	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
+
+    return EXIT_SUCCESS;
 }
 
-void initialize_global_variables(void) {
-    int status;
-
-    if((status = pthread_mutex_init(&(SHARED_LIST_CLIENTS_KERNEL.mutex), NULL))) {
-        log_error_pthread_mutex_init(status);
-        // TODO
-    }
-
-    if((status = pthread_mutex_init(&(SHARED_LIST_CONNECTIONS_FILESYSTEM.mutex), NULL))) {
-        log_error_pthread_mutex_init(status);
-        // TODO
-    }
-
-    if((status = pthread_rwlock_init(&RWLOCK_PROCESSES_AND_PARTITIONS, NULL))) {
-        log_error_pthread_rwlock_init(status);
-        // TODO
-    }
-}
-
-void finish_global_variables(void) {
-    int status;
-
-    if((status = pthread_mutex_destroy(&(SHARED_LIST_CLIENTS_KERNEL.mutex)))) {
-        log_error_pthread_mutex_destroy(status);
-        // TODO
-    }
-
-    if((status = pthread_mutex_destroy(&(SHARED_LIST_CONNECTIONS_FILESYSTEM.mutex)))) {
-        log_error_pthread_mutex_destroy(status);
-        // TODO
-    }
-
-    if((status = pthread_rwlock_destroy(&(RWLOCK_PROCESSES_AND_PARTITIONS)))) {
-        log_error_pthread_rwlock_destroy(status);
-        // TODO
-    }
-}
-
-int read_module_config(t_config* MODULE_CONFIG) {
+int read_module_config(t_config *MODULE_CONFIG) {
+    int retval = 0;
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
         fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
@@ -135,53 +225,60 @@ int read_module_config(t_config* MODULE_CONFIG) {
 
     MEMORY_SIZE = (size_t) config_get_int_value(MODULE_CONFIG, "TAM_MEMORIA");
 
-     // Creación inicial de particiones
+    // Creación inicial de particiones
     switch(MEMORY_MANAGEMENT_SCHEME) {
 
         case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
-        { 
+        {
             char **fixed_partitions = config_get_array_value(MODULE_CONFIG, "PARTICIONES");
             if(fixed_partitions == NULL) {
                 fprintf(stderr, "%s: la clave PARTICIONES no tiene valor\n", MODULE_CONFIG_PATHNAME);
-                // string_array_destroy(fixed_partitions); TODO: Ver si acepta que fixed_partitions sea NULL
                 return -1;
             }
+            pthread_cleanup_push((void (*)(void *)) string_array_destroy, fixed_partitions);
 
-            char *end;
-            size_t base = 0;
-            t_Partition *new_partition;
-            for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
-                new_partition = malloc(sizeof(t_Partition));
-                if(new_partition == NULL) {
-                    fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
-                    // TODO: Liberar la lista de particiones
-                    string_array_destroy(fixed_partitions);
-                    return -1;
+                char *end;
+                size_t base = 0;
+                t_Partition *new_partition;
+                for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
+                    new_partition = malloc(sizeof(t_Partition));
+                    if(new_partition == NULL) {
+                        fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
+                        retval = -1;
+                        goto cleanup_fixed_partitions;
+                    }
+                    pthread_cleanup_push((void (*)(void *)) free, new_partition);
+
+                        new_partition->size = strtoul(fixed_partitions[i], &end, 10);
+                        if(!*(fixed_partitions[i]) || *end) {
+                            fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
+                            retval = -1;
+                            goto cleanup_new_partition;
+                        }
+
+                        new_partition->base = base;
+                        new_partition->occupied = false;
+
+                        list_add(PARTITION_TABLE, new_partition);
+
+                        base += new_partition->size;
+
+                    cleanup_new_partition:
+                    pthread_cleanup_pop(retval); // new_partition
+
+                    if(retval) {
+                        goto cleanup_fixed_partitions;
+                    }
                 }
 
-                new_partition->size = strtoul(fixed_partitions[i], &end, 10);
-                if(!*(fixed_partitions[i]) || *end) {
-                    fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
-                    // TODO: Liberar la lista de particiones
-                    string_array_destroy(fixed_partitions);
-                    return -1;
+                if(list_size(PARTITION_TABLE) == 0) {
+                    fprintf(stderr, "%s: valor de la clave PARTICIONES invalido\n", MODULE_CONFIG_PATHNAME);
+                    retval = -1;
+                    goto cleanup_fixed_partitions;
                 }
 
-                new_partition->base = base;
-                new_partition->occupied = false;
-
-                list_add(PARTITION_TABLE, new_partition);
-
-                base += new_partition->size;
-            }
-
-            if(list_size(PARTITION_TABLE) == 0) {
-                fprintf(stderr, "%s: valor de la clave PARTICIONES invalido\n", MODULE_CONFIG_PATHNAME);
-                string_array_destroy(fixed_partitions);
-                return -1;
-            }
-
-            string_array_destroy(fixed_partitions);
+            cleanup_fixed_partitions:
+            pthread_cleanup_pop(1); // fixed_partitions
             break;
         }
 
@@ -198,13 +295,17 @@ int read_module_config(t_config* MODULE_CONFIG) {
             new_partition->occupied = false;
 
             list_add(PARTITION_TABLE, new_partition);
+
             break;
         }
 
     }
 
+    if(retval) {
+        return -1;
+    }
+
     SERVER_MEMORY = (t_Server) {.server_type = MEMORY_PORT_TYPE, .clients_type = TO_BE_IDENTIFIED_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA")};
-    // TEMPORAL_CONNECTION_FILESYSTEM = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
     INSTRUCTIONS_PATH = config_get_string_value(MODULE_CONFIG, "PATH_INSTRUCCIONES");
         if(INSTRUCTIONS_PATH[0]) {
@@ -217,7 +318,6 @@ int read_module_config(t_config* MODULE_CONFIG) {
             DIR *dir = opendir(INSTRUCTIONS_PATH);
             if(dir == NULL) {
                 fprintf(stderr, "%s: No se pudo abrir el directorio indicado en el valor de PATH_INSTRUCCIONES: %s\n", MODULE_CONFIG_PATHNAME, INSTRUCTIONS_PATH);
-                // TODO
                 return -1;
             }
             closedir(dir);
@@ -340,11 +440,11 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
 
-    if((status = pthread_rwlock_wrlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_wrlock(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
     // Asignar partición
     allocate_partition(&partition, new_process->size);
@@ -368,8 +468,8 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     log_info(MINIMAL_LOGGER, "## Proceso Creado - PID: %u - TAMAÑO: %zu", new_process->pid, new_process->size);
 
     cleanup_rwlock_proceses_and_partitions:
-    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
-    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
     }
 
@@ -531,11 +631,11 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     size_t size;
     t_Memory_Process *process = NULL;
 
-    if((status = pthread_rwlock_wrlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_wrlock(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
         if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
             log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -553,8 +653,8 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
             }
 
     cleanup_rwlock_proceses_and_partitions:
-    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
-    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
     }
@@ -719,11 +819,11 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     }
     // TODO
 
-    if((status = pthread_rwlock_rdlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_rdlock(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PROCESSES_AND_PARTITIONS);
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
         if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
             log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -755,8 +855,8 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
         }
 
     cleanup_rwlock_proceses_and_partitions:
-    pthread_cleanup_pop(0); // RWLOCK_PROCESSES_AND_PARTITIONS
-    if((status = pthread_rwlock_unlock(&RWLOCK_PROCESSES_AND_PARTITIONS))) {
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
         error_pthread();
     }

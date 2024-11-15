@@ -21,13 +21,15 @@
 #include "utils/socket.h"
 #include "memoria.h"
 
+#define CONNECTION_FILESYSTEM_INITIALIZER ((t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")})
+
 extern t_Server SERVER_MEMORY;
 
 extern t_Client *CLIENT_CPU;
 extern pthread_mutex_t MUTEX_CLIENT_CPU;
 
-extern t_Shared_List SHARED_LIST_CLIENTS_KERNEL;
-extern t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM;
+extern t_Shared_List SHARED_LIST_JOBS_KERNEL;
+extern pthread_cond_t COND_JOBS_KERNEL;
 
 int initialize_sockets(void);
 int finish_sockets(void);

@@ -40,9 +40,11 @@ e_Scheduling_Algorithm SCHEDULING_ALGORITHM;
 int module(int argc, char *argv[]) {
 	int status;
 
+
 	MODULE_NAME = "kernel";
 	MODULE_LOG_PATHNAME = "kernel.log";
 	MODULE_CONFIG_PATHNAME = "kernel.config";
+
 
 	// Bloquea todas las señales para este y los hilos creados
 	sigset_t set;
@@ -365,7 +367,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
 	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
 	pthread_cleanup_pop(1); // MODULE_CONFIG
-	pthread_cleanup_pop(1); // thread_signal_manager
+	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
 
 	return EXIT_SUCCESS;
 }

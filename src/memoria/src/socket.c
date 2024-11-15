@@ -9,8 +9,8 @@ t_Server SERVER_MEMORY;
 t_Client *CLIENT_CPU = NULL;
 pthread_mutex_t MUTEX_CLIENT_CPU;
 
-t_Shared_List SHARED_LIST_CLIENTS_KERNEL = { .list = NULL };
-t_Shared_List SHARED_LIST_CONNECTIONS_FILESYSTEM = { .list = NULL };
+t_Shared_List SHARED_LIST_JOBS_KERNEL = { .list = NULL };
+pthread_cond_t COND_JOBS_KERNEL;
 
 int initialize_sockets(void) {
     int status;
@@ -78,6 +78,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
+            /*
             if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS_KERNEL.mutex)))) {
                 log_error_pthread_mutex_lock(status);
                 // TODO
@@ -87,6 +88,7 @@ void *memory_thread_for_client(t_Client *new_client) {
                 log_error_pthread_mutex_unlock(status);
                 // TODO
             }
+            */
 
             listen_kernel(new_client->fd_client);
             break;
