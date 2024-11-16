@@ -28,8 +28,8 @@ extern t_Server SERVER_MEMORY;
 extern t_Client *CLIENT_CPU;
 extern pthread_mutex_t MUTEX_CLIENT_CPU;
 
-extern t_Shared_List SHARED_LIST_JOBS_KERNEL;
-extern pthread_cond_t COND_JOBS_KERNEL;
+extern t_Shared_List SHARED_LIST_CLIENTS;
+extern pthread_cond_t COND_CLIENTS;
 
 int initialize_sockets(void);
 int finish_sockets(void);

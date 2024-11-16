@@ -147,27 +147,27 @@ int module(int argc, char* argv[]) {
     memset(MAIN_MEMORY, 0, MEMORY_SIZE);
 
 
-	// COND_JOBS_KERNEL
-	if((status = pthread_cond_init(&COND_JOBS_KERNEL, NULL))) {
+	// COND_CLIENTS
+	if((status = pthread_cond_init(&COND_CLIENTS, NULL))) {
 		log_error_pthread_cond_init(status);
 		error_pthread();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_JOBS_KERNEL);
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CLIENTS);
 
     // MUTEX_JOBS_KERNEL
-    if((status = pthread_mutex_init(&(SHARED_LIST_JOBS_KERNEL.mutex), NULL))) {
+    if((status = pthread_mutex_init(&(SHARED_LIST_CLIENTS.mutex), NULL))) {
         log_error_pthread_mutex_init(status);
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_JOBS_KERNEL.mutex));
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_CLIENTS.mutex));
 
     // LIST_JOBS_KERNEL
-    SHARED_LIST_JOBS_KERNEL.list = list_create();
-    if(SHARED_LIST_JOBS_KERNEL.list == NULL) {
+    SHARED_LIST_CLIENTS.list = list_create();
+    if(SHARED_LIST_CLIENTS.list == NULL) {
         log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
         error_pthread();
     }
-    pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_JOBS_KERNEL.list);
+    pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
 
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
@@ -180,16 +180,16 @@ int module(int argc, char* argv[]) {
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CLIENT_CPU);
 
+
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
     server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
 
 
 	// Cleanup
-
     pthread_cleanup_pop(1); // MUTEX_CLIENT_CPU
 	pthread_cleanup_pop(1); // LIST_JOBS_KERNEL
 	pthread_cleanup_pop(1); // MUTEX_JOBS_KERNEL
-	pthread_cleanup_pop(1); // COND_JOBS_KERNEL
+	pthread_cleanup_pop(1); // COND_CLIENTS
 	pthread_cleanup_pop(1); // MAIN_MEMORY
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
