@@ -493,7 +493,7 @@ int wrapper_pthread_join(t_Bool_Join_Thread *join_thread) {
 	return 0;
 }
 
-void error_pthread(void) {
+void exit_sigint(void) {
 	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL + C
 	pthread_exit(NULL);
 }

@@ -9,13 +9,13 @@ void listen_kernel(int fd_client) {
     t_Package* package = package_create();
     if(package == NULL) {
         // TODO
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) package_destroy, package);
 
     if(package_receive(package, fd_client)) {
         log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
-        error_pthread();
+        exit_sigint();
     }
     log_trace(MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
 
@@ -71,7 +71,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) free, new_process);
 
@@ -82,13 +82,13 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     if((status = pthread_rwlock_init(&(new_process->rwlock_array_memory_threads), NULL))) {
         log_error_pthread_rwlock_init(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_wrlock(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -108,7 +108,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     if(add_element_to_array_process(new_process)) {
         log_debug(MODULE_LOGGER, "[%d] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d", fd_client, new_process->pid);
-        error_pthread();
+        exit_sigint();
     }
 
     log_info(MINIMAL_LOGGER, "## Proceso Creado - PID: %u - TAMAÑO: %zu", new_process->pid, new_process->size);
@@ -130,7 +130,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     if(send_result_with_header(PROCESS_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
         // TODO
-        error_pthread();
+        exit_sigint();
     }
 }
 
@@ -149,7 +149,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_wrlock(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -165,25 +165,25 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
         if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME)
             if(verify_and_join_splited_partitions(process->partition)) {
-                error_pthread();
+                exit_sigint();
             }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
-        error_pthread();
+        exit_sigint();
     }
 
     if(process_destroy(process)) {
-        error_pthread();
+        exit_sigint();
     }
 
     log_info(MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
 
     if(send_result_with_header(PROCESS_DESTROY_HEADER, ((process == NULL) ? 1 : 0), fd_client)) {
         // TODO
-        error_pthread();
+        exit_sigint();
     }
 }
 
@@ -205,7 +205,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo thread.", sizeof(t_Memory_Thread));
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) free, new_thread);
 
@@ -230,7 +230,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
     if(target_path == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) free, target_path);
 
@@ -254,13 +254,13 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     // Inicializar instrucciones
     if(parse_pseudocode_file(target_path, &(new_thread->array_instructions), &(new_thread->instructions_count))) {
         // TODO
-        error_pthread();
+        exit_sigint();
     }
     // TODO
 
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_rdlock(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -272,14 +272,14 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
         if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             log_error_pthread_rwlock_wrlock(status);
-            error_pthread();
+            exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
 
             ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1)); 
             if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads == NULL) {
                 log_warning(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads.", sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1));
-                error_pthread();
+                exit_sigint();
             }
 
             ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
@@ -290,14 +290,14 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
         pthread_cleanup_pop(0); // rwlock_array_memory_threads
         if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             log_error_pthread_rwlock_unlock(status);
-            error_pthread();
+            exit_sigint();
         }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
-        error_pthread();
+        exit_sigint();
     }
 
     pthread_cleanup_pop(1); // target_path
@@ -306,7 +306,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
     if(send_result_with_header(THREAD_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
         // TODO
-        error_pthread();
+        exit_sigint();
     }
     // TODO
 
@@ -399,7 +399,7 @@ int attend_memory_dump(int fd_client, t_Payload *payload) {
 
 void allocate_partition(t_Partition **partition, size_t required_size) {
     if(partition == NULL) {
-        error_pthread();
+        exit_sigint();
     }
 
     int retval = 0;
@@ -476,7 +476,7 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
             case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
 
                 if(split_partition(index_partition, required_size)) {
-                    error_pthread();
+                    exit_sigint();
                 }
 
                 break;

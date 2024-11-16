@@ -26,20 +26,20 @@ void memory_client_handler(t_Client *new_client) {
 
             if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
                 log_error_pthread_mutex_lock(status);
-                error_pthread();
+                exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
 
                 if((status = pthread_create(&(new_client->thread_client_handler.thread), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
                     log_error_pthread_create(status);
-                    error_pthread();
+                    exit_sigint();
                 }
                 pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->thread_client_handler.thread));
 
                     join = true;
                         if((status = pthread_detach(new_client->thread_client_handler.thread))) {
                             log_error_pthread_detach(status);
-                            error_pthread();
+                            exit_sigint();
                         }
                     join = false;
 
@@ -53,7 +53,7 @@ void memory_client_handler(t_Client *new_client) {
             if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
                 join = false;
                 log_error_pthread_mutex_unlock(status);
-                error_pthread();
+                exit_sigint();
             }
 
         pthread_cleanup_pop(0); // join_thread
@@ -76,7 +76,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
     if(receive_port_type(&port_type, new_client->fd_client)) {
         log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
-        error_pthread();
+        exit_sigint();
     }
     log_trace(SOCKET_LOGGER, "[%d] Se recibe Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
 
@@ -87,7 +87,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             if(send_port_type(MEMORY_PORT_TYPE, new_client->fd_client)) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
-                error_pthread();
+                exit_sigint();
             }
             log_trace(SOCKET_LOGGER, "[%d] Se envia Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
@@ -103,7 +103,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             if((status = pthread_mutex_lock(&MUTEX_CLIENT_CPU))) {
                 log_error_pthread_mutex_lock(status);
-                error_pthread();
+                exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CLIENT_CPU);
 
@@ -119,13 +119,13 @@ void *memory_thread_for_client(t_Client *new_client) {
             pthread_cleanup_pop(0); // MUTEX_CLIENT_CPU
             if((status = pthread_mutex_unlock(&MUTEX_CLIENT_CPU))) {
                 log_error_pthread_mutex_unlock(status);
-                error_pthread();
+                exit_sigint();
             }
 
             if(result) {
                 if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client)) {
                     log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
-                    error_pthread();
+                    exit_sigint();
                 }
                 log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
@@ -134,7 +134,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             if(send_port_type(MEMORY_PORT_TYPE, new_client->fd_client)) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
-                error_pthread();
+                exit_sigint();
             }
             log_trace(SOCKET_LOGGER, "[%d] Se envia reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
@@ -150,7 +150,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
             if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client)) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
-                error_pthread();
+                exit_sigint();
             }
             log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
 
@@ -160,7 +160,7 @@ void *memory_thread_for_client(t_Client *new_client) {
 
     pthread_cleanup_pop(0); // new_client
     if(remove_client_thread(&thread)) {
-        error_pthread();
+        exit_sigint();
     }
 
     return NULL;

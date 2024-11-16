@@ -66,7 +66,7 @@ int module(int argc, char* argv[]) {
     // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_init(&RWLOCK_PARTITIONS_AND_PROCESSES, NULL))) {
         log_error_pthread_rwlock_init(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -74,7 +74,7 @@ int module(int argc, char* argv[]) {
     PARTITION_TABLE = list_create();
     if(PARTITION_TABLE == NULL) {
         log_error(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) list_destroy, PARTITION_TABLE);
     //  TODO: pthread_cleanup_push((void (*)(void *)) , PARTITION_TABLE);
@@ -83,7 +83,7 @@ int module(int argc, char* argv[]) {
 	// Config
 	if((MODULE_CONFIG = config_create(MODULE_CONFIG_PATHNAME)) == NULL) {
 		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", MODULE_CONFIG_PATHNAME);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) config_destroy, MODULE_CONFIG);
 
@@ -91,47 +91,47 @@ int module(int argc, char* argv[]) {
 	// Parse config
 	if(read_module_config(MODULE_CONFIG)) {
 		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", MODULE_CONFIG_PATHNAME);
-		error_pthread();
+		exit_sigint();
 	}
 
 	// Loggers
 	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
 		log_error_pthread_mutex_init(status);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
 	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
 		log_error_pthread_mutex_init(status);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
 	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
 		log_error_pthread_mutex_init(status);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
 	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
 		log_error_pthread_mutex_init(status);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
 	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
 
@@ -140,7 +140,7 @@ int module(int argc, char* argv[]) {
     MAIN_MEMORY = malloc(MEMORY_SIZE);
     if(MAIN_MEMORY == NULL) {
         log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
-        error_pthread();
+        exit_sigint();
     }
 	pthread_cleanup_push((void (*)(void *)) free, (void *) MAIN_MEMORY);
 
@@ -150,14 +150,14 @@ int module(int argc, char* argv[]) {
 	// COND_CLIENTS
 	if((status = pthread_cond_init(&COND_CLIENTS, NULL))) {
 		log_error_pthread_cond_init(status);
-		error_pthread();
+		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CLIENTS);
 
     // MUTEX_JOBS_KERNEL
     if((status = pthread_mutex_init(&(SHARED_LIST_CLIENTS.mutex), NULL))) {
         log_error_pthread_mutex_init(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_CLIENTS.mutex));
 
@@ -165,7 +165,7 @@ int module(int argc, char* argv[]) {
     SHARED_LIST_CLIENTS.list = list_create();
     if(SHARED_LIST_CLIENTS.list == NULL) {
         log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
 
@@ -176,7 +176,7 @@ int module(int argc, char* argv[]) {
 	// Sockets
     if((status = pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL))) {
         log_error_pthread_mutex_init(status);
-        error_pthread();
+        exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CLIENT_CPU);
 
