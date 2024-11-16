@@ -848,6 +848,7 @@ int wait_free_memory(void) {
 }
 
 void *dump_memory_petitioner(void) {
+
 	pthread_t thread = pthread_self();
 	int retval = 0, status, result;
 	t_PID pid;

@@ -36,5 +36,6 @@ int finish_sockets(void);
 
 void memory_client_handler(t_Client *new_client);
 void *memory_thread_for_client(t_Client *new_client);
+int remove_client_thread(pthread_t *thread);
 
 #endif /* MEMORIA_SOCKET_H */
