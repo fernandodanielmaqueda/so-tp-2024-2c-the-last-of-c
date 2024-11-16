@@ -41,7 +41,7 @@ typedef struct t_Server {
 typedef struct t_Client {
     int fd_client;
     enum e_Port_Type client_type;
-    pthread_t thread_client_handler;
+    t_Bool_Thread thread_client_handler;
     t_Server *server;
 } t_Client;
 

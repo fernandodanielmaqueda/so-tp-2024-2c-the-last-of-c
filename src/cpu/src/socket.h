@@ -35,6 +35,6 @@ extern t_Connection CONNECTION_MEMORY;
 
 int initialize_sockets(void);
 int finish_sockets(void);
-void *cpu_start_server_for_kernel(t_Client *new_client);
+//void *cpu_start_server_for_kernel(t_Client *new_client);
 
 #endif // CPU_SOCKET_H

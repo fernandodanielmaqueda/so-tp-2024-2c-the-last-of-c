@@ -39,10 +39,11 @@ int module(int argc, char *argv[])
     initialize_global_variables();
     initialize_sockets();
 
-    if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
+    if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler.thread), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
         log_error_pthread_create(status);
         // TODO
     }
+    CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler.running = true;
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
     instruction_cycle();
@@ -122,10 +123,10 @@ int read_module_config(t_config *MODULE_CONFIG) {
     CONNECTION_MEMORY = (t_Connection) {.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
     SERVER_CPU_DISPATCH = (t_Server) {.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
-    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
+    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH, .thread_client_handler.running = false};
 
     SERVER_CPU_INTERRUPT = (t_Server) {.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
-    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
+    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT, .thread_client_handler.running = false};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 

@@ -33,8 +33,9 @@ int finish_sockets(void) {
 }
 
 void filesystem_client_handler(t_Client *new_client) {
-	pthread_create(&(new_client->thread_client_handler), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
-	pthread_detach(new_client->thread_client_handler);
+	pthread_create(&(new_client->thread_client_handler.thread), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
+	new_client->thread_client_handler.running = true;
+	pthread_detach(new_client->thread_client_handler.thread);
 }
 
 void *filesystem_thread_for_client(t_Client *new_client) {

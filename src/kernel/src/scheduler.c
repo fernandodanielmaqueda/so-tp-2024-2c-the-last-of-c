@@ -925,6 +925,7 @@ void *dump_memory_petitioner(void) {
 	}
 
 	error_pthread();
+	return NULL;
 }
 
 int remove_dump_memory_thread(pthread_t *thread) {

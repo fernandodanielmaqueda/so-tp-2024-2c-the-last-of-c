@@ -44,6 +44,7 @@ void *server_thread_for_client(t_Client *new_client) {
 
 void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Client *)) {
 
+  int retval = 0;
 	int fd_new_client;
 	t_Client *new_client;
 
@@ -59,19 +60,32 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 			continue;
 		}
 
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &fd_new_client);
+
 		new_client = malloc(sizeof(t_Client));
 		if(new_client == NULL) {
 			log_warning(SOCKET_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo cliente", sizeof(t_Client));
-			if(close(fd_new_client)) {
-        log_error_close();
-      }
-			continue;
+			retval = -1;
+			goto cleanup_fd_new_client;
 		}
+    pthread_cleanup_push((void (*)(void *)) free, new_client);
 
     log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
+
     new_client->fd_client = fd_new_client;
     new_client->client_type = server->clients_type;
     new_client->server = server;
+    new_client->thread_client_handler.running = false;
+
+    pthread_cleanup_pop(retval); // new_client
+
+    cleanup_fd_new_client:
+    pthread_cleanup_pop(retval); // fd_new_client
+
+    if(retval) {
+      continue;
+    }
+
     client_handler(new_client);
 	}
 

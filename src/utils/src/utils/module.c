@@ -494,7 +494,7 @@ int wrapper_pthread_join(t_Bool_Join_Thread *join_thread) {
 }
 
 void error_pthread(void) {
-	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL+C
+	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL + C
 	pthread_exit(NULL);
 }
 
