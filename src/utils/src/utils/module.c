@@ -448,6 +448,15 @@ int shared_list_destroy(t_Shared_List *shared_list) {
 	return retval;
 }
 
+void conditional_cleanup(t_Conditional_Cleanup *this) {
+	if(this == NULL || this->condition == NULL || this->function == NULL)
+		return;
+
+	if((*(this->condition)) ^ (this->negate_condition)) {
+		(this->function)(this->argument);
+	}
+}
+
 int cancel_and_join_pthread(pthread_t *thread) {
 	int status;
 
@@ -480,14 +489,12 @@ int wrapper_pthread_cancel(pthread_t *thread) {
 	return 0;
 }
 
-int wrapper_pthread_join(t_Bool_Join_Thread *join_thread) {
+int wrapper_pthread_join(pthread_t *thread) {
 	int status;
 
-	if(*(join_thread->join)) {
-		if((status = pthread_join(*(join_thread->thread), NULL))) {
-			log_error_pthread_join(status);
-			return -1;
-		}
+	if((status = pthread_join(*thread, NULL))) {
+		log_error_pthread_join(status);
+		return -1;
 	}
 
 	return 0;

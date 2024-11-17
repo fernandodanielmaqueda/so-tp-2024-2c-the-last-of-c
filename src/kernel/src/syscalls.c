@@ -485,22 +485,12 @@ int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
     log_trace(MODULE_LOGGER, "DUMP_MEMORY");
 
-	t_Dump_Memory_Petition *dump_memory_petition = malloc(sizeof(t_Dump_Memory_Petition));
-	if(dump_memory_petition == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
-		exit_sigint();
-	}
-    pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
-        dump_memory_petition->bool_thread.running = false;
-        dump_memory_petition->tcb = TCB_EXEC;
-
-        if(get_state_exec(&TCB_EXEC)) {
-            exit_sigint();
-        }
-        if(insert_state_blocked_dump_memory(dump_memory_petition)) {
-            exit_sigint();
-        }
-    pthread_cleanup_pop(0);
+    if(get_state_exec(&TCB_EXEC)) {
+        exit_sigint();
+    }
+    if(insert_state_blocked_dump_memory(TCB_EXEC)) {
+        exit_sigint();
+    }
 
     SHOULD_REDISPATCH = 0;
     return 0;

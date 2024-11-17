@@ -621,67 +621,83 @@ int insert_state_blocked_mutex(t_TCB *tcb, t_Resource *resource) {
 	return 0;
 }
 
-int insert_state_blocked_dump_memory(t_Dump_Memory_Petition *dump_memory_petition) {
+int insert_state_blocked_dump_memory(t_TCB *tcb) {
 	int retval = 0, status;
 
-	e_Process_State previous_state = dump_memory_petition->tcb->current_state;
-	dump_memory_petition->tcb->current_state = BLOCKED_DUMP_STATE;
+	e_Process_State previous_state = tcb->current_state;
+	tcb->current_state = BLOCKED_DUMP_STATE;
 
-	bool join = false;
-	t_Bool_Join_Thread join_thread = { .thread = &(dump_memory_petition->bool_thread.thread), .join = &join };
-	pthread_cleanup_push((void (*)(void *)) wrapper_pthread_join, &join_thread);
-
-		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-			log_error_pthread_mutex_lock(status);
-			retval = -1;
-			goto cleanup_join;
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
-
-			if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {
-				log_error_pthread_create(status);
-				retval = -1;
-				goto cleanup_mutex_blocked_memory_dump;
-			}
-			pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(dump_memory_petition->bool_thread.thread));
-
-				join = true;
-					if((status = pthread_detach(dump_memory_petition->bool_thread.thread))) {
-						log_error_pthread_detach(status);
-						retval = -1;
-						goto cleanup_cancel_thread;
-					}
-				join = false;
-
-			cleanup_cancel_thread:
-			pthread_cleanup_pop(0);
-			if(retval) {
-				if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
-					join = false;
-					log_error_pthread_cancel(status);
-				}
-				goto cleanup_mutex_blocked_memory_dump;
-			}
-
-			dump_memory_petition->bool_thread.running = true;
-
-			list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
-			dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
-
-		cleanup_mutex_blocked_memory_dump:
-		pthread_cleanup_pop(0);
-		if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-			join = false;
-			log_error_pthread_mutex_unlock(status);
-			retval = -1;
-		}
-
-	cleanup_join:
-	pthread_cleanup_pop(0);
-	if(retval) {
-		wrapper_pthread_join(&join_thread);
-		return -1;
+	t_Dump_Memory_Petition *dump_memory_petition = malloc(sizeof(t_Dump_Memory_Petition));
+	if(dump_memory_petition == NULL) {
+		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
+		exit_sigint();
 	}
+	bool created = false;
+	t_Conditional_Cleanup free_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) dump_memory_petition, .condition = &created, .negate_condition = true };
+    pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &free_cleanup);
+		dump_memory_petition->bool_thread.running = false;
+		dump_memory_petition->tcb = TCB_EXEC;
+
+		bool join = false;
+        t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(dump_memory_petition->bool_thread.thread), .condition = &join, .negate_condition = false };
+        pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
+
+
+			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				log_error_pthread_mutex_lock(status);
+				retval = -1;
+				goto cleanup_join;
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+
+				if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {
+					log_error_pthread_create(status);
+					retval = -1;
+					goto cleanup_mutex_blocked_memory_dump;
+				}
+				pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(dump_memory_petition->bool_thread.thread));
+
+					created = true;
+
+					join = true;
+						if((status = pthread_detach(dump_memory_petition->bool_thread.thread))) {
+							log_error_pthread_detach(status);
+							retval = -1;
+							goto cleanup_cancel_thread;
+						}
+					join = false;
+
+				cleanup_cancel_thread:
+				pthread_cleanup_pop(0);
+				if(retval) {
+					if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
+						join = false;
+						log_error_pthread_cancel(status);
+					}
+					goto cleanup_mutex_blocked_memory_dump;
+				}
+
+				dump_memory_petition->bool_thread.running = true;
+
+				list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
+				dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
+
+			cleanup_mutex_blocked_memory_dump:
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				join = false;
+				log_error_pthread_mutex_unlock(status);
+				retval = -1;
+			}
+
+		cleanup_join:
+		pthread_cleanup_pop(0);
+		if(retval) {
+			wrapper_pthread_join(&(dump_memory_petition->bool_thread.thread));
+			return -1;
+		}
+
+	pthread_cleanup_pop(0); // dump_memory_petition
 
 	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID, STATE_NAMES[previous_state]);
 	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID);

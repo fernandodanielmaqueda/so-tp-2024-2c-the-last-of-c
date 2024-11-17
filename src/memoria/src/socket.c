@@ -15,14 +15,17 @@ pthread_cond_t COND_CLIENTS;
 void memory_client_handler(t_Client *new_client) {
     int status;
 
-    pthread_cleanup_push((void (*)(void *)) free, (void *) new_client);
-    pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(new_client->fd_client));
+	bool created = false;
+	t_Conditional_Cleanup new_client_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) new_client, .condition = &created, .negate_condition = true };
+    pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &new_client_cleanup);
+    t_Conditional_Cleanup fd_client_cleanup = { .function = (void (*)(void *)) wrapper_close, .argument = (void *) &(new_client->fd_client), .condition = &created, .negate_condition = true };
+    pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &fd_client_cleanup);
 
         new_client->thread_client_handler.running = false;
 
         bool join = false;
-        t_Bool_Join_Thread join_thread = { .thread = &(new_client->thread_client_handler.thread), .join = &join };
-        pthread_cleanup_push((void (*)(void *)) wrapper_pthread_join, &join_thread);
+        t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(new_client->thread_client_handler.thread), .condition = &join, .negate_condition = false };
+        pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
 
             if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
                 log_error_pthread_mutex_lock(status);
@@ -35,6 +38,8 @@ void memory_client_handler(t_Client *new_client) {
                     exit_sigint();
                 }
                 pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->thread_client_handler.thread));
+
+                    created = true;
 
                     join = true;
                         if((status = pthread_detach(new_client->thread_client_handler.thread))) {
@@ -167,7 +172,55 @@ void *memory_thread_for_client(t_Client *new_client) {
 }
 
 int remove_client_thread(pthread_t *thread) {
+    /*
+	int retval = 0, status;
+    t_Client *client = NULL;
+
+    pthread_cleanup_push((void (*)(void *)) free, client);
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->fd_client));
+
+        if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
+            log_error_pthread_mutex_lock(status);
+            retval = -1;
+            //goto cleanup_scheduling_rwlock;
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+
+            client = list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
+            if(dump_memory_petition == NULL) {
+                goto cleanup_shared_list_blocked_memory_dump_mutex;
+            }
+
+            if(SHARED_LIST_CLIENTS.list->head == NULL) {
+                if((status = pthread_cond_signal(&COND_CLIENTS))) {
+                    log_error_pthread_cond_signal(status);
+                    retval = -1;
+                    goto cleanup_shared_list_blocked_memory_dump_mutex;
+                }
+            }
+
+        cleanup_shared_list_blocked_memory_dump_mutex:
+        pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
+        if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+            log_error_pthread_mutex_unlock(status);
+            retval = -1;
+            goto cleanup_dump_memory_petition;
+        }
+
+        if((retval) || (dump_memory_petition == NULL) || ((dump_memory_petition->tcb) == NULL)) {
+            goto cleanup_dump_memory_petition;
+        }
+
+        if(insert_state_ready(dump_memory_petition->tcb)) {
+            retval = -1;
+            goto cleanup_dump_memory_petition;
+        }
+
+    cleanup_dump_memory_petition:
+    pthread_cleanup_pop(1); // dump_memory_petition
+
     //pthread_cleanup_push((void (*)(void *)) free, (void *) new_client);
     //pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(new_client->fd_client));
     return 0;
+    */
 }

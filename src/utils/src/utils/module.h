@@ -24,10 +24,12 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
-typedef struct t_Bool_Join_Thread {
-    bool *join;
-    pthread_t *thread;
-} t_Bool_Join_Thread;
+typedef struct t_Conditional_Cleanup {
+    bool *condition;
+    bool negate_condition;
+    void (*function)(void *);
+    void *argument;
+} t_Conditional_Cleanup;
 
 extern pthread_t THREAD_SIGNAL_MANAGER;
 
@@ -128,9 +130,11 @@ bool pointers_match(void * ptr_1, void *ptr_2);
 int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list);
 
+void conditional_cleanup(t_Conditional_Cleanup *this);
+
 int cancel_and_join_pthread(pthread_t *thread);
 int wrapper_pthread_cancel(pthread_t *thread);
-int wrapper_pthread_join(t_Bool_Join_Thread *join_thread);
+int wrapper_pthread_join(pthread_t *thread);
 void exit_sigint(void);
 
 #endif // UTILS_MODULE_H
