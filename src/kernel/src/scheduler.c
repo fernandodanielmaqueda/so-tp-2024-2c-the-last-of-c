@@ -950,7 +950,7 @@ int remove_dump_memory_thread(pthread_t *thread) {
 			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
 				log_error_pthread_mutex_lock(status);
 				retval = -1;
-				goto cleanup_scheduling_rwlock;
+				goto cleanup_dump_memory_petition;
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
 
@@ -987,7 +987,6 @@ int remove_dump_memory_thread(pthread_t *thread) {
 		cleanup_dump_memory_petition:
 		pthread_cleanup_pop(1); // dump_memory_petition
 
-	cleanup_scheduling_rwlock:
 	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
 	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
 		log_error_pthread_rwlock_unlock(status);

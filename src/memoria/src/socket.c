@@ -70,10 +70,10 @@ void memory_client_handler(t_Client *new_client) {
 
 void *memory_thread_for_client(t_Client *new_client) {
 
-    pthread_t thread = pthread_self();
+    //pthread_t thread = pthread_self();
     int result = 0, status;
 
-	pthread_cleanup_push((void (*)(void *)) remove_client_thread, &thread);
+	pthread_cleanup_push((void (*)(void *)) remove_client_thread, new_client);
 
     log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
 
@@ -164,17 +164,15 @@ void *memory_thread_for_client(t_Client *new_client) {
     }
 
     pthread_cleanup_pop(0); // new_client
-    if(remove_client_thread(&thread)) {
+    if(remove_client_thread(new_client)) {
         exit_sigint();
     }
 
     return NULL;
 }
 
-int remove_client_thread(pthread_t *thread) {
-    /*
+int remove_client_thread(t_Client *client) {
 	int retval = 0, status;
-    t_Client *client = NULL;
 
     pthread_cleanup_push((void (*)(void *)) free, client);
     pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->fd_client));
@@ -182,45 +180,35 @@ int remove_client_thread(pthread_t *thread) {
         if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
             log_error_pthread_mutex_lock(status);
             retval = -1;
-            //goto cleanup_scheduling_rwlock;
+            goto cleanup_fd_client;
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
 
-            client = list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
-            if(dump_memory_petition == NULL) {
-                goto cleanup_shared_list_blocked_memory_dump_mutex;
-            }
+            list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) pointers_match, &client);
 
             if(SHARED_LIST_CLIENTS.list->head == NULL) {
                 if((status = pthread_cond_signal(&COND_CLIENTS))) {
                     log_error_pthread_cond_signal(status);
                     retval = -1;
-                    goto cleanup_shared_list_blocked_memory_dump_mutex;
+                    goto cleanup_mutex_clients;
                 }
             }
 
-        cleanup_shared_list_blocked_memory_dump_mutex:
-        pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
-        if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+        cleanup_mutex_clients:
+        pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
+        if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
             log_error_pthread_mutex_unlock(status);
             retval = -1;
-            goto cleanup_dump_memory_petition;
+            goto cleanup_fd_client;
         }
 
-        if((retval) || (dump_memory_petition == NULL) || ((dump_memory_petition->tcb) == NULL)) {
-            goto cleanup_dump_memory_petition;
-        }
+    cleanup_fd_client:
+    pthread_cleanup_pop(0); // fd_client
+    if(wrapper_close(&(client->fd_client))) {
+        retval = -1;
+    }
 
-        if(insert_state_ready(dump_memory_petition->tcb)) {
-            retval = -1;
-            goto cleanup_dump_memory_petition;
-        }
+    pthread_cleanup_pop(1); // new_client
 
-    cleanup_dump_memory_petition:
-    pthread_cleanup_pop(1); // dump_memory_petition
-
-    //pthread_cleanup_push((void (*)(void *)) free, (void *) new_client);
-    //pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(new_client->fd_client));
-    return 0;
-    */
+    return retval;
 }
