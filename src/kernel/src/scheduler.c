@@ -130,7 +130,7 @@ void *long_term_scheduler_new(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
 
-	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_PCB *pcb;
 	int status, result;
 
@@ -246,7 +246,7 @@ void *long_term_scheduler_exit(void) {
 
 	log_trace(MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");
 
-	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_TCB *tcb;
 	t_PCB *pcb;
 	int status;
@@ -902,7 +902,7 @@ void *dump_memory_petitioner(void) {
 		goto cleanup_remove_dump_memory_thread;
 	}
 
-	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 
 	client_thread_connect_to_server(&connection_memory);
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));

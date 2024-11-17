@@ -27,6 +27,8 @@
 #include "kernel.h"
 #include "transitions.h"
 
+#define CONNECTION_MEMORY_INITIALIZER ((t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")})
+
 extern pthread_rwlock_t SCHEDULING_RWLOCK;
 
 extern t_Shared_List SHARED_LIST_NEW;
