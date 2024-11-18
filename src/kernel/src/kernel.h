@@ -158,7 +158,7 @@ bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
-int request_thread_create(t_PCB *pcb, t_TID tid);
+int request_thread_create(t_PCB *pcb, t_TID tid, int *result);
 
 int array_list_ready_init(void);
 int array_list_ready_update(t_Priority priority);

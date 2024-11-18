@@ -133,6 +133,7 @@ void *long_term_scheduler_new(void) {
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_PCB *pcb;
 	int status, result;
+	bool process_created = false;
 
 	while(1) {
 
@@ -207,17 +208,38 @@ void *long_term_scheduler_new(void) {
 				goto cleanup_pcb;
 			}
 
-			if(request_thread_create(pcb, ((t_TCB **) (pcb->thread_manager.array))[0]->TID)) {
+			process_created = true;
+
+			if(request_thread_create(pcb, ((t_TCB **) (pcb->thread_manager.array))[0]->TID, &result)) {
 				exit_sigint();
 			}
 
 		cleanup_pcb:
 		pthread_cleanup_pop(0); // reinsert_state_new
 		if(result) {
-			if(reinsert_state_new(pcb)) {
-				exit_sigint();
+			if(process_created) {
+				if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+					log_error_pthread_rwlock_rdlock(status);
+					exit_sigint();
+				}
+				pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+					if(insert_state_exit(((t_TCB **) (pcb->thread_manager.array))[0])) {
+						exit_sigint();
+					}
+				pthread_cleanup_pop(0);
+				if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+					log_error_pthread_rwlock_unlock(status);
+					exit_sigint();
+				}
+
+				continue;
 			}
-			continue;
+			else {
+				if(reinsert_state_new(pcb)) {
+					exit_sigint();
+				}
+				continue;
+			}
 		}
 
 		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {

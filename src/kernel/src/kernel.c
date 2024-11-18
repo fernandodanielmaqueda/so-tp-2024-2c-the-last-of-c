@@ -857,7 +857,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	return retval;
 }
 
-int request_thread_create(t_PCB *pcb, t_TID tid) {
+int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 	int retval = 0;
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
@@ -872,12 +872,12 @@ int request_thread_create(t_PCB *pcb, t_TID tid) {
 		}
 		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 
-		if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.fd_connection)) {
+			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 
 	cleanup_connection:
 	pthread_cleanup_pop(0);
