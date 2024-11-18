@@ -13,47 +13,43 @@ void listen_cpu(void) {
 
         package = package_create();
         if(package == NULL) {
-            // TODO
-            return;
+           exit_sigint();
         }
+        pthread_cleanup_push((void (*)(void *)) package_destroy, package);
 
         if(package_receive(package, CLIENT_CPU->fd_client)) {
             log_error(MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
-            exit(EXIT_FAILURE);
+            exit_sigint();
         }
         log_trace(MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type]);
 
         switch(package->header) {
             case INSTRUCTION_REQUEST_HEADER:
                 seek_instruccion(&(package->payload));
-                package_destroy(package);
                 break;
 
             case READ_REQUEST_HEADER:
                 read_memory(&(package->payload));
-                package_destroy(package);
                 break;
 
             case WRITE_REQUEST_HEADER:
                 write_memory(&(package->payload));
-                package_destroy(package);
                 break;
 
             case EXEC_CONTEXT_REQUEST_HEADER:
                 seek_cpu_context(&(package->payload));
-                package_destroy(package);
                 break;
 
             case EXEC_CONTEXT_UPDATE_HEADER:
                 update_cpu_context(&(package->payload));
-                package_destroy(package);
                 break;
 
             default:
                 log_error(MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
-                package_destroy(package);
                 break;
         }
+
+        pthread_cleanup_pop(1); // package_destroy
     }
 }
 

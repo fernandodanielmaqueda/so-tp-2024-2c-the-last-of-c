@@ -204,7 +204,8 @@ int remove_client_thread(t_Client *client) {
 
     cleanup_fd_client:
     pthread_cleanup_pop(0); // fd_client
-    if(wrapper_close(&(client->fd_client))) {
+    if(close(client->fd_client)) {
+        log_error_close();
         retval = -1;
     }
 

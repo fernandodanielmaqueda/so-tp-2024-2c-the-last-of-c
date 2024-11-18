@@ -8,7 +8,6 @@ void listen_kernel(int fd_client) {
 
     t_Package* package = package_create();
     if(package == NULL) {
-        // TODO
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) package_destroy, package);
@@ -35,12 +34,10 @@ void listen_kernel(int fd_client) {
             
         case THREAD_DESTROY_HEADER:
             attend_thread_destroy(fd_client, &(package->payload));
-            //send_result_with_header(THREAD_DESTROY_HEADER, ((retval || (partition == NULL)) ? 1 : 0), fd_client);
             break;
             
         case MEMORY_DUMP_HEADER:
             attend_memory_dump(fd_client, &(package->payload));
-            //send_result_with_header(MEMORY_DUMP_HEADER, ((retval || (partition == NULL)) ? 1 : 0), fd_client);
             break;
 
         default:
@@ -54,13 +51,17 @@ void listen_kernel(int fd_client) {
 
 void attend_process_create(int fd_client, t_Payload *payload) {
 
-    int retval = 0, status;
+    int result = 0, status;
 
     t_PID pid;
     size_t size;
 
-    payload_remove(payload, &pid, sizeof(pid));
-    size_deserialize(payload, &size);
+    if(payload_remove(payload, &pid, sizeof(pid))) {
+        exit_sigint();
+    }
+    if(size_deserialize(payload, &size)) {
+        exit_sigint();
+    }
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
 
@@ -97,7 +98,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     if(partition == NULL) {
         log_warning(MODULE_LOGGER, "[%d] No hay particiones disponibles para la solicitud de creación de proceso %u", fd_client, new_process->pid);
-        retval = -1;
+        result = -1;
         goto cleanup_rwlock_proceses_and_partitions;
     }
 
@@ -126,12 +127,14 @@ void attend_process_create(int fd_client, t_Payload *payload) {
         }
     }
 
-    pthread_cleanup_pop(retval); // new_process
+    pthread_cleanup_pop(result); // new_process
 
-    if(send_result_with_header(PROCESS_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
-        // TODO
+    if(send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
         exit_sigint();
     }
+    log_trace(MODULE_LOGGER, "[%d] Se envía resultado de creacion de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
+
 }
 
 void attend_process_destroy(int fd_client, t_Payload *payload) {
@@ -140,7 +143,9 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
     t_PID pid;
 
-    payload_remove(payload, &pid, sizeof(pid));
+    if(payload_remove(payload, &pid, sizeof(pid))) {
+        exit_sigint();
+    }
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
 
@@ -181,14 +186,15 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
     log_info(MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
 
-    if(send_result_with_header(PROCESS_DESTROY_HEADER, ((process == NULL) ? 1 : 0), fd_client)) {
-        // TODO
+    if(send_header(PROCESS_DESTROY_HEADER, fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar confirmación de finalización de proceso a [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
         exit_sigint();
     }
+    log_trace(MODULE_LOGGER, "[%d] Se envía confirmación de finalización de proceso a [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
 }
 
 void attend_thread_create(int fd_client, t_Payload *payload) {
-    int retval = 0, status;
+    int result = 0, status;
 
     // TODO: ¿Y si el hilo ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
 
@@ -196,9 +202,16 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     t_TID tid;
     char *argument_path;
 
-    payload_remove(payload, &pid, sizeof(pid));
-    payload_remove(payload, &tid, sizeof(tid));
-    text_deserialize(payload, &argument_path);
+    if(payload_remove(payload, &pid, sizeof(pid))) {
+        exit_sigint();
+    }
+    if(payload_remove(payload, &tid, sizeof(tid))) {
+        exit_sigint();
+    }
+    if(text_deserialize(payload, &argument_path)) {
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) free, argument_path);
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
 
@@ -266,7 +279,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
         if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
             log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-            retval = -1;
+            result = -1;
             goto cleanup_rwlock_proceses_and_partitions;
         }
 
@@ -301,35 +314,39 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     }
 
     pthread_cleanup_pop(1); // target_path
+    pthread_cleanup_pop(result); // new_thread
+    pthread_cleanup_pop(1); // argument_path
 
-    pthread_cleanup_pop(retval); // new_thread
-
-    if(send_result_with_header(THREAD_CREATE_HEADER, ((retval) ? 1 : 0), fd_client)) {
-        // TODO
+    if(send_result_with_header(THREAD_CREATE_HEADER, result, fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar resultado de creación de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
         exit_sigint();
     }
-    // TODO
+    log_trace(MODULE_LOGGER, "[%d] Se envía resultado de creación de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 
 }
 
-int attend_thread_destroy(int fd_client, t_Payload *payload) {
+void attend_thread_destroy(int fd_client, t_Payload *payload) {
 
     t_PID pid;
     t_TID tid;
 
-    payload_remove(payload, &(pid), sizeof(t_PID));
-    payload_remove(payload, &(tid), sizeof(t_TID));
+    if(payload_remove(payload, &pid, sizeof(t_PID))) {
+        exit_sigint();
+    }
+    if(payload_remove(payload, &tid, sizeof(t_TID))) {
+        exit_sigint();
+    }
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        return -1;
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        goto send_result;
     }
 
     if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        return -1;
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        goto send_result;
     }
 
     // Free instrucciones
@@ -342,59 +359,94 @@ int attend_thread_destroy(int fd_client, t_Payload *payload) {
 
     log_info(MINIMAL_LOGGER, "## Hilo Destruido - (PID:TID) - (%u:%u)", pid, tid);
 
-    return 0;
+    send_result:
+    if(send_header(THREAD_DESTROY_HEADER, fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar confirmación de finalización de hilo a [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
+        exit_sigint();
+    }
+    log_trace(MODULE_LOGGER, "[%d] Se envía confirmación de finalización de hilo a [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 }
 
-int attend_memory_dump(int fd_client, t_Payload *payload) {
-    /*
-    t_FS_Data* data = malloc(sizeof(t_FS_Data));
-    if (data == NULL) {
-        printf("No se pudo asignar memoria para t_FS_Data.\n");
-        return -1;
-    }
-
-    payload_remove(payload, &(data->pid), sizeof(t_PID));
-    payload_remove(payload, &(data->tid), sizeof(t_TID));
-    */
+void attend_memory_dump(int fd_client, t_Payload *payload) {
+    int result = 0;
 
     t_PID pid;
     t_TID tid;
-    time_t current_time = time(NULL);
 
-    payload_remove(payload, &(pid), sizeof(t_PID));
-    payload_remove(payload, &(tid), sizeof(t_TID));
+    if(payload_remove(payload, &pid, sizeof(t_PID))) {
+        exit_sigint();
+    }
+    if(payload_remove(payload, &tid, sizeof(t_TID))) {
+        exit_sigint();
+    }
 
     log_info(MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
-    char *namefile = string_new();
-    sprintf(namefile, "<%u><%u><%ld>.dmp", pid, tid, (long)current_time);
-    if(namefile == NULL) {
-        printf("No se pudo generar el nombre del archivo.");
-        free(namefile); 
-       // free(data);
-        return -1;
+    char *filename; string_from_format("%u-%u-", pid, tid);
+    if(filename == NULL) {
+        log_error(MODULE_LOGGER, "string_from_format: No se pudo crear el nombre del archivo");
+        exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) free, filename);
 
-    void* position = (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base);
+        char *string_time = temporal_get_string_time("%H:%M:%S:%MS");
+        if(string_time == NULL) {
+            log_error(MODULE_LOGGER, "temporal_get_string_time: No se pudo obtener la hora actual como un string");
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) free, string_time);
+            string_append(&filename, string_time);
+        pthread_cleanup_pop(1); // string_time
 
-    
-	t_Connection connection_fileSystem = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
+        string_append(&filename, ".dmp");
+        
+        t_Connection connection_filesystem = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
-    if(send_memory_dump(namefile, position, ARRAY_PROCESS_MEMORY[pid]->size ,connection_fileSystem.fd_connection)) {
-        printf("[DUMP]No se pudo enviar el paquete a FileSystem por la peticion PID:<%u> TID:<%u>.",pid, tid);
-        free(namefile); 
-        return -1;
+        client_thread_connect_to_server(&connection_filesystem);
+        pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_filesystem.fd_connection));
+
+            char *dump_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size);
+            pthread_cleanup_push((void (*)(void *)) free, dump_string);
+
+                if(send_memory_dump(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.fd_connection)) {
+                    log_error(MODULE_LOGGER,
+                      "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
+                      "%s"
+                      , connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                      , dump_string
+                    );
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER,
+                  "[%d] Se envía operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
+                  "%s"
+                  , connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                  , dump_string
+                );
+
+            pthread_cleanup_pop(1); // dump_string
+
+            log_info(MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
+
+            if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_filesystem.fd_connection)) {
+                log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid);
+                exit_sigint();
+            }
+            log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
+
+        pthread_cleanup_pop(0);
+        if(close(connection_filesystem.fd_connection)) {
+            log_error_close();
+            exit_sigint();
+        }
+
+    pthread_cleanup_pop(1); // filename
+
+    if(send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
+        exit_sigint();
     }
-
-    if(receive_expected_header(MEMORY_DUMP_HEADER, connection_fileSystem.fd_connection)) {
-        printf("[DUMP] Filesystem no pudo resolver la peticion por el PID:<%u> TID:<%u>.",pid, tid);
-        free(namefile); 
-        return -1;
-    }
-
-    log_info(MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
-
-    return 0;
+    log_trace(MODULE_LOGGER, "[%d] Se envía resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 }
 
 void allocate_partition(t_Partition **partition, size_t required_size) {

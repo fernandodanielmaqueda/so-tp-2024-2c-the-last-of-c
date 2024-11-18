@@ -11,6 +11,7 @@
 #include <time.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <commons/temporal.h>
 #include "commons/log.h"
 #include "commons/config.h"
 #include "commons/string.h"
@@ -44,9 +45,9 @@ void attend_process_destroy(int fd_client, t_Payload *payload);
 
 void attend_thread_create(int fd_client, t_Payload *payload);
 
-int attend_thread_destroy(int fd_client, t_Payload *payload);
+void attend_thread_destroy(int fd_client, t_Payload *payload);
 
-int attend_memory_dump(int fd_client, t_Payload *payload);
+void attend_memory_dump(int fd_client, t_Payload *payload);
 
 void allocate_partition(t_Partition **partition, size_t required_size);
 
