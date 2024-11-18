@@ -182,6 +182,7 @@ int module(int argc, char* argv[]) {
 
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
+    // TODO: pthread_cleanup_push con pthread_cond_wait hasta que terminen todos los clientes
     server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
 
 
@@ -382,7 +383,7 @@ void free_threads(t_Memory_Process *process) {
 }
 
 void free_memory(void) {
-    int status;
+    //int status;
 
     // Free particiones
     for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {

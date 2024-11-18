@@ -159,7 +159,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
         if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-            log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+            log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
             goto cleanup_rwlock_proceses_and_partitions;
         }
 
@@ -454,7 +454,6 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
         exit_sigint();
     }
 
-    int retval = 0;
     *partition = NULL;
     size_t index_partition;
     t_Partition *aux_partition;

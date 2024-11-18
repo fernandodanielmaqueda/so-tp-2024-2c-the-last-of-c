@@ -47,6 +47,7 @@ typedef struct t_Memory_Allocation_Algorithm {
 typedef struct t_Partition {
     size_t size; // Tamaño de la partición
     size_t base; // Desplazamiento/Offset
+    pthread_rwlock_t rwlock_partition; // Mutex de lectura/escritura
 
     bool occupied;
     t_PID pid; // PID del proceso que la ocupa (TODO: ¿Podría ser un t_Memory_Process*?)
@@ -68,13 +69,6 @@ typedef struct t_Memory_Process {
     t_Memory_Thread **array_memory_threads;
     pthread_rwlock_t rwlock_array_memory_threads;
 } t_Memory_Process;
-
-typedef struct t_FS_Data{
-        t_PID pid;
-        t_TID tid;
-        char* namefile;
-        void *position;
-} t_FS_Data;
 
 extern size_t MEMORY_SIZE;
 extern char *INSTRUCTIONS_PATH;

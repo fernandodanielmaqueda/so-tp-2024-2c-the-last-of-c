@@ -5,7 +5,7 @@
 #include "client_cpu.h"
 
 void listen_cpu(void) {
-    int result = 0, status;
+    int status;
 
     t_Package *package;
 
@@ -71,15 +71,15 @@ void seek_cpu_context(t_Payload *payload) {
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
         result = -1;
-        // TODO: Responder a CPU
+        // TODO: Responder a CPU: goto
     }
 
     if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_error(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
         result = -1;
-        // TODO: Responder a CPU
+        // TODO: Responder a CPU: goto
     }
 
     t_Exec_Context context;
@@ -103,6 +103,7 @@ void seek_cpu_context(t_Payload *payload) {
 }
 
 void update_cpu_context(t_Payload *payload) {
+    int result = 0;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -122,17 +123,31 @@ void update_cpu_context(t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
 
-    if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] == NULL) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo encontrar el hilo (PID:TID): (%u:%u)", pid, tid);
-        // TODO: Responder a CPU
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        result = -1;
+        // TODO: Responder a CPU: goto
+    }
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        result = -1;
+        // TODO: Responder a CPU: goto
     }
 
     ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers = context.cpu_registers;
-    
+
+    if(send_header(EXEC_CONTEXT_UPDATE_HEADER, CLIENT_CPU->fd_client)) {
+        log_error(MODULE_LOGGER, "[%d] Error al enviar confirmación de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+        exit_sigint();
+    }
+    log_trace(MODULE_LOGGER, "[%d] Se envía confirmación de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+
     log_info(MINIMAL_LOGGER, "## Contexto Actualizado - (PID:TID) - (%u:%u)", pid, tid);
 }
 
 void seek_instruccion(t_Payload *payload) {
+    int result = 0;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -154,30 +169,35 @@ void seek_instruccion(t_Payload *payload) {
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        // TODO: Responder a CPU
+        result = -1;
+        // TODO: Responder a CPU: goto
     }
 
     if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        // TODO: Responder a CPU
+        result = -1;
+        // TODO: Responder a CPU: goto
     }
 
     if(pc >= (ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count)) {
         log_warning(MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo (PID:TID): (%u:%u)", pid, tid);
-        // TODO: Responder a CPU
+        result = -1;
+        // TODO: Responder a CPU: goto
     }
 
     char *instruction = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
 
     if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruction, CLIENT_CPU->fd_client)) {
-        log_debug(MODULE_LOGGER, "[ERROR] No se pudo enviar la instruccion del proceso %d", pid);
+        log_error(MODULE_LOGGER, "[%d] Error al enviar instrucción a [Cliente] %s [PID: %u - TID: %u - Instrucción: %s]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, instruction);
         exit_sigint();
     }
+    log_trace(MODULE_LOGGER, "[%d] Se envía instrucción a [Cliente] %s [PID: %u - TID: %u - Instrucción: %s]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, instruction);
 
     log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:TID) - (%u:%u) - Instruccion: %s", pid, tid, instruction);
 }
 
-int read_memory(t_Payload *payload) {
+void read_memory(t_Payload *payload) {
+    int result = 0;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -199,17 +219,48 @@ int read_memory(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        result = -1;
+        // TODO: Responder a CPU: goto
+    }
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        result = -1;
+        // TODO: Responder a CPU: goto
+    }
 
     // TODO
 
+    char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
+    pthread_cleanup_push((void (*)(void *)) free, data_string);
+
+        if(send_data_with_header(READ_REQUEST_HEADER, (void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes, CLIENT_CPU->fd_client)) {
+            log_error(MODULE_LOGGER,
+            "[%d] Error al enviar resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+            "%s"
+            , CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+            , data_string
+            );
+            exit_sigint();
+        }
+        log_trace(MODULE_LOGGER,
+        "[%d] Se envía resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+        "%s"
+        , CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+        , data_string
+        );
+
+    pthread_cleanup_pop(1); // data_string
+
     log_info(MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
-
-    return 0;
-
 }
 
-int write_memory(t_Payload *payload) {
+void write_memory(t_Payload *payload) {
+    int result = 0;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -232,16 +283,27 @@ int write_memory(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
-    
+    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+
+    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
+        result = -1;
+        // TODO: Responder a CPU: goto
+    }
+
+    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+        log_warning(MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
+        result = -1;
+        // TODO: Responder a CPU: goto
+    }
+
     // TODO
 
     if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
-        // TODO
-        return -1;
+        log_error(MODULE_LOGGER, "[%d] Error al enviar confirmación de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+        exit_sigint();
     }
+    log_trace(MODULE_LOGGER, "[%d] Se envía confirmación de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
     log_info(MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu> - Tamaño: %zu", pid, tid, physical_address, bytes);
-
-    return 0;
 }

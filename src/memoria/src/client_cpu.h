@@ -41,8 +41,8 @@ void update_cpu_context(t_Payload *payload);
  */
 void seek_instruccion(t_Payload *payload);
 
-int write_memory(t_Payload *payload);
+void write_memory(t_Payload *payload);
 
-int read_memory(t_Payload *payload);
+void read_memory(t_Payload *payload);
 
 #endif // MEMORY_CLIENT_CPU_H

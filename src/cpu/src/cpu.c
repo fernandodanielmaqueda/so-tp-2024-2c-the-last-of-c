@@ -324,6 +324,11 @@ void instruction_cycle(void)
                 exit(EXIT_FAILURE);
             }
 
+            if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.fd_connection)) {
+                // TODO
+                exit(EXIT_FAILURE);
+            }
+
             if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
                 // TODO
                 exit(EXIT_FAILURE);
