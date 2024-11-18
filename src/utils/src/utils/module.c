@@ -222,91 +222,91 @@ void log_error_sem_post(void) {
 }
 
 void log_error_pthread_mutex_init(int status) {
-	fprintf(stderr, "pthread_mutex_init: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_init: %s\n", strerror(status));
 }
 
 void log_error_pthread_mutex_destroy(int status) {
-	fprintf(stderr, "pthread_mutex_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_destroy: %s\n", strerror(status));
 }
 
 void log_error_pthread_mutex_lock(int status) {
-	fprintf(stderr, "pthread_mutex_lock: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_lock: %s\n", strerror(status));
 }
 
 void log_error_pthread_mutex_unlock(int status) {
-	fprintf(stderr, "pthread_mutex_unlock: %s", strerror(status));
+	fprintf(stderr, "pthread_mutex_unlock: %s\n", strerror(status));
 }
 
 void log_error_pthread_rwlock_init(int status) {
-	fprintf(stderr, "pthread_rwlock_init: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_init: %s\n", strerror(status));
 }
 
 void log_error_pthread_rwlock_destroy(int status) {
-	fprintf(stderr, "pthread_rwlock_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_destroy: %s\n", strerror(status));
 }
 
 void log_error_pthread_rwlock_wrlock(int status) {
-	fprintf(stderr, "pthread_rwlock_wrlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_wrlock: %s\n", strerror(status));
 }
 
 void log_error_pthread_rwlock_rdlock(int status) {
-	fprintf(stderr, "pthread_rwlock_rdlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_rdlock: %s\n", strerror(status));
 }
 
 void log_error_pthread_rwlock_unlock(int status) {
-	fprintf(stderr, "pthread_rwlock_unlock: %s", strerror(status));
+	fprintf(stderr, "pthread_rwlock_unlock: %s\n", strerror(status));
 }
 
 void log_error_pthread_create(int status) {
-	fprintf(stderr, "pthread_create: %s", strerror(status));
+	fprintf(stderr, "pthread_create: %s\n", strerror(status));
 }
 
 void log_error_pthread_detach(int status) {
-	fprintf(stderr, "pthread_detach: %s", strerror(status));
+	fprintf(stderr, "pthread_detach: %s\n", strerror(status));
 }
 
 void log_error_pthread_cancel(int status) {
-	fprintf(stderr, "pthread_cancel: %s", strerror(status));
+	fprintf(stderr, "pthread_cancel: %s\n", strerror(status));
 }
 
 void log_error_pthread_join(int status) {
-	fprintf(stderr, "pthread_join: %s", strerror(status));
+	fprintf(stderr, "pthread_join: %s\n", strerror(status));
 }
 
 void log_error_pthread_condattr_init(int status) {
-	fprintf(stderr, "pthread_condattr_init: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_init: %s\n", strerror(status));
 }
 
 void log_error_pthread_condattr_destroy(int status) {
-	fprintf(stderr, "pthread_condattr_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_destroy: %s\n", strerror(status));
 }
 
 void log_error_pthread_condattr_setclock(int status) {
-	fprintf(stderr, "pthread_condattr_setclock: %s", strerror(status));
+	fprintf(stderr, "pthread_condattr_setclock: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_init(int status) {
-	fprintf(stderr, "pthread_cond_init: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_init: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_destroy(int status) {
-	fprintf(stderr, "pthread_cond_destroy: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_destroy: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_wait(int status) {
-	fprintf(stderr, "pthread_cond_wait: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_wait: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_timedwait(int status) {
-	fprintf(stderr, "pthread_cond_timedwait: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_timedwait: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_signal(int status) {
-	fprintf(stderr, "pthread_cond_signal: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_signal: %s\n", strerror(status));
 }
 
 void log_error_pthread_cond_broadcast(int status) {
-	fprintf(stderr, "pthread_cond_broadcast: %s", strerror(status));
+	fprintf(stderr, "pthread_cond_broadcast: %s\n", strerror(status));
 }
 
 void log_error_sigemptyset(void) {
@@ -318,7 +318,7 @@ void log_error_sigaddset(void) {
 }
 
 void log_error_pthread_sigmask(int status) {
-	fprintf(stderr, "pthread_sigmask: %s", strerror(status));
+	fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
 }
 
 void log_error_sigaction(void) {
