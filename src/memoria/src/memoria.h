@@ -95,6 +95,10 @@ extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
 
 int module(int, char*[]);
 
+int partition_destroy(t_Partition *partition);
+
+int partition_table_destroy(void);
+
 int read_module_config(t_config *module_config);
 
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination);
