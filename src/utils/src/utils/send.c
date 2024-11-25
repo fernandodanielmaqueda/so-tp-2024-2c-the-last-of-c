@@ -788,7 +788,7 @@ int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_sock
     retval = -1;
     goto cleanup;
   }
-  if(data_deserialize(&(package->payload), *dump, bytes)) {
+  if(data_deserialize(&(package->payload), dump, bytes)) {
     retval = -1;
     goto cleanup;
   }
