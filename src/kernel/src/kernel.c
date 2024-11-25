@@ -20,13 +20,14 @@ const char *STATE_NAMES[] = {
 };
 
 const char *EXIT_REASONS[] = {
-	[UNEXPECTED_ERROR_EXIT_REASON] = "UNEXPECTED ERROR",
+	[UNEXPECTED_ERROR_EXIT_REASON] = "UNEXPECTED_ERROR",
 
-	[INVALID_RESOURCE_EXIT_REASON] = "INVALID_RESOURCE",
 	[SEGMENTATION_FAULT_EXIT_REASON] = "SEGMENTATION_FAULT",
 	[PROCESS_EXIT_EXIT_REASON] = "PROCESS_EXIT",
 	[THREAD_EXIT_EXIT_REASON] = "THREAD_EXIT",
-	[THREAD_CANCEL_EXIT_REASON] = "THREAD_CANCEL"
+	[THREAD_CANCEL_EXIT_REASON] = "THREAD_CANCEL",
+	[DUMP_MEMORY_ERROR_EXIT_REASON] = "DUMP_MEMORY_ERROR",
+	[INVALID_RESOURCE_EXIT_REASON] = "INVALID_RESOURCE"
 };
 
 char *SCHEDULING_ALGORITHMS[] = {
@@ -138,12 +139,12 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
 
 
-	// SCHEDULING_RWLOCK
-	if((status = pthread_rwlock_init(&SCHEDULING_RWLOCK, NULL))) {
+	// RWLOCK_SCHEDULING
+	if((status = pthread_rwlock_init(&RWLOCK_SCHEDULING, NULL))) {
 		log_error_pthread_rwlock_init(status);
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &SCHEDULING_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_SCHEDULING);
 
 	// SHARED_LIST_NEW
 	if((status = pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL))) {
@@ -357,7 +358,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
 	pthread_cleanup_pop(1); // LIST_NEW
 	pthread_cleanup_pop(1); // MUTEX_NEW
-	pthread_cleanup_pop(1); // SCHEDULING_RWLOCK
+	pthread_cleanup_pop(1); // RWLOCK_SCHEDULING
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
@@ -546,6 +547,8 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 		goto cleanup_list_blocked_thread_join;
 	}
 	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, tcb->dictionary_assigned_resources);
+
+	tcb->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
 
 	if(tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID))) {
 		retval = -1;
