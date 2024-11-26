@@ -4,8 +4,7 @@
 *.log
 
 # Config files
-/src/*.config
-/configs/
+*.config
 
 # Data files
 *.dat
