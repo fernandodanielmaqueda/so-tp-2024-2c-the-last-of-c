@@ -99,7 +99,7 @@ Por ejemplo: `Google Chrome`, etc.
 
 ## 4. (NO en el Deploy) Acceder a este repositorio grupal
 
-- https://github.com/sisoputnfrba/tp-2024-2c-os
+- https://github.com/sisoputnfrba/tp-2024-2c-so
 
 ## 5. (NO en el Deploy) Descargar, instalar y abrir el Git Bash *PORTABLE*
 
@@ -133,12 +133,12 @@ git config --global http.postBuffer 524288000
 
 3. Clonar
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 > Debería ser equivalente a:
 ```bash
-cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 ### En caso de que aparezca este error:
@@ -161,7 +161,7 @@ git config --unset-all credential.helper && git config credential.helper wincred
 2. Si para acceder a tu cuenta de Git usás clave SSH:
 	- Cambiar a SSH:
 ```bash
-git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-os.git
+git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-so.git
 ```
 
 - Eventualmente deberás ingresar tu clave pública SSH generada.
@@ -170,7 +170,7 @@ git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-os.git
 
 ## 8. (NO en el Deploy) Clonarse los submódulos del repositorio en Windows
 ```bash
-cd tp-2024-2c-os ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive
 ```
 
 -----------------------------
@@ -832,18 +832,18 @@ Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not pro
 
 ## 27. Clonar este repositorio
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 Debería ser equivalente a:
 ```bash
-cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 -----------------------------
 
 ## 28. Clonarse los submódulos del repositorio
 ```bash
-cd tp-2024-2c-os ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive
 ```
 
 -----------------------------
@@ -859,11 +859,11 @@ corriendo los módulos
 
 -----------------------------
 
-## 31. Crear un acceso directo (soft link) a los archivos de test
+## 31. Crear un acceso directo (soft link / symlink) a los archivos de test
 
 Deben quedar en: `/home/utnso/scripts-pruebas`/...
 ```bash
-ln -s /home/utnso/tp-2024-2c-os/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
+ln -s /home/utnso/tp-2024-2c-so/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
 ```
 
 -----------------------------
@@ -878,7 +878,7 @@ mkdir -p /home/utnso/dialfs
 ## 33. Instalar la SO Commons Library
 
 ```bash
-cd /home/utnso/tp-2024-2c-os/thirdparty/so-commons-library
+cd /home/utnso/tp-2024-2c-so/thirdparty/so-commons-library
 make debug
 sudo make install
 ```
@@ -894,7 +894,7 @@ sudo cp src/commons /usr/include
 ## 34. (NO en el Deploy) Instalar CSpec
 
 ```bash
-cd /home/utnso/tp-2024-2c-os/thirdparty/cspec
+cd /home/utnso/tp-2024-2c-so/thirdparty/cspec
 make debug
 sudo make install
 ```
@@ -973,13 +973,13 @@ Suele ser por el peso y el poco ancho de banda disponible en el momento (por est
 
 - Alternativa 1: Resumir el clonado fallido
 ```bash
-cd tp-2024-2c-os
+cd tp-2024-2c-so
 git fetch --all
 ```
 
 - Alternativa 2: Clonar utilizando SSH en lugar de HTTPS:
 ```bash
-git clone git@github.com:sisoputnfrba/tp-2024-2c-os.git
+git clone git@github.com:sisoputnfrba/tp-2024-2c-so.git
 ```
 
 - Alternativa 3: Descargar el repositorio:
@@ -993,8 +993,8 @@ curl -L \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer TU_TOKEN_DE_GITHUB" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-os/zipball/main \
-  -o 'tp-2024-2c-os-main.zip'
+  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-so/zipball/main \
+  -o 'tp-2024-2c-so-main.zip'
 ```
 
 - CLI de GitHub
@@ -1002,7 +1002,7 @@ curl -L \
 gh api \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/sisoputnfrba/tp-2024-2c-os/zipball/main
+  /repos/sisoputnfrba/tp-2024-2c-so/zipball/main
 ```
 
 ### Descargar un repositorio como un archivo TAR
@@ -1012,8 +1012,8 @@ curl -L \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer TU_TOKEN_DE_GITHUB" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-os/tarball/main \
-  -o 'tp-2024-2c-os-main.tar.gz'
+  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-so/tarball/main \
+  -o 'tp-2024-2c-so-main.tar.gz'
 ```
 
 - CLI de GitHub
@@ -1021,7 +1021,7 @@ curl -L \
 gh api \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/sisoputnfrba/tp-2024-2c-os/tarball/main
+  /repos/sisoputnfrba/tp-2024-2c-so/tarball/main
 ```
 
 -----------------------------
@@ -1632,12 +1632,12 @@ if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyCon
 
 2. Clonar el repositorio original completo
 ```bash
-git clone --mirror https://github.com/sisoputnfrba/tp-2024-2c-os
+git clone --mirror https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 3.
 ```bash
-cd tp-2024-2c-os.git/
+cd tp-2024-2c-so.git/
 ```
 
 4. Configurar la URL del repositorio remoto del repositorio local original como el del copia
