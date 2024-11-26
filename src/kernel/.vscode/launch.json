@@ -62,6 +62,86 @@
         }
       ],
       "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["MEM_FIJA_BASE", "12"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["MEM_DINAMICA_BASE", "128"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["PRUEBA_FS", "0"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
+    },
+    {
+      "name": "(gdb) Launch src/kernel/bin/kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+      "args": ["THE_EMPTINESS_MACHINE", "16"],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make src/kernel/bin/kernel"
     }
   ]
 }
