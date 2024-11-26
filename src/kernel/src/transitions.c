@@ -56,7 +56,7 @@ int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
                 return -1;
             }
             log_trace(MODULE_LOGGER, "[%d] Se envia interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-            
+
 			return 0;
         }
 

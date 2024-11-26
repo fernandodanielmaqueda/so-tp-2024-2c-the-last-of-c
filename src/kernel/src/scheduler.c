@@ -940,7 +940,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 
 					list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
 
-					if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head == NULL) {
+					if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
 						if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
 							log_error_pthread_cond_signal(status);
 							retval = -1;
@@ -982,14 +982,21 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
-				if(kill_process(dump_memory_petition->tcb->pcb, DUMP_MEMORY_ERROR_EXIT_REASON)) {
-					retval = -1;
-					goto cleanup_rwlock_wrlock_scheduling;
+				if((dump_memory_petition->tcb) != NULL) {
+					dump_memory_petition->tcb->exit_reason = DUMP_MEMORY_ERROR_EXIT_REASON;
+					if(insert_state_exit(dump_memory_petition->tcb)) {
+						retval = -1;
+						goto cleanup_rwlock_wrlock_scheduling;
+					}
+					if(kill_process(dump_memory_petition->tcb->pcb, DUMP_MEMORY_ERROR_EXIT_REASON)) {
+						retval = -1;
+						goto cleanup_rwlock_wrlock_scheduling;
+					}
 				}
 
 				list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
 
-				if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head == NULL) {
+				if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
 					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
 						log_error_pthread_cond_signal(status);
 						retval = -1;
