@@ -40,7 +40,7 @@ typedef uint32_t t_Block_Pointer; //tipo array de bloques para copiar
 
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
-    uint32_t blocks_free; // contar los bits libres (0)
+    size_t blocks_free; // contar los bits libres (0)
 } t_Bitmap;
 
 /*
@@ -87,7 +87,7 @@ int finish_global_variables(void);
 
 int read_module_config(t_config *module_config);
 
-int bitmap_init(t_Bitmap *bitmap);
+int bitmap_init();
 int bloques_init(void); // void ** &PTRO_BLOCKS
 
 void filesystem_client_handler_for_memory(int fd_client);
@@ -102,4 +102,6 @@ void block_msync(t_Block_Pointer block_number);
 void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
+
+void create_directory(const char *path);
 #endif // FILESYSTEM_H
