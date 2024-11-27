@@ -55,13 +55,14 @@ typedef enum e_Process_State {
 } e_Process_State;
 
 typedef enum e_Exit_Reason {
-    UNEXPECTED_ERROR_EXIT_REASON,
+    UNEXPECTED_ERROR_EXIT_REASON
 
-    INVALID_RESOURCE_EXIT_REASON,
-    SEGMENTATION_FAULT_EXIT_REASON,
-    PROCESS_EXIT_EXIT_REASON,
-    THREAD_EXIT_EXIT_REASON,
-    THREAD_CANCEL_EXIT_REASON
+    , SEGMENTATION_FAULT_EXIT_REASON
+    , PROCESS_EXIT_EXIT_REASON
+    , THREAD_EXIT_EXIT_REASON
+    , THREAD_CANCEL_EXIT_REASON
+    , DUMP_MEMORY_ERROR_EXIT_REASON
+    , INVALID_RESOURCE_EXIT_REASON
 } e_Exit_Reason;
 
 typedef struct t_PCB {
@@ -105,6 +106,9 @@ typedef enum e_Scheduling_Algorithm {
 
 typedef struct t_Dump_Memory_Petition {
     t_Bool_Thread bool_thread;
+    int *result;
+    t_PID pid;
+    t_TID tid;
     t_TCB *tcb;
 } t_Dump_Memory_Petition;
 

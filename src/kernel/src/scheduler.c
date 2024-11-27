@@ -3,7 +3,7 @@
 
 #include "scheduler.h"
 
-pthread_rwlock_t SCHEDULING_RWLOCK;
+pthread_rwlock_t RWLOCK_SCHEDULING;
 
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
@@ -146,18 +146,18 @@ void *long_term_scheduler_new(void) {
 			exit_sigint();
 		}
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			if(get_state_new(&pcb)) {
 				exit_sigint();
 			}
 
-		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -218,16 +218,17 @@ void *long_term_scheduler_new(void) {
 		pthread_cleanup_pop(0); // reinsert_state_new
 		if(result) {
 			if(process_created) {
-				if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+				if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 					log_error_pthread_rwlock_rdlock(status);
 					exit_sigint();
 				}
-				pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+				pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
+					// TODO: Revisar el e_Exit_Reason y el flujo a ver si es correcto
 					if(insert_state_exit(((t_TCB **) (pcb->thread_manager.array))[0])) {
 						exit_sigint();
 					}
 				pthread_cleanup_pop(0);
-				if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+				if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 					log_error_pthread_rwlock_unlock(status);
 					exit_sigint();
 				}
@@ -242,11 +243,11 @@ void *long_term_scheduler_new(void) {
 			}
 		}
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				exit_sigint();
@@ -256,8 +257,8 @@ void *long_term_scheduler_new(void) {
 				exit_sigint();
 			}
 
-		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -279,18 +280,18 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			if(get_state_exit(&tcb)) {
 				exit_sigint();
 			}
 
-		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -489,11 +490,11 @@ void *short_term_scheduler(void) {
 			exit_sigint();
 		}
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			KILL_EXEC_TCB = false;
 
@@ -502,7 +503,7 @@ void *short_term_scheduler(void) {
 			}
 
 			if(tcb == NULL) {
-				goto cleanup_scheduling_rwlock;
+				goto cleanup_rwlock_scheduling;
 			}
 
 			if(insert_state_exec(tcb)) {
@@ -515,9 +516,9 @@ void *short_term_scheduler(void) {
 			}
 			log_trace(MODULE_LOGGER, "[%d] Se envia dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 
-		cleanup_scheduling_rwlock:
-		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		cleanup_rwlock_scheduling:
+		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -605,11 +606,11 @@ void *short_term_scheduler(void) {
 
 			}
 
-			if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 				log_error_pthread_rwlock_rdlock(status);
 				exit_sigint();
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			switch(eviction_reason) {
 				case UNEXPECTED_ERROR_EVICTION_REASON:
@@ -723,8 +724,8 @@ void *short_term_scheduler(void) {
 				log_trace(MODULE_LOGGER, "[%d] Se envia dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.fd_connection, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 			}
 
-			pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-			if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 				log_error_pthread_rwlock_unlock(status);
 				exit_sigint();
 			}
@@ -751,18 +752,18 @@ void *io_device(void) {
 			exit_sigint();
 		}
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			if(get_state_blocked_io_ready(&tcb)) {
 				exit_sigint();
 			}
 
 			if(tcb == NULL) {
-				goto cleanup_scheduling_rwlock;
+				goto cleanup_rwlock_scheduling;
 			}
 
 			if(insert_state_blocked_io_exec(tcb)) {
@@ -773,9 +774,9 @@ void *io_device(void) {
 
 			CANCEL_IO_OPERATION = false;
 
-		cleanup_scheduling_rwlock:
-		pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		cleanup_rwlock_scheduling:
+		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -821,11 +822,11 @@ void *io_device(void) {
 		}
 
 
-		if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 			if(get_state_blocked_io_exec(&tcb)) {
 				exit_sigint();
@@ -839,7 +840,7 @@ void *io_device(void) {
 			}
 
 		pthread_cleanup_pop(0);
-		if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 			log_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
@@ -875,71 +876,32 @@ int wait_free_memory(void) {
 	return retval;
 }
 
-void *dump_memory_petitioner(void) {
+void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 
-	pthread_t thread = pthread_self();
-	int retval = 0, status, result;
-	t_PID pid;
-	t_TID tid;
+	int result = 0;
 
-	pthread_cleanup_push((void (*)(void *)) remove_dump_memory_thread, &thread);
+	dump_memory_petition->result = &result;
+
+	pthread_cleanup_push((void (*)(void *)) remove_dump_memory_thread, dump_memory_petition);
 
 	log_trace(MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
-
-    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
-        log_error_pthread_rwlock_rdlock(status);
-        exit_sigint();
-    }
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
-
-		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-			log_error_pthread_mutex_lock(status);
-			exit_sigint();
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
-
-			t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
-			if((dump_memory_petition == NULL) || (dump_memory_petition->tcb == NULL)) {
-				retval = -1;
-				goto cleanup_shared_list_blocked_memory_dump_mutex;
-			}
-
-			pid = dump_memory_petition->tcb->pcb->PID;
-			tid = dump_memory_petition->tcb->TID;
-		
-		cleanup_shared_list_blocked_memory_dump_mutex:
-		pthread_cleanup_pop(0);
-		if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-			log_error_pthread_mutex_unlock(status);
-			exit_sigint();
-		}
-
-	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
-		log_error_pthread_rwlock_unlock(status);
-		exit_sigint();
-	}
-
-	if(retval) {
-		goto cleanup_remove_dump_memory_thread;
-	}
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 
 	client_thread_connect_to_server(&connection_memory);
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
-		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, pid, tid, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
+		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, dump_memory_petition->pid, dump_memory_petition->tid, connection_memory.fd_connection)) {
+			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
+		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 
 		if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid);
+			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pid, tid, result);
+		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid, result);
 
 	pthread_cleanup_pop(0);
 	if(close(connection_memory.fd_connection)) {
@@ -947,79 +909,114 @@ void *dump_memory_petitioner(void) {
 		exit_sigint();
 	}
 
-	cleanup_remove_dump_memory_thread:
 	pthread_cleanup_pop(0);
-	if(remove_dump_memory_thread(&thread)) {
+	if(remove_dump_memory_thread(dump_memory_petition)) {
 		exit_sigint();
 	}
 
-	exit_sigint();
-	return NULL;
+	pthread_exit(NULL);
 }
 
-int remove_dump_memory_thread(pthread_t *thread) {
+int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 	int retval = 0, status;
-	t_Dump_Memory_Petition *dump_memory_petition = NULL;
 
-    if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
-        log_error_pthread_rwlock_rdlock(status);
-        return -1;
-    }
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
 
-		pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
+		if((*(dump_memory_petition->result)) == 0) {
 
-			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-				log_error_pthread_mutex_lock(status);
+			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
+				log_error_pthread_rwlock_rdlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
-				dump_memory_petition = list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) dump_memory_petition_matches_pthread, &thread);
-				if(dump_memory_petition == NULL) {
-					goto cleanup_shared_list_blocked_memory_dump_mutex;
+				if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+					log_error_pthread_mutex_lock(status);
+					retval = -1;
+					goto cleanup_rwlock_rdlock_scheduling;
+				}
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+
+					list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+
+					if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
+						if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
+							log_error_pthread_cond_signal(status);
+							retval = -1;
+						}
+					}
+
+				pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
+				if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+					log_error_pthread_mutex_unlock(status);
+					retval = -1;
+					goto cleanup_rwlock_rdlock_scheduling;
 				}
 
-				if(SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head == NULL) {
-					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
-						log_error_pthread_cond_signal(status);
+				if((retval) || ((dump_memory_petition->tcb) == NULL)) {
+					goto cleanup_rwlock_rdlock_scheduling;
+				}
+
+
+				if(insert_state_ready(dump_memory_petition->tcb)) {
+					retval = -1;
+					goto cleanup_rwlock_rdlock_scheduling;
+				}
+
+			cleanup_rwlock_rdlock_scheduling:
+			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
+				log_error_pthread_rwlock_unlock(status);
+				retval = -1;
+				goto cleanup_dump_memory_petition;
+			}
+
+		}
+		else {
+
+			if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
+				log_error_pthread_rwlock_wrlock(status);
+				retval = -1;
+				goto cleanup_dump_memory_petition;
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
+
+				if((dump_memory_petition->tcb) != NULL) {
+					dump_memory_petition->tcb->exit_reason = DUMP_MEMORY_ERROR_EXIT_REASON;
+					if(insert_state_exit(dump_memory_petition->tcb)) {
 						retval = -1;
-						goto cleanup_shared_list_blocked_memory_dump_mutex;
+						goto cleanup_rwlock_wrlock_scheduling;
+					}
+					if(kill_process(dump_memory_petition->tcb->pcb, DUMP_MEMORY_ERROR_EXIT_REASON)) {
+						retval = -1;
+						goto cleanup_rwlock_wrlock_scheduling;
 					}
 				}
 
-			cleanup_shared_list_blocked_memory_dump_mutex:
-			pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-				log_error_pthread_mutex_unlock(status);
+				list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+
+				if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
+					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
+						log_error_pthread_cond_signal(status);
+						retval = -1;
+					}
+				}
+
+			cleanup_rwlock_wrlock_scheduling:
+			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
+				log_error_pthread_rwlock_unlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
 
-			if((retval) || (dump_memory_petition == NULL) || ((dump_memory_petition->tcb) == NULL)) {
-				goto cleanup_dump_memory_petition;
-			}
+		}
 
-			if(insert_state_ready(dump_memory_petition->tcb)) {
-				retval = -1;
-				goto cleanup_dump_memory_petition;
-			}
-
-		cleanup_dump_memory_petition:
-		pthread_cleanup_pop(1); // dump_memory_petition
-
-	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
-		log_error_pthread_rwlock_unlock(status);
-		retval = -1;
-	}
+	cleanup_dump_memory_petition:
+	pthread_cleanup_pop(1); // dump_memory_petition
 
 	return retval;
-}
-
-bool dump_memory_petition_matches_pthread(t_Dump_Memory_Petition *dump_memory_petition, pthread_t *thread) {
-    return pthread_equal(dump_memory_petition->bool_thread.thread, *thread);
 }
 
 bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petition, t_TCB *tcb) {

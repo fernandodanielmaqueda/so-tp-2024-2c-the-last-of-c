@@ -3,14 +3,29 @@
 
 #include "transitions.h"
 
-void kill_thread(t_TCB *tcb) {
+int kill_process(t_PCB *pcb, e_Exit_Reason exit_reason) {
+	t_TCB *tcb;
+
+	for(t_TID tid = 0; tid < pcb->thread_manager.size; tid++) {
+		tcb = ((t_TCB **) pcb->thread_manager.array)[tid];
+		if(tcb != NULL) {
+			if(kill_thread(tcb, exit_reason)) {
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
 
     switch(tcb->current_state) {
 
         // No se aplica
         case NEW_STATE:
         {
-            break;
+            return 0;
         }
 
         case READY_STATE:
@@ -20,34 +35,39 @@ void kill_thread(t_TCB *tcb) {
 		case BLOCKED_IO_READY_STATE:
 		case BLOCKED_IO_EXEC_STATE:
         {
-            tcb->exit_reason = KILL_EXIT_REASON;
+            tcb->exit_reason = exit_reason;
             if(locate_and_remove_state(tcb)) {
-				exit_sigint();
+				return -1;
 			}
             if(insert_state_exit(tcb)) {
-				exit_sigint();
+				return -1;
 			}
 
-            break;
+            return 0;
         }
 
         case EXEC_STATE:
         {
+			KILL_EXIT_REASON = exit_reason;
             KILL_EXEC_TCB = 1;
+
             if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.fd_connection)) {
                 log_error(MODULE_LOGGER, "[%d] Error al enviar interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-                exit_sigint();
+                return -1;
             }
             log_trace(MODULE_LOGGER, "[%d] Se envia interrupcion por cancelacion a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.fd_connection, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-            break;
+
+			return 0;
         }
 
         // No se hace nada
         case EXIT_STATE:
         {
-            break;
+            return 0;
         }
     }
+
+	return 0;
 }
 
 // Cuando sé que el TCB existe y no fue quitado
@@ -623,6 +643,8 @@ int insert_state_blocked_mutex(t_TCB *tcb, t_Resource *resource) {
 
 int insert_state_blocked_dump_memory(t_TCB *tcb) {
 	int retval = 0, status;
+	t_PID pid = tcb->pcb->PID;
+	t_TID tid = tcb->TID;
 
 	e_Process_State previous_state = tcb->current_state;
 	tcb->current_state = BLOCKED_DUMP_STATE;
@@ -636,7 +658,9 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 	t_Conditional_Cleanup free_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) dump_memory_petition, .condition = &created, .negate_condition = true };
     pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &free_cleanup);
 		dump_memory_petition->bool_thread.running = false;
-		dump_memory_petition->tcb = TCB_EXEC;
+		dump_memory_petition->tcb = tcb;
+		dump_memory_petition->pid = tcb->pcb->PID;
+		dump_memory_petition->tid = tcb->TID;
 
 		bool join = false;
         t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(dump_memory_petition->bool_thread.thread), .condition = &join, .negate_condition = false };
@@ -650,7 +674,7 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
 
-				if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, NULL))) {
+				if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, dump_memory_petition))) {
 					log_error_pthread_create(status);
 					retval = -1;
 					goto cleanup_mutex_blocked_memory_dump;
@@ -698,9 +722,8 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 		}
 
 	pthread_cleanup_pop(0); // dump_memory_petition
-
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID, STATE_NAMES[previous_state]);
-	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", dump_memory_petition->tcb->pcb->PID, dump_memory_petition->tcb->TID);
+	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
+	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", pid, tid);
 
 	return 0;
 }
@@ -785,11 +808,11 @@ int insert_state_exit(t_TCB *tcb) {
 int reinsert_state_new(t_PCB *pcb) {
 	int retval = 0, status;
 
-	if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+	if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 		log_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 		if((status = pthread_mutex_lock(&(SHARED_LIST_NEW.mutex)))) {
 			log_error_pthread_mutex_lock(status);
@@ -805,7 +828,7 @@ int reinsert_state_new(t_PCB *pcb) {
 
 	cleanup_rwlock_scheduling:
 	pthread_cleanup_pop(0);
-	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+	if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 		log_error_pthread_rwlock_unlock(status);
 		return -1;
 	}
@@ -818,11 +841,11 @@ int join_threads(t_TCB *tcb) {
 
 	t_TCB *tcb_join;
 
-	if((status = pthread_rwlock_rdlock(&SCHEDULING_RWLOCK))) {
+	if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 		log_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &SCHEDULING_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 		while(1) {
 			if(get_state_blocked_join(&tcb_join, tcb)) {
@@ -840,8 +863,8 @@ int join_threads(t_TCB *tcb) {
 			}
 		}
 
-	pthread_cleanup_pop(0); // SCHEDULING_RWLOCK
-	if((status = pthread_rwlock_unlock(&SCHEDULING_RWLOCK))) {
+	pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+	if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 		log_error_pthread_rwlock_unlock(status);
 		return -1;
 	}

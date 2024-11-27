@@ -192,7 +192,8 @@
 
 
 
-    
+
+
      {
       "label": "make run-kernel PLANI_PROC 32 [Prueba Planificacion]",
       "dependsOn": "",
@@ -344,7 +345,7 @@
 
 
 
-    
+
 
 
 
@@ -481,6 +482,646 @@
       "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
       "command": "make",
       "args": ["valgrind-helgrind-kernel", "kernel_ARGS=RECURSOS_MUTEX_PROC 32"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {
+      "label": "make run-kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=MEM_FIJA_BASE 12"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=MEM_FIJA_BASE 12"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=MEM_FIJA_BASE 12"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=MEM_FIJA_BASE 12"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=MEM_FIJA_BASE 12"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {
+      "label": "make run-kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=MEM_DINAMICA_BASE 128"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=MEM_DINAMICA_BASE 128"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=MEM_DINAMICA_BASE 128"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=MEM_DINAMICA_BASE 128"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=MEM_DINAMICA_BASE 128"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {
+      "label": "make run-kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=PRUEBA_FS 0"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=PRUEBA_FS 0"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=PRUEBA_FS 0"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=PRUEBA_FS 0"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=PRUEBA_FS 0"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    {
+      "label": "make run-kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "run"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana el programa kernel",
+      "command": "make",
+      "args": ["run-kernel", "kernel_ARGS=THE_EMPTINESS_MACHINE 16"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make gdb-kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug-console"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Depurar en esta misma ventana por línea de comandos el programa kernel",
+      "command": "make",
+      "args": ["gdb-kernel", "kernel_ARGS=THE_EMPTINESS_MACHINE 16"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-none-kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con ninguna herramienta sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-none-kernel", "kernel_ARGS=THE_EMPTINESS_MACHINE 16"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-memcheck-kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta memcheck sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-memcheck-kernel", "kernel_ARGS=THE_EMPTINESS_MACHINE 16"],
+      "runOptions": {},
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/../../",
+        "env": {},
+        "shell": {}
+      },
+      "group": {
+        "kind": "none",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make valgrind-helgrind-kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
+      "dependsOn": "",
+      "hide": false,
+      "icon": {
+        "id": "debug"
+      },
+      "isBackground": false,
+      "promptOnClose": false,
+      "detail": "Ejecutar en esta misma ventana Valgrind con la herramienta helgrind sobre el programa kernel",
+      "command": "make",
+      "args": ["valgrind-helgrind-kernel", "kernel_ARGS=THE_EMPTINESS_MACHINE 16"],
       "runOptions": {},
       "type": "shell",
       "options": {

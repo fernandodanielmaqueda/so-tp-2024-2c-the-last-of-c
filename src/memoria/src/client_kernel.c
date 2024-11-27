@@ -382,7 +382,8 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
-    char *filename; string_from_format("%u-%u-", pid, tid);
+    // 1-0-12:51:59:331.dmp
+    char *filename = string_from_format("%u-%u-", pid, tid);
     if(filename == NULL) {
         log_error(MODULE_LOGGER, "string_from_format: No se pudo crear el nombre del archivo");
         exit_sigint();
@@ -393,7 +394,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
         if(string_time == NULL) {
             log_error(MODULE_LOGGER, "temporal_get_string_time: No se pudo obtener la hora actual como un string");
             exit_sigint();
-        }
+        }        
         pthread_cleanup_push((void (*)(void *)) free, string_time);
             string_append(&filename, string_time);
         pthread_cleanup_pop(1); // string_time
@@ -537,6 +538,7 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
 }
 
 int split_partition(size_t index_partition, size_t required_size) {
+    int retval = 0, status;
 
     t_Partition *old_partition = list_get(PARTITION_TABLE, index_partition);
 
@@ -547,20 +549,38 @@ int split_partition(size_t index_partition, size_t required_size) {
     t_Partition *new_partition = malloc(sizeof(t_Partition));
     if(new_partition == NULL) {
         fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
-        exit(EXIT_FAILURE);
+        return -1;
     }
+    pthread_cleanup_push((void (*)(void *)) free, new_partition);
 
-    new_partition->size = (old_partition->size - required_size);
-    new_partition->base = (old_partition->base + required_size);
-    new_partition->occupied = false;
+        if((status = pthread_rwlock_init(&(new_partition->rwlock_partition), NULL))) {
+            log_error_pthread_rwlock_init(status);
+            retval = -1;
+            goto cleanup_new_partition;
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(new_partition->rwlock_partition));
 
-    old_partition->size = required_size;
+            new_partition->size = (old_partition->size - required_size);
+            new_partition->base = (old_partition->base + required_size);
+            new_partition->occupied = false;
 
-    index_partition++;
+            old_partition->size = required_size;
 
-    list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
+            index_partition++;
 
-    return 0;
+            list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
+
+            pthread_cleanup_pop(0); // rwlock
+            if(retval) {
+                if((status = pthread_rwlock_destroy(&(new_partition->rwlock_partition)))) {
+                    log_error_pthread_rwlock_destroy(status);
+                }
+            }
+
+    cleanup_new_partition:
+    pthread_cleanup_pop(retval);
+
+    return retval;
 
 }
 
@@ -596,12 +616,12 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
 
         if(!(aux_partition_right->occupied)) {
             partition->size += aux_partition_right->size;
-            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), free);
+            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), (void (*)(void *)) partition_destroy);
         }
 
         if(!(aux_partition_left->occupied)) {
             aux_partition_left->size += partition->size;
-            list_remove_and_destroy_element(PARTITION_TABLE, i, free);
+            list_remove_and_destroy_element(PARTITION_TABLE, i, (void (*)(void *)) partition_destroy);
         }
 
         return 0;
@@ -615,7 +635,7 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
 
         if(!(aux_partition_right->occupied)) {
             partition->size += aux_partition_right->size;
-            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), free);
+            list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), (void (*)(void *)) partition_destroy);
         }
 
         return 0;
@@ -629,7 +649,7 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
 
         if(!(aux_partition_left->occupied)) {
             aux_partition_left->size += partition->size;
-            list_remove_and_destroy_element(PARTITION_TABLE, i, free);
+            list_remove_and_destroy_element(PARTITION_TABLE, i, (void (*)(void *)) partition_destroy);
         }
 
         return 0;

@@ -76,8 +76,7 @@ int module(int argc, char* argv[]) {
         log_error(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
         exit_sigint();
     }
-    pthread_cleanup_push((void (*)(void *)) list_destroy, PARTITION_TABLE);
-    //  TODO: pthread_cleanup_push((void (*)(void *)) , PARTITION_TABLE);
+    pthread_cleanup_push((void (*)(void *)) partition_table_destroy, NULL);
 
 
 	// Config
@@ -207,9 +206,42 @@ int module(int argc, char* argv[]) {
 
     return EXIT_SUCCESS;
 }
+/*
+t_Partition *partition_create() {
+
+}
+*/
+
+int partition_destroy(t_Partition *partition) {
+    int retval = 0, status;
+
+    if((status = pthread_rwlock_destroy(&(partition->rwlock_partition)))) {
+        log_error_pthread_rwlock_destroy(status);
+        retval = -1;
+    }
+
+    free(partition);
+
+    return retval;
+}
+
+int partition_table_destroy(void) {
+    int retval = 0, status;
+
+    while(list_size(PARTITION_TABLE) > 0) {
+        t_Partition *partition = list_remove(PARTITION_TABLE, 0);
+        if(partition_destroy(partition)) {
+            retval = -1;
+        }
+    }
+
+    list_destroy(PARTITION_TABLE);
+
+    return retval;
+}
 
 int read_module_config(t_config *MODULE_CONFIG) {
-    int retval = 0;
+    int retval = 0, status;
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
         fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
@@ -257,11 +289,18 @@ int read_module_config(t_config *MODULE_CONFIG) {
                     pthread_cleanup_push((void (*)(void *)) free, new_partition);
 
                         new_partition->size = strtoul(fixed_partitions[i], &end, 10);
-                        if(!*(fixed_partitions[i]) || *end) {
+                        if(!*(fixed_partitions[i]) || *end || new_partition->size == 0) {
                             fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
                             retval = -1;
                             goto cleanup_new_partition;
                         }
+
+                        if((status = pthread_rwlock_init(&(new_partition->rwlock_partition), NULL))) {
+                            log_error_pthread_rwlock_init(status);
+                            retval = -1;
+                            goto cleanup_new_partition;
+                        }
+                        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(new_partition->rwlock_partition));
 
                         new_partition->base = base;
                         new_partition->occupied = false;
@@ -269,6 +308,13 @@ int read_module_config(t_config *MODULE_CONFIG) {
                         list_add(PARTITION_TABLE, new_partition);
 
                         base += new_partition->size;
+
+                        pthread_cleanup_pop(0); // rwlock
+                        if(retval) {
+                            if((status = pthread_rwlock_destroy(&(new_partition->rwlock_partition)))) {
+                                log_error_pthread_rwlock_destroy(status);
+                            }
+                        }
 
                     cleanup_new_partition:
                     pthread_cleanup_pop(retval); // new_partition
