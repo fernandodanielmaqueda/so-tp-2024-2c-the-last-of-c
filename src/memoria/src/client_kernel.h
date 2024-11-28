@@ -62,9 +62,7 @@ int verify_and_join_splited_partitions(t_Partition *partition);
  * @param path Path donde se encuentra el archivo.
  * @param list_instruction Lista a llenarse con las instrucciones del archivo.
  */
-int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count);
-
-int process_destroy(t_Memory_Process *process);
+int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread);
 
 
 #endif // MEMORY_CLIENT_KERNEL_H

@@ -69,23 +69,11 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     t_Partition *partition = NULL;
 
-    t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
+    t_Memory_Process *new_process = memory_process_create(pid, size);
     if(new_process == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
         exit_sigint();
     }
-    pthread_cleanup_push((void (*)(void *)) free, new_process);
-
-    new_process->pid = pid;
-    new_process->size = size;
-    new_process->tid_count = 0;
-    new_process->array_memory_threads = NULL;
-
-    if((status = pthread_rwlock_init(&(new_process->rwlock_array_memory_threads), NULL))) {
-        log_error_pthread_rwlock_init(status);
-        exit_sigint();
-    }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
+    pthread_cleanup_push((void (*)(void *)) memory_process_destroy, new_process);
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_wrlock(status);
@@ -118,13 +106,6 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_unlock(status);
-    }
-
-    pthread_cleanup_pop(0); // rwlock_array_memory_threads
-    if(partition == NULL) {
-        if((status = pthread_rwlock_destroy(&(new_process->rwlock_array_memory_threads)))) {
-            log_error_pthread_rwlock_destroy(status);
-        }
     }
 
     pthread_cleanup_pop(result); // new_process
@@ -180,7 +161,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    if(process_destroy(process)) {
+    if(memory_process_destroy(process)) {
         exit_sigint();
     }
 
@@ -215,61 +196,21 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
     log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
 
-    t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
+    t_Memory_Thread *new_thread = memory_thread_create(tid, argument_path);
     if(new_thread == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo thread.", sizeof(t_Memory_Thread));
         exit_sigint();
     }
-    pthread_cleanup_push((void (*)(void *)) free, new_thread);
-
-    new_thread->tid = tid;
-    new_thread->instructions_count = 0;
-    new_thread->array_instructions = NULL;
-
-    //Inicializar registros
-    new_thread->registers.PC = 0;
-    new_thread->registers.AX = 0;
-    new_thread->registers.BX = 0;
-    new_thread->registers.CX = 0;
-    new_thread->registers.DX = 0;
-    new_thread->registers.EX = 0;
-    new_thread->registers.FX = 0;
-    new_thread->registers.GX = 0;
-    new_thread->registers.HX = 0;
-
-    // Genera la ruta hacia el archivo de pseudocódigo
-    char *target_path;
-    // Ruta relativa
-    target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
-    if(target_path == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
-        exit_sigint();
-    }
-    pthread_cleanup_push((void (*)(void *)) free, target_path);
-
-    register int i;
-    for(i = 0; INSTRUCTIONS_PATH[i]; i++) {
-        target_path[i] = INSTRUCTIONS_PATH[i];
-    }
-
-    if(INSTRUCTIONS_PATH[0])
-        target_path[i++] = '/';
-
-    register int j;
-    for(j = 0; argument_path[j]; j++) {
-        target_path[i + j] = argument_path[j];
-    }
-
-    target_path[i + j] = '\0';
-
-    log_debug(MODULE_LOGGER, "Ruta hacia el archivo de pseudocódigo: %s", target_path);
+    pthread_cleanup_push((void (*)(void *)) memory_thread_destroy, new_thread);
 
     // Inicializar instrucciones
-    if(parse_pseudocode_file(target_path, &(new_thread->array_instructions), &(new_thread->instructions_count))) {
-        // TODO
+    if(parse_pseudocode_file(argument_path, new_thread)) {
         exit_sigint();
     }
-    // TODO
+
+    if((new_thread->instructions_count) == 0) {
+        result = -1;
+        goto cleanup_new_thread;
+    }
 
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         log_error_pthread_rwlock_rdlock(status);
@@ -313,7 +254,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    pthread_cleanup_pop(1); // target_path
+    cleanup_new_thread:
     pthread_cleanup_pop(result); // new_thread
     pthread_cleanup_pop(1); // argument_path
 
@@ -349,13 +290,10 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
         goto send_result;
     }
 
-    // Free instrucciones
-    for(t_PC pc = 0; pc < ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count; pc++) {
-        free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc]);
+    if(memory_thread_destroy(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid])) {
+        exit_sigint();
     }
-
-    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions);
-    free(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]);
+    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = NULL;
 
     log_info(MINIMAL_LOGGER, "## Hilo Destruido - (PID:TID) - (%u:%u)", pid, tid);
 
@@ -538,7 +476,7 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
 }
 
 int split_partition(size_t index_partition, size_t required_size) {
-    int retval = 0, status;
+    int retval = 0;
 
     t_Partition *old_partition = list_get(PARTITION_TABLE, index_partition);
 
@@ -546,45 +484,25 @@ int split_partition(size_t index_partition, size_t required_size) {
         return 0;
     }
 
-    t_Partition *new_partition = malloc(sizeof(t_Partition));
+    t_Partition *new_partition = partition_create(old_partition->size - required_size, old_partition->base + required_size);
     if(new_partition == NULL) {
-        fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
         return -1;
     }
-    pthread_cleanup_push((void (*)(void *)) free, new_partition);
+    pthread_cleanup_push((void (*)(void *)) partition_destroy, new_partition);
 
-        if((status = pthread_rwlock_init(&(new_partition->rwlock_partition), NULL))) {
-            log_error_pthread_rwlock_init(status);
-            retval = -1;
-            goto cleanup_new_partition;
-        }
-        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(new_partition->rwlock_partition));
+        old_partition->size = required_size;
 
-            new_partition->size = (old_partition->size - required_size);
-            new_partition->base = (old_partition->base + required_size);
-            new_partition->occupied = false;
+        index_partition++;
 
-            old_partition->size = required_size;
+        list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
 
-            index_partition++;
-
-            list_add_in_index(PARTITION_TABLE, index_partition, new_partition);
-
-            pthread_cleanup_pop(0); // rwlock
-            if(retval) {
-                if((status = pthread_rwlock_destroy(&(new_partition->rwlock_partition)))) {
-                    log_error_pthread_rwlock_destroy(status);
-                }
-            }
-
-    cleanup_new_partition:
     pthread_cleanup_pop(retval);
 
     return retval;
 
 }
 
-int add_element_to_array_process(t_Memory_Process* process) {
+int add_element_to_array_process(t_Memory_Process *process) {
 
     ARRAY_PROCESS_MEMORY = realloc(ARRAY_PROCESS_MEMORY, sizeof(t_Memory_Process *) * (PID_COUNT + 1));    
     if(ARRAY_PROCESS_MEMORY == NULL) {
@@ -661,74 +579,101 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
 
 
 
-int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count) {
-    FILE* file;
-    if((file = fopen(path, "r")) == NULL) {
-        log_warning(MODULE_LOGGER, "%s: No se pudo abrir el archivo de pseudocodigo indicado.", path);
-        return -1;
+int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
+    int retval = 0;
+
+    FILE *file;
+
+    // Genera la ruta hacia el archivo de pseudocódigo
+    char *target_path;
+    // Ruta relativa
+    target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
+    if(target_path == NULL) {
+        log_error(MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
+        retval = -1;
+        goto ret;
     }
+    pthread_cleanup_push((void (*)(void *)) free, target_path);
+
+    register int i;
+    for(i = 0; INSTRUCTIONS_PATH[i]; i++) {
+        target_path[i] = INSTRUCTIONS_PATH[i];
+    }
+
+    if(INSTRUCTIONS_PATH[0]) {
+        target_path[i++] = '/';
+    }
+
+    register int j;
+    for(j = 0; argument_path[j]; j++) {
+        target_path[i + j] = argument_path[j];
+    }
+
+    target_path[i + j] = '\0';
+
+    log_debug(MODULE_LOGGER, "Ruta construida hacia el archivo de pseudocódigo: %s", target_path);
+
+    file = fopen(target_path, "r");
+    if(file == NULL) {
+        log_warning(MODULE_LOGGER, "%s: No se pudo abrir el archivo de pseudocódigo", target_path);
+    }
+    pthread_cleanup_pop(1); // target_path
+    if(file == NULL) {
+        retval = 0;
+        goto ret;
+    }
+    pthread_cleanup_push((void (*)(void *)) fclose, file);
+
     char *line = NULL, *subline;
     size_t length;
-    ssize_t nread;
-    while(1) {
-        errno = 0;
-        if((nread = getline(&line, &length, file)) == -1) {
-            if(errno) {
-                log_warning(MODULE_LOGGER, "getline: %s", strerror(errno));
-                free(line);
-                if(fclose(file)) {
-                    log_error_fclose();
+    ssize_t nread = 0;
+    pthread_cleanup_push((void (*)(void *)) free, line);
+
+        while(1) {
+            errno = 0;
+
+            nread = getline(&line, &length, file);
+            if(nread == -1) {
+                if(errno) {
+                    log_warning(MODULE_LOGGER, "getline: %s", strerror(errno));
+                    retval = -1;
+                    goto cleanup_line;
                 }
-                exit(EXIT_FAILURE);
+                // Se terminó de leer el archivo
+                goto cleanup_line;
             }
-            // Se terminó de leer el archivo
-            break;
+
+            // Ignora líneas en blanco
+            subline = strip_whitespaces(line);
+            if(*subline) { // Se leyó una línea con contenido
+
+                char **new_array_instructions = realloc(new_thread->array_instructions, ((new_thread->instructions_count) + 1) * sizeof(char *));
+                if(new_array_instructions == NULL) {
+                    log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", (new_thread->instructions_count) * sizeof(char *), ((new_thread->instructions_count) + 1) * sizeof(char *));
+                    retval = -1;
+                    goto cleanup_line;
+                }
+                new_thread->array_instructions = new_array_instructions;
+
+                (new_thread->array_instructions)[new_thread->instructions_count] = strdup(subline);
+                if((new_thread->array_instructions)[new_thread->instructions_count] == NULL) {
+                    log_error(MODULE_LOGGER, "strdup: No se pudo duplicar la cadena \"%s\"", subline);
+                    retval = -1;
+                    goto cleanup_line;
+                }
+                (new_thread->instructions_count)++;
+            }
         }
-        // Ignora líneas en blanco
-        subline = strip_whitespaces(line);
-        if(*subline) { // Se leyó una línea con contenido
-    
-            *array_instruction = realloc(*array_instruction, (*count + 1) * sizeof(char *));
-            if(*array_instruction == NULL) {
-                perror("[Error] realloc memory for array fallo.");
-                free(line);
-                if(fclose(file)) {
-                    log_error_fclose();
-                }
-                exit(EXIT_FAILURE);
-            }
-            (*array_instruction)[*count] = strdup(subline);
-            if((*array_instruction)[*count] == NULL) {
-                perror("[Error] malloc memory for string fallo.");
-                free(line);
-                if(fclose(file)) {
-                    log_error_fclose();
-                }
-                exit(EXIT_FAILURE);
-            }
-            (*count)++;
-        }
-    }
-    free(line);       
+
+    cleanup_line:
+    pthread_cleanup_pop(1); // line
+
+    pthread_cleanup_pop(0); // file
     if(fclose(file)) {
         log_error_fclose();
-        return -1;
-    }
-    return 0;
-}
-
-int process_destroy(t_Memory_Process *process) {
-    int retval = 0, status;
-
-    // Liberacion de threads con sus struct
-    free_threads(process);
-
-    if((status = pthread_rwlock_destroy(&(process->rwlock_array_memory_threads)))) {
-        log_error_pthread_rwlock_destroy(status);
         retval = -1;
     }
 
-    free(process);
-
+    ret:
     return retval;
 }

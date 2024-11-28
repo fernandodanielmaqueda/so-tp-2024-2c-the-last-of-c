@@ -70,6 +70,9 @@ int module(int argc, char* argv[]) {
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_PARTITIONS_AND_PROCESSES);
 
+    // ARRAY_PROCESS_MEMORY
+    pthread_cleanup_push((void (*)(void *)) array_memory_processes_destroy, (void *) ARRAY_PROCESS_MEMORY);
+
     // PARTITION_TABLE
     PARTITION_TABLE = list_create();
     if(PARTITION_TABLE == NULL) {
@@ -169,23 +172,22 @@ int module(int argc, char* argv[]) {
     pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
 
 
-    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
-
-
-	// Sockets
+    // Sockets
     if((status = pthread_mutex_init(&MUTEX_CLIENT_CPU, NULL))) {
         log_error_pthread_mutex_init(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CLIENT_CPU);
 
+    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
-    // TODO: pthread_cleanup_push con pthread_cond_wait hasta que terminen todos los clientes
+    pthread_cleanup_push((void (*)(void *)) wait_client_threads, NULL);
     server_thread_coordinator(&SERVER_MEMORY, memory_client_handler);
 
 
 	// Cleanup
+    pthread_cleanup_pop(1); // wait_client_threads
     pthread_cleanup_pop(1); // MUTEX_CLIENT_CPU
 	pthread_cleanup_pop(1); // LIST_JOBS_KERNEL
 	pthread_cleanup_pop(1); // MUTEX_JOBS_KERNEL
@@ -201,16 +203,190 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // PARTITION_TABLE
+	pthread_cleanup_pop(1); // ARRAY_PROCESS_MEMORY
 	pthread_cleanup_pop(1); // RWLOCK_PARTITIONS_AND_PROCESSES
 	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
 
     return EXIT_SUCCESS;
 }
-/*
-t_Partition *partition_create() {
+
+int array_memory_processes_destroy(void) {
+    int retval = 0;
+
+    for(t_PID pid = 0; pid < PID_COUNT; pid++) {
+        if(memory_process_destroy(ARRAY_PROCESS_MEMORY[pid])) {
+            retval = -1;
+        }
+
+        ARRAY_PROCESS_MEMORY[pid] = NULL;
+    }
+
+    free(ARRAY_PROCESS_MEMORY);
+
+    return retval;
+}
+
+int array_memory_threads_destroy(t_Memory_Process *process) {
+    int retval = 0;
+
+    for(t_TID tid = 0; tid < process->tid_count; tid++) {
+        if(memory_thread_destroy(process->array_memory_threads[tid])) {
+            retval = -1;
+        }
+
+    }
+
+    free(process->array_memory_threads);
+
+    return retval;
+}
+
+t_Memory_Process *memory_process_create(t_PID pid, size_t size) {
+    int retval = 0, status;
+
+    t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
+    if(new_process == NULL) {
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
+        return NULL;
+    }
+    pthread_cleanup_push((void (*)(void *)) free, new_process);
+
+    new_process->pid = pid;
+    new_process->size = size;
+    new_process->tid_count = 0;
+    new_process->array_memory_threads = NULL;
+
+    if((status = pthread_rwlock_init(&(new_process->rwlock_array_memory_threads), NULL))) {
+        log_error_pthread_rwlock_init(status);
+        retval = -1;
+        goto cleanup_new_process;
+    }
+    //pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
+
+    //pthread_cleanup_pop(retval); // rwlock_array_memory_threads
+
+    cleanup_new_process:
+    pthread_cleanup_pop(retval); // new_process
+
+    if(retval) {
+        return NULL;
+    }
+
+    return new_process;
+}
+
+int memory_process_destroy(t_Memory_Process *process) {
+    int retval = 0, status;
+
+    if(process == NULL) {
+        return 0;
+    }
+
+    if(array_memory_threads_destroy(process)) {
+        retval = -1;
+    }
+
+    if((status = pthread_rwlock_destroy(&(process->rwlock_array_memory_threads)))) {
+        log_error_pthread_rwlock_destroy(status);
+        retval = -1;
+    }
+
+    free(process);
+
+    return retval;
+}
+
+t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path) {
+    int retval = 0;
+
+    t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
+    if(new_thread == NULL) {
+        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
+        return NULL;
+    }
+    pthread_cleanup_push((void (*)(void *)) free, new_thread);
+
+    new_thread->tid = tid;
+    new_thread->instructions_count = 0;
+    new_thread->array_instructions = NULL;
+
+    //Inicializar registros
+    new_thread->registers.PC = 0;
+    new_thread->registers.AX = 0;
+    new_thread->registers.BX = 0;
+    new_thread->registers.CX = 0;
+    new_thread->registers.DX = 0;
+    new_thread->registers.EX = 0;
+    new_thread->registers.FX = 0;
+    new_thread->registers.GX = 0;
+    new_thread->registers.HX = 0;
+
+    pthread_cleanup_pop(retval); // new_thread
+
+    if(retval) {
+        return NULL;
+    }
+
+    return new_thread;
 
 }
-*/
+
+int memory_thread_destroy(t_Memory_Thread *thread) {
+    int retval = 0;
+
+    if(thread == NULL) {
+        return 0;
+    }
+
+    for(t_PC pc = 0; pc < thread->instructions_count; pc++) {
+        free(thread->array_instructions[pc]);
+    }
+    free(thread->array_instructions);
+
+    free(thread);
+
+    return retval;
+}
+
+t_Partition *partition_create(size_t size, size_t base) {
+    int retval = 0, status;
+
+    t_Partition *new_partition = malloc(sizeof(t_Partition));
+    if(new_partition == NULL) {
+        fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
+        return NULL;
+    }
+    pthread_cleanup_push((void (*)(void *)) free, new_partition);
+
+        if((status = pthread_rwlock_init(&(new_partition->rwlock_partition), NULL))) {
+            log_error_pthread_rwlock_init(status);
+            retval = -1;
+            goto cleanup_new_partition;
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(new_partition->rwlock_partition));
+
+            new_partition->size = size;
+            new_partition->base = base;
+            new_partition->occupied = false;
+
+            pthread_cleanup_pop(0); // rwlock
+            if(retval) {
+                if((status = pthread_rwlock_destroy(&(new_partition->rwlock_partition)))) {
+                    log_error_pthread_rwlock_destroy(status);
+                }
+            }
+
+    cleanup_new_partition:
+    pthread_cleanup_pop(retval);
+
+    if(retval) {
+        return NULL;
+    }
+    else {
+        return new_partition;
+    }
+}
+
 
 int partition_destroy(t_Partition *partition) {
     int retval = 0, status;
@@ -226,7 +402,7 @@ int partition_destroy(t_Partition *partition) {
 }
 
 int partition_table_destroy(void) {
-    int retval = 0, status;
+    int retval = 0;
 
     while(list_size(PARTITION_TABLE) > 0) {
         t_Partition *partition = list_remove(PARTITION_TABLE, 0);
@@ -241,7 +417,7 @@ int partition_table_destroy(void) {
 }
 
 int read_module_config(t_config *MODULE_CONFIG) {
-    int retval = 0, status;
+    int retval = 0;
 
     if(!config_has_properties(MODULE_CONFIG, "PUERTO_ESCUCHA", "IP_FILESYSTEM", "PUERTO_FILESYSTEM", "TAM_MEMORIA", "PATH_INSTRUCCIONES", "RETARDO_RESPUESTA", "ESQUEMA", "ALGORITMO_BUSQUEDA", "PARTICIONES", "LOG_LEVEL", NULL)) {
         fprintf(stderr, "%s: El archivo de configuración no contiene todas las claves necesarias\n", MODULE_CONFIG_PATHNAME);
@@ -277,46 +453,28 @@ int read_module_config(t_config *MODULE_CONFIG) {
             pthread_cleanup_push((void (*)(void *)) string_array_destroy, fixed_partitions);
 
                 char *end;
-                size_t base = 0;
+                size_t size, base = 0;
                 t_Partition *new_partition;
                 for(register unsigned int i = 0; fixed_partitions[i] != NULL; i++) {
-                    new_partition = malloc(sizeof(t_Partition));
-                    if(new_partition == NULL) {
-                        fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
+
+                    size = strtoul(fixed_partitions[i], &end, 10);
+                    if((!(*(fixed_partitions[i]))) || (*end) || size == 0) {
+                        fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
                         retval = -1;
                         goto cleanup_fixed_partitions;
                     }
-                    pthread_cleanup_push((void (*)(void *)) free, new_partition);
 
-                        new_partition->size = strtoul(fixed_partitions[i], &end, 10);
-                        if(!*(fixed_partitions[i]) || *end || new_partition->size == 0) {
-                            fprintf(stderr, "%s: valor de la clave PARTICIONES invalido: el tamaño de la partición %u no es un número entero válido: %s\n", MODULE_CONFIG_PATHNAME, i, fixed_partitions[i]);
-                            retval = -1;
-                            goto cleanup_new_partition;
-                        }
-
-                        if((status = pthread_rwlock_init(&(new_partition->rwlock_partition), NULL))) {
-                            log_error_pthread_rwlock_init(status);
-                            retval = -1;
-                            goto cleanup_new_partition;
-                        }
-                        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &(new_partition->rwlock_partition));
-
-                        new_partition->base = base;
-                        new_partition->occupied = false;
+                    new_partition = partition_create(size, base);
+                    if(new_partition == NULL) {
+                        retval = -1;
+                        goto cleanup_fixed_partitions;
+                    }
+                    pthread_cleanup_push((void (*)(void *)) partition_destroy, new_partition);
 
                         list_add(PARTITION_TABLE, new_partition);
 
                         base += new_partition->size;
 
-                        pthread_cleanup_pop(0); // rwlock
-                        if(retval) {
-                            if((status = pthread_rwlock_destroy(&(new_partition->rwlock_partition)))) {
-                                log_error_pthread_rwlock_destroy(status);
-                            }
-                        }
-
-                    cleanup_new_partition:
                     pthread_cleanup_pop(retval); // new_partition
 
                     if(retval) {
@@ -337,15 +495,10 @@ int read_module_config(t_config *MODULE_CONFIG) {
 
         case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME:
         {
-            t_Partition *new_partition = malloc(sizeof(t_Partition));
+            t_Partition *new_partition = partition_create(MEMORY_SIZE, 0);
             if(new_partition == NULL) {
-                fprintf(stderr, "malloc: No se pudieron reservar %zu bytes para una particion\n", sizeof(t_Partition));
                 return -1;
             }
-
-            new_partition->base = 0;
-            new_partition->size = MEMORY_SIZE;
-            new_partition->occupied = false;
 
             list_add(PARTITION_TABLE, new_partition);
 
@@ -409,44 +562,4 @@ int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *
         }
 
     return -1;
-}
-
-void free_threads(t_Memory_Process *process) {
-
-    for(t_PID pid = 0; pid < process->tid_count; pid++) {
-        //Free instrucciones
-        if(process->array_memory_threads[pid] != NULL) {
-            for(t_PC pc = 0; pc < process->array_memory_threads[pid]->instructions_count; pc++) {
-                free(process->array_memory_threads[pid]->array_instructions[pc]);
-            }
-            free(process->array_memory_threads[pid]->array_instructions);
-            free(process->array_memory_threads[pid]);
-        }
-    }
-
-    free(process->array_memory_threads);
-
-}
-
-void free_memory(void) {
-    //int status;
-
-    // Free particiones
-    for(size_t i = 0; i < list_size(PARTITION_TABLE); i++) {
-        t_Partition* partition = list_get(PARTITION_TABLE, i);
-        free(partition);
-    }
-
-    // Free procesos
-    for(t_PID pid = 0; pid < PID_COUNT; pid++) {
-        if(ARRAY_PROCESS_MEMORY[pid] != NULL) {
-            process_destroy(ARRAY_PROCESS_MEMORY[pid]);
-        }
-
-        ARRAY_PROCESS_MEMORY[pid] = NULL;
-    }
-
-    free(ARRAY_PROCESS_MEMORY);
-    free(MAIN_MEMORY);
-
 }

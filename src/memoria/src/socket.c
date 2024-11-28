@@ -184,14 +184,11 @@ int remove_client_thread(t_Client *client) {
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
 
-            list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) pointers_match, &client);
+            list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) pointers_match, client);
 
-            if(SHARED_LIST_CLIENTS.list->head == NULL) {
-                if((status = pthread_cond_signal(&COND_CLIENTS))) {
-                    log_error_pthread_cond_signal(status);
-                    retval = -1;
-                    goto cleanup_mutex_clients;
-                }
+            if(signal_client_threads()) {
+                retval = -1;
+                goto cleanup_mutex_clients;
             }
 
         cleanup_mutex_clients:
@@ -212,4 +209,57 @@ int remove_client_thread(t_Client *client) {
     pthread_cleanup_pop(1); // new_client
 
     return retval;
+}
+
+int wait_client_threads(void) {
+    int retval = 0, status;
+
+    if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
+        log_error_pthread_mutex_lock(status);
+        return -1;
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+
+        t_link_element *current = SHARED_LIST_CLIENTS.list->head;
+        while(current != NULL) {
+            t_Client *client = current->data;
+            if((status = pthread_cancel(client->thread_client_handler.thread))) {
+                log_error_pthread_cancel(status);
+                retval = -1;
+                goto cleanup_mutex_clients;
+            }
+            current = current->next;
+        }
+
+        //log_trace(MODULE_LOGGER, "Esperando a que finalicen los hilos de [Cliente] %s", PORT_NAMES[MEMORY_PORT_TYPE]);
+        
+        while(SHARED_LIST_CLIENTS.list->head != NULL) {
+            if((status = pthread_cond_wait(&COND_CLIENTS, &(SHARED_LIST_CLIENTS.mutex)))) {
+                log_error_pthread_cond_wait(status);
+                retval = -1;
+                break;
+            }
+        }
+
+    cleanup_mutex_clients:
+    pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
+    if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
+        log_error_pthread_mutex_unlock(status);
+        return -1;
+    }
+
+    return retval;
+}
+
+int signal_client_threads(void) {
+    int status;
+
+    if(SHARED_LIST_CLIENTS.list->head == NULL) {
+        if((status = pthread_cond_signal(&COND_CLIENTS))) {
+            log_error_pthread_cond_signal(status);
+            return -1;
+        }
+    }
+
+    return 0;
 }

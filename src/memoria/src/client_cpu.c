@@ -5,8 +5,6 @@
 #include "client_cpu.h"
 
 void listen_cpu(void) {
-    int status;
-
     t_Package *package;
 
     while(1) {

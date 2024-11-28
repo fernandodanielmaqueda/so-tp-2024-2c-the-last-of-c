@@ -38,4 +38,7 @@ void memory_client_handler(t_Client *new_client);
 void *memory_thread_for_client(t_Client *new_client);
 int remove_client_thread(t_Client *client);
 
+int wait_client_threads(void);
+int signal_client_threads(void);
+
 #endif /* MEMORIA_SOCKET_H */

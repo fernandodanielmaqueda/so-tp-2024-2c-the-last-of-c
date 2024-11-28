@@ -95,6 +95,16 @@ extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
 
 int module(int, char*[]);
 
+int array_memory_processes_destroy(void);
+int array_memory_threads_destroy(t_Memory_Process *process);
+
+t_Memory_Process *memory_process_create(t_PID pid, size_t size);
+int memory_process_destroy(t_Memory_Process *process);
+
+t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path);
+int memory_thread_destroy(t_Memory_Thread *thread);
+
+t_Partition *partition_create(size_t size, size_t base);
 int partition_destroy(t_Partition *partition);
 
 int partition_table_destroy(void);
@@ -104,9 +114,5 @@ int read_module_config(t_config *module_config);
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination);
 
 int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *destination);
-
-void free_memory();
-
-void free_threads(t_Memory_Process *process);
 
 #endif // MEMORIA_H
