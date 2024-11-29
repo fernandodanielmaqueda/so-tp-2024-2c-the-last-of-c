@@ -344,7 +344,7 @@ void *long_term_scheduler_exit(void) {
 			client_thread_connect_to_server(&connection_memory);
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
 
-				if(send_process_destroy(tcb->pcb->PID, connection_memory.fd_connection)) {
+				if(send_process_destroy(pcb->PID, connection_memory.fd_connection)) {
 					log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
