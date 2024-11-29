@@ -345,7 +345,7 @@ int get_state_ready(t_TCB **tcb) {
 
 		case PRIORITIES_SCHEDULING_ALGORITHM:
 		case MLQ_SCHEDULING_ALGORITHM:
-			
+			*tcb = NULL;
 			for(register t_Priority priority = 0; (((*tcb) == NULL) && (priority < PRIORITY_COUNT)); priority++) {
 				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority].mutex)))) {
 					log_error_pthread_mutex_lock(status);
