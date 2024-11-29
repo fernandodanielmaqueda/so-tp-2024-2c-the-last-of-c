@@ -3,6 +3,7 @@
 
 #include "socket.h"
 
+
 // Server
 
 void *server_thread_for_client(t_Client *new_client) {
