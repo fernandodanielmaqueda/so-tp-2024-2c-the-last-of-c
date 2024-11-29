@@ -588,7 +588,7 @@ int tcb_destroy(t_TCB *tcb) {
 
 	dictionary_destroy(tcb->dictionary_assigned_resources);
 
-	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) tcb_destroy);
+	list_destroy(tcb->shared_list_blocked_thread_join.list);
 
 	if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
 		log_error_pthread_mutex_destroy(status);

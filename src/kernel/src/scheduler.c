@@ -331,9 +331,11 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
+		/*
 		if(tid_release(&(tcb->pcb->thread_manager), tcb->TID)) {
 			exit_sigint();
 		}
+		*/
 		if(tcb_destroy(tcb)) {
 			exit_sigint();
 		}

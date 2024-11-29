@@ -68,7 +68,7 @@ void resources_unassign(t_TCB *tcb) {
 		t_hash_element *element = tcb->dictionary_assigned_resources->elements[table_index];
 		t_hash_element *next_element = NULL;
 
-		while (element != NULL) {
+		while(element != NULL) {
 
 			next_element = element->next;
 
@@ -116,21 +116,21 @@ void resources_unassign(t_TCB *tcb) {
 					exit_sigint();
 				}
 			}
-	
-			free(element->key);
-			free(element);
+
+			//free(element->key);
+			//free(element);
 
 			element = next_element;
 		}
 
-		tcb->dictionary_assigned_resources->elements[table_index] = NULL;
+		//tcb->dictionary_assigned_resources->elements[table_index] = NULL;
 	}
 
-	tcb->dictionary_assigned_resources->table_current_size = 0;
-	tcb->dictionary_assigned_resources->elements_amount = 0;
+	//tcb->dictionary_assigned_resources->table_current_size = 0;
+	//tcb->dictionary_assigned_resources->elements_amount = 0;
 
-	free(tcb->dictionary_assigned_resources->elements);
-	free(tcb->dictionary_assigned_resources);
+	//free(tcb->dictionary_assigned_resources->elements);
+	//free(tcb->dictionary_assigned_resources);
 
 	return;
 }
