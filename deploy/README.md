@@ -131,14 +131,14 @@ git config --global core.compression 0
 git config --global http.postBuffer 524288000
 ```
 
-3. Clonar
+3. Clonar (sin --recurse-submodules)
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 > Debería ser equivalente a:
 ```bash
-cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
+cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 ### En caso de que aparezca este error:
@@ -170,7 +170,7 @@ git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-so.git
 
 ## 8. (NO en el Deploy) Clonarse los submódulos del repositorio en Windows
 ```bash
-cd tp-2024-2c-so ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive --depth 1
 ```
 
 -----------------------------
@@ -830,20 +830,20 @@ Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not pro
 
 -----------------------------
 
-## 27. Clonar este repositorio
+## 27. Clonar este repositorio (sin --recurse-submodules)
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 Debería ser equivalente a:
 ```bash
-cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-so
+cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 -----------------------------
 
 ## 28. Clonarse los submódulos del repositorio
 ```bash
-cd tp-2024-2c-so ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive --depth 1
 ```
 
 -----------------------------
@@ -1068,6 +1068,11 @@ set +x
 sudo -s
 ```
 
+> Alternativa:
+```bash
+sudo su
+```
+
 - Salir de root
 ```bash
 exit
@@ -1173,7 +1178,7 @@ cp <origen> <destino>
 mv <origen> <destino>
 ```
 
-> Using mv command to move all files including the hidden files
+> Mover todos los archivos (incluidos los ocultos)
 ```bash
 mv -f /path/subdirectory/{.,}* /path/
 ```
@@ -1182,7 +1187,7 @@ mv -f /path/subdirectory/{.,}* /path/
 ```bash
 mv /path/subdirectory/* /path/subdirectory/.* /path/
 ```
-> Here, the asterisk (*) symbol represents all files in the subdirectory folder, and the dot-asterisk (.*) symbol represents all hidden files in the subdirectory folder. Both types of files will be moved to the path directory.
+> El asterisco (*) representa todos los archivos en la carpeta subdirectorio, y el punto asterisco (.*) representa a todos los archivos ocultos en la carpeta subdirectorio. Ambos tipos de archivos serán movidos al directorio destino.
 
 - Eliminar archivo(s) y/o directorio(s) recursivamente y forzosamente
 ```bash
@@ -1225,6 +1230,11 @@ xxd
 vi <archivo>
 ```
 
+	- Con `vim`
+```bash
+vim <archivo>
+```
+
 	- Con `nano`
 ```bash
 nano <archivo>
@@ -1256,6 +1266,11 @@ lsof
 lsof -i :8080
 ```
 
+- Terminar un proceso forzosamente
+```bash
+kill -s SIGKILL <PID>
+```
+
 - Listar todas las variables de entorno:
 ```bash
 env
@@ -1266,7 +1281,7 @@ env
 env | grep NOMBRE_VARIABLE
 ```
 
-> Imprimir valor variable
+> Imprimir valor de variable
 ```bash
 echo $NOMBRE_VARIABLE
 ```
