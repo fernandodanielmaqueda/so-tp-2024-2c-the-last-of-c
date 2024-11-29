@@ -9,6 +9,9 @@
 # Data files
 *.dat
 
+# Dump files
+*.dmp
+
 # Eclipse files
 .settings/
 .cproject
