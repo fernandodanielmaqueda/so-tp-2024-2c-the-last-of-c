@@ -103,5 +103,7 @@ void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazami
 void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 
+bool is_address_in_mapped_area(void *addr) ;	
+
 void create_directory(const char *path);
 #endif // FILESYSTEM_H
