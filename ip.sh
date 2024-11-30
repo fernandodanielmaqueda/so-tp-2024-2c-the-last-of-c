@@ -4,11 +4,11 @@
 select_module_ip() {
     while true; do
         # Buscamos la primer carpeta de Test adentro de Configs
-        configs_folder=configs/
-        first_folder=$(ls -d "$configs_folder"*/ | head -n 1)
+        configs_folder=configs
+        first_folder=$(ls -d "$configs_folder"/*/ | head -n 1)
         folder_name=$(basename "$first_folder")
 
-        printf "\n+-----------------------------------+\nModificador de IPs de configs en $configs_folder\n"
+        printf "\n+-----------------------------------+\nModificador de IPs de configs en $configs_folder/\n"
         printf "Se muestran las IPs encontradas en la primera carpeta de configs: $folder_name \n\n"
 
 
@@ -22,16 +22,16 @@ select_module_ip() {
             if grep -q "^IP_CPU=" "$config_file"; then
                 cpu_ip=$(grep -E "^IP_CPU=" "$config_file" | cut -d'=' -f2)
             fi
-            if grep -q "^IP_FILESYSTEM=" "$config_file"; then
-                filesystem_ip=$(grep -E "^IP_FILESYSTEM=" "$config_file" | cut -d'=' -f2)
-            fi
             if grep -q "^IP_MEMORIA=" "$config_file"; then
                 memoria_ip=$(grep -E "^IP_MEMORIA=" "$config_file" | cut -d'=' -f2)
+            fi
+            if grep -q "^IP_FILESYSTEM=" "$config_file"; then
+                filesystem_ip=$(grep -E "^IP_FILESYSTEM=" "$config_file" | cut -d'=' -f2)
             fi
         done
 
         PS3="Ingrese una de las siguientes opciones para actualizar las IPs (en todas los configs): "
-        options=("Salir" "+ CPU [$cpu_ip]" "+ FileSystem [$filesystem_ip]" "+ Memoria [$memoria_ip]" "Resetear todas las IPs a \"127.0.0.1\" (localhost)" "Aplicar las IPs mostradas en pantalla a todos los configs.")
+        options=("Salir" "+ CPU [$cpu_ip]" "+ Memoria [$memoria_ip]" "+ FileSystem [$filesystem_ip]" "Aplicar las IPs mostradas en pantalla a todos los configs" "Resetear todas las IPs a 127.0.0.1 (localhost)")
         select opt in "${options[@]}"; do
             case $REPLY in
                 1)
@@ -43,19 +43,19 @@ select_module_ip() {
                     break
                     ;;
                 3)
-                    update_ip "FILESYSTEM" "IP_FILESYSTEM"
-                    break
-                    ;;
-                4)
                     update_ip "MEMORIA" "IP_MEMORIA"
                     break
                     ;;
+                4)
+                    update_ip "FILESYSTEM" "IP_FILESYSTEM"
+                    break
+                    ;;
                 5)
-                    apply_all_ips "$cpu_ip" "$filesystem_ip" "$memoria_ip"
+                    apply_all_ips "$cpu_ip" "$memoria_ip" "$filesystem_ip"
                     break
                     ;;
                 6)
-                    apply_all_ips "127.0.0.1" "127.0.0.1" "127.0.0.1" "127.0.0.1"
+                    apply_all_ips "127.0.0.1" "127.0.0.1" "127.0.0.1"
                     break
                     ;;
                 *)
@@ -74,14 +74,14 @@ update_ip() {
 
     read -p "$module_name IP: " new_ip
 
-    for config_folder in "$configs_folder"*/; do
+    for config_folder in "$configs_folder"/*/; do
         for config_file in "${config_folder}"*.config; do
             if grep -q "^$ip_key=" "$config_file"; then
 
                 # Actualizar la IP
                 sed -i -E "s/^($ip_key=).*/\1$new_ip/" "$config_file"
 
-                printf "Actualizado IP de $ip_key en $config_file\n"
+                printf "Sobreescrito IP de $ip_key en $config_file\n"
             fi
         done
     done
@@ -92,21 +92,23 @@ update_ip() {
 # Funcion para aplicar todas las IPs mostradas a todos los archivos de configuracion adentro de la carpeta Configs
 apply_all_ips() {
     cpu_ip=$1
-    filesystem_ip=$2
-    memoria_ip=$3
+    memoria_ip=$2
+    filesystem_ip=$3
 
     for config_folder in "$configs_folder"/*/; do
         for config_file in "${config_folder}"*.config; do
 
             # Actualizar las IPs
             [[ -n "$cpu_ip" ]] && sed -i -E "s/(IP_CPU=).*/\1$cpu_ip/" "$config_file"
-            [[ -n "$filesystem_ip" ]] && sed -i -E "s/(IP_FILESYSTEM=).*/\1$filesystem_ip/" "$config_file"
             [[ -n "$memoria_ip" ]] && sed -i -E "s/(IP_MEMORIA=).*/\1$memoria_ip/" "$config_file"
+            [[ -n "$filesystem_ip" ]] && sed -i -E "s/(IP_FILESYSTEM=).*/\1$filesystem_ip/" "$config_file"
+
+            printf "Sobreescrito $config_file\n"
 
         done
     done
 
-    printf "\nTodas las IPs mostradas en pantalla se splicaron a todos los archivos de configuración de los Tests.\n"
+    printf "\nLas IPs de todas las configs se sobreescribieron a [CPU] $cpu_ip [Memoria] $memoria_ip [Filesystem] $filesystem_ip\n"
 }
 
 # Ejecutar la funcion "Main"
