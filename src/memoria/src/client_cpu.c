@@ -231,8 +231,6 @@ void read_memory(t_Payload *payload) {
         // TODO: Responder a CPU: goto
     }
 
-    // TODO
-
     char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
     pthread_cleanup_push((void (*)(void *)) free, data_string);
 
@@ -295,7 +293,7 @@ void write_memory(t_Payload *payload) {
         // TODO: Responder a CPU: goto
     }
 
-    // TODO
+    memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
 
     if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->fd_client)) {
         log_error(MODULE_LOGGER, "[%d] Error al enviar confirmación de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->fd_client, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
