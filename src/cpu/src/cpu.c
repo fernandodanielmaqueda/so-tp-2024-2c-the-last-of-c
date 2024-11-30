@@ -30,87 +30,143 @@ int module(int argc, char *argv[])
     MODULE_LOG_PATHNAME = "cpu.log";
     MODULE_CONFIG_PATHNAME = "cpu.config";
 
-    if(initialize_configs(MODULE_CONFIG_PATHNAME)) {
-        // TODO
-        goto error;
-    }
 
-    initialize_loggers();
-    initialize_global_variables();
-    initialize_sockets();
+	// Bloquea todas las señales para este y los hilos creados
+	sigset_t set;
+	if(sigfillset(&set)) {
+		perror("sigfillset");
+		return EXIT_FAILURE;
+	}
+	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
+		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		return EXIT_FAILURE;
+	}
 
-    if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler.thread), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
-        log_error_pthread_create(status);
-        // TODO
-    }
-    CLIENT_KERNEL_CPU_INTERRUPT.thread_client_handler.running = true;
 
-    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
-    instruction_cycle();
+    pthread_t thread_main = pthread_self();
 
-    // finish_threads();
-    finish_sockets();
-    // finish_configs();
-    finish_loggers();
-	finish_global_variables();
 
-    return EXIT_SUCCESS;
+	// Crea hilo para manejar señales
+	if((status = pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main))) {
+		log_error_pthread_create(status);
+		return EXIT_FAILURE;
+	}
+	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
 
-    error:
-    return EXIT_FAILURE;
-}
 
-int initialize_global_variables(void) {
-    int status;
+	// Config
+	if((MODULE_CONFIG = config_create(MODULE_CONFIG_PATHNAME)) == NULL) {
+		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", MODULE_CONFIG_PATHNAME);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) config_destroy, MODULE_CONFIG);
 
+
+	// Parse config
+	if(read_module_config(MODULE_CONFIG)) {
+		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", MODULE_CONFIG_PATHNAME);
+		exit_sigint();
+	}
+
+	// Loggers
+	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
+	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
+	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
+	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+
+	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
+		log_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
+	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+
+
+    // MUTEX_EXEC_CONTEXT
     if((status = pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL))) {
         log_error_pthread_mutex_init(status);
-        goto error;
+        exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXEC_CONTEXT);
 
+
+    // MUTEX_EXECUTING
     if((status = pthread_mutex_init(&MUTEX_EXECUTING, NULL))) {
         log_error_pthread_mutex_init(status);
-        goto error_mutex_exec_context;
+        exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXECUTING);
 
+
+    // MUTEX_KERNEL_INTERRUPT
     if((status = pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL))) {
         log_error_pthread_mutex_init(status);
-        goto error_mutex_executing;
+        exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_KERNEL_INTERRUPT);
 
-    return 0;
 
-    error_mutex_executing:
-    if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
-        log_error_pthread_mutex_destroy(status);
+	// Sockets
+	pthread_cleanup_push((void (*)(void *)) finish_sockets, NULL);
+	initialize_sockets();
+
+    if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.thread), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
+        log_error_pthread_create(status);
+         exit_sigint();
     }
-    error_mutex_exec_context:
-    if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
-        log_error_pthread_mutex_destroy(status);
-    }
-    error:
-    return -1;
-}
+    CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.running = true;
 
-int finish_global_variables(void) {
-    int retval = 0, status;
+    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
-    if((status = pthread_mutex_destroy(&MUTEX_EXEC_CONTEXT))) {
-        log_error_pthread_mutex_destroy(status);
-        retval = -1;
-    }
 
-    if((status = pthread_mutex_destroy(&MUTEX_EXECUTING))) {
-        log_error_pthread_mutex_destroy(status);
-        retval = -1;
-    }
+    instruction_cycle();
 
-    if((status = pthread_mutex_destroy(&MUTEX_KERNEL_INTERRUPT))) {
-        log_error_pthread_mutex_destroy(status);
-        retval = -1;
-    }
 
-    return retval;
+	// Cleanup
+	pthread_cleanup_pop(1); // Sockets
+	pthread_cleanup_pop(1); // MUTEX_KERNEL_INTERRUPT
+	pthread_cleanup_pop(1); // MUTEX_EXECUTING
+	pthread_cleanup_pop(1); // MUTEX_EXEC_CONTEXT
+	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
+	pthread_cleanup_pop(1); // SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
+	pthread_cleanup_pop(1); // MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_CONFIG
+	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
+
+    return EXIT_SUCCESS;
 }
 
 int read_module_config(t_config *MODULE_CONFIG) {
@@ -123,10 +179,10 @@ int read_module_config(t_config *MODULE_CONFIG) {
     CONNECTION_MEMORY = (t_Connection) {.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
     SERVER_CPU_DISPATCH = (t_Server) {.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
-    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH, .thread_client_handler.running = false};
+    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
 
     SERVER_CPU_INTERRUPT = (t_Server) {.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
-    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT, .thread_client_handler.running = false};
+    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 
@@ -161,27 +217,27 @@ void instruction_cycle(void)
             log_error_pthread_mutex_lock(status);
             // TODO
         }
-            if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
-                log_error(MODULE_LOGGER, "[%d] Error al recibir dispatch de hilo de [Cliente] %s", CLIENT_KERNEL_CPU_DISPATCH.fd_client, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type]);
+            if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
+                log_error(MODULE_LOGGER, "[%d] Error al recibir dispatch de hilo de [Cliente] %s", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type]);
                 exit(EXIT_FAILURE);
             }
-            log_trace(MODULE_LOGGER, "[%d] Se recibe dispatch de hilo de [Cliente] %s [PID: %u - TID: %u]", CLIENT_KERNEL_CPU_DISPATCH.fd_client, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID);
+            log_trace(MODULE_LOGGER, "[%d] Se recibe dispatch de hilo de [Cliente] %s [PID: %u - TID: %u]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID);
 
             log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
 
             // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
-            if(send_pid_and_tid_with_header(EXEC_CONTEXT_REQUEST_HEADER, PID, TID, CONNECTION_MEMORY.fd_connection)) {
-                log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+            if(send_pid_and_tid_with_header(EXEC_CONTEXT_REQUEST_HEADER, PID, TID, CONNECTION_MEMORY.socket_connection.fd)) {
+                log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
                 exit(EXIT_FAILURE);
             }
-            log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+            log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
 
             // Recibo la respuesta de memoria con el contexto de ejecución
-            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
-                log_error(MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
+                log_error(MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
                 exit(EXIT_FAILURE);
             }
-            log_trace(MODULE_LOGGER, "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.fd_connection, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+            log_trace(MODULE_LOGGER, "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
 
         if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
             log_error_pthread_mutex_unlock(status);
@@ -319,17 +375,17 @@ void instruction_cycle(void)
         }
             log_info(MINIMAL_LOGGER, "## TID: %u - Actualizo Contexto Ejecución", TID);
 
-            if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.fd_connection)) {
+            if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
                 // TODO
                 exit(EXIT_FAILURE);
             }
 
-            if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.fd_connection)) {
+            if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
                 // TODO
                 exit(EXIT_FAILURE);
             }
 
-            if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
+            if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
                 // TODO
                 exit(EXIT_FAILURE);
             }
@@ -357,7 +413,7 @@ void *kernel_cpu_interrupt_handler(void) {
 
     while(1) {
 
-        if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
+        if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd)) {
             // TODO
             exit(EXIT_FAILURE);
         }
@@ -419,11 +475,11 @@ int cpu_fetch_next_instruction(char **line) {
         return -1;
     }
 
-    if(send_instruction_request(PID, TID, EXEC_CONTEXT.cpu_registers.PC, CONNECTION_MEMORY.fd_connection)) {
+    if(send_instruction_request(PID, TID, EXEC_CONTEXT.cpu_registers.PC, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         return -1;
     }
-    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.fd_connection)) {
+    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         return -1;
     }
@@ -470,12 +526,12 @@ int request_memory_write(size_t physical_address, void *source, size_t bytes) {
         return -1;
     }
 
-    if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.fd_connection)) {
+    if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         return -1;
     }
 
-    if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.fd_connection)) {
+    if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         return -1;
     }
@@ -490,7 +546,7 @@ int request_memory_read(size_t physical_address, void *destination, size_t bytes
         return -1;
     }
 
-    if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.fd_connection)) {
+    if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         exit(EXIT_FAILURE);
     }
@@ -498,7 +554,7 @@ int request_memory_read(size_t physical_address, void *destination, size_t bytes
     void *buffer;
     size_t bufferSize;
 
-    if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.fd_connection)) {
+    if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.socket_connection.fd)) {
         // TODO
         exit(EXIT_FAILURE);
     }

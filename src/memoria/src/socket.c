@@ -18,13 +18,13 @@ void memory_client_handler(t_Client *new_client) {
 	bool created = false;
 	t_Conditional_Cleanup new_client_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) new_client, .condition = &created, .negate_condition = true };
     pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &new_client_cleanup);
-    t_Conditional_Cleanup fd_client_cleanup = { .function = (void (*)(void *)) wrapper_close, .argument = (void *) &(new_client->fd_client), .condition = &created, .negate_condition = true };
+    t_Conditional_Cleanup fd_client_cleanup = { .function = (void (*)(void *)) wrapper_close, .argument = (void *) &(new_client->socket_client.fd), .condition = &created, .negate_condition = true };
     pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &fd_client_cleanup);
 
-        new_client->thread_client_handler.running = false;
+        new_client->socket_client.bool_thread.running = false;
 
         bool join = false;
-        t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(new_client->thread_client_handler.thread), .condition = &join, .negate_condition = false };
+        t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(new_client->socket_client.bool_thread.thread), .condition = &join, .negate_condition = false };
         pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
 
             if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
@@ -33,16 +33,16 @@ void memory_client_handler(t_Client *new_client) {
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
 
-                if((status = pthread_create(&(new_client->thread_client_handler.thread), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
+                if((status = pthread_create(&(new_client->socket_client.bool_thread.thread), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
                     log_error_pthread_create(status);
                     exit_sigint();
                 }
-                pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->thread_client_handler.thread));
+                pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->socket_client.bool_thread.thread));
 
                     created = true;
 
                     join = true;
-                        if((status = pthread_detach(new_client->thread_client_handler.thread))) {
+                        if((status = pthread_detach(new_client->socket_client.bool_thread.thread))) {
                             log_error_pthread_detach(status);
                             exit_sigint();
                         }
@@ -50,7 +50,7 @@ void memory_client_handler(t_Client *new_client) {
 
                 pthread_cleanup_pop(0); // cancel_thread
 
-                new_client->thread_client_handler.running = true;
+                new_client->socket_client.bool_thread.running = true;
 
                 list_add((SHARED_LIST_CLIENTS.list), new_client);
 
@@ -75,30 +75,30 @@ void *memory_thread_for_client(t_Client *new_client) {
 
 	pthread_cleanup_push((void (*)(void *)) remove_client_thread, new_client);
 
-    log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+    log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
     e_Port_Type port_type;
 
-    if(receive_port_type(&port_type, new_client->fd_client)) {
-        log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
+    if(receive_port_type(&port_type, new_client->socket_client.fd)) {
+        log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
         exit_sigint();
     }
-    log_trace(SOCKET_LOGGER, "[%d] Se recibe Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
+    log_trace(SOCKET_LOGGER, "[%d] Se recibe Handshake de [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
 
     switch(port_type) {
         case KERNEL_PORT_TYPE:
         {
             new_client->client_type = KERNEL_PORT_TYPE;
 
-            if(send_port_type(MEMORY_PORT_TYPE, new_client->fd_client)) {
-                log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            if(send_port_type(MEMORY_PORT_TYPE, new_client->socket_client.fd)) {
+                log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envia Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
-            log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
-            listen_kernel(new_client->fd_client);
+            listen_kernel(new_client->socket_client.fd);
             break;
         }
 
@@ -113,7 +113,7 @@ void *memory_thread_for_client(t_Client *new_client) {
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CLIENT_CPU);
 
                 if(CLIENT_CPU != NULL) {
-                    log_warning(SOCKET_LOGGER, "[%d] Ya conectado un [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+                    log_warning(SOCKET_LOGGER, "[%d] Ya conectado un [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                     result = -1;
                     goto cleanup_mutex_client_cpu;
                 }
@@ -128,22 +128,22 @@ void *memory_thread_for_client(t_Client *new_client) {
             }
 
             if(result) {
-                if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client)) {
-                    log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+                if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->socket_client.fd)) {
+                    log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                     exit_sigint();
                 }
-                log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+                log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
                 break;
             }
 
-            if(send_port_type(MEMORY_PORT_TYPE, new_client->fd_client)) {
-                log_warning(SOCKET_LOGGER, "[%d] Error al enviar reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            if(send_port_type(MEMORY_PORT_TYPE, new_client->socket_client.fd)) {
+                log_warning(SOCKET_LOGGER, "[%d] Error al enviar reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envia reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
-            log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+            log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
             listen_cpu();
             break;
@@ -151,13 +151,13 @@ void *memory_thread_for_client(t_Client *new_client) {
 
         default:
         {
-            log_warning(SOCKET_LOGGER, "[%d] No se reconoce Handshake de [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
+            log_warning(SOCKET_LOGGER, "[%d] No se reconoce Handshake de [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
 
-            if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->fd_client)) {
-                log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
+            if(send_port_type(TO_BE_IDENTIFIED_PORT_TYPE, new_client->socket_client.fd)) {
+                log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->fd_client, PORT_NAMES[port_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
 
             break;
         }
@@ -175,7 +175,7 @@ int remove_client_thread(t_Client *client) {
 	int retval = 0, status;
 
     pthread_cleanup_push((void (*)(void *)) free, client);
-    pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->fd_client));
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->socket_client.fd));
 
         if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
             log_error_pthread_mutex_lock(status);
@@ -201,7 +201,7 @@ int remove_client_thread(t_Client *client) {
 
     cleanup_fd_client:
     pthread_cleanup_pop(0); // fd_client
-    if(close(client->fd_client)) {
+    if(close(client->socket_client.fd)) {
         log_error_close();
         retval = -1;
     }
@@ -223,7 +223,7 @@ int wait_client_threads(void) {
         t_link_element *current = SHARED_LIST_CLIENTS.list->head;
         while(current != NULL) {
             t_Client *client = current->data;
-            if((status = pthread_cancel(client->thread_client_handler.thread))) {
+            if((status = pthread_cancel(client->socket_client.bool_thread.thread))) {
                 log_error_pthread_cancel(status);
                 retval = -1;
                 goto cleanup_mutex_clients;

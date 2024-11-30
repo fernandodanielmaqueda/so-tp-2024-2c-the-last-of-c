@@ -342,16 +342,16 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
         t_Connection connection_filesystem = (t_Connection) {.client_type = MEMORY_PORT_TYPE, .server_type = FILESYSTEM_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_FILESYSTEM"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_FILESYSTEM")};
 
         client_thread_connect_to_server(&connection_filesystem);
-        pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_filesystem.fd_connection));
+        pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_filesystem.socket_connection.fd));
 
             char *dump_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size);
             pthread_cleanup_push((void (*)(void *)) free, dump_string);
 
-                if(send_memory_dump(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.fd_connection)) {
+                if(send_memory_dump(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.socket_connection.fd)) {
                     log_error(MODULE_LOGGER,
                       "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
                       "%s"
-                      , connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                      , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
                       , dump_string
                     );
                     exit_sigint();
@@ -359,7 +359,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
                 log_trace(MODULE_LOGGER,
                   "[%d] Se envía operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
                   "%s"
-                  , connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                  , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
                   , dump_string
                 );
 
@@ -367,14 +367,14 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
 
             log_info(MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
-            if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_filesystem.fd_connection)) {
-                log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid);
+            if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_filesystem.socket_connection.fd)) {
+                log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
                 exit_sigint();
             }
-            log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.fd_connection, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
+            log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
 
         pthread_cleanup_pop(0);
-        if(close(connection_filesystem.fd_connection)) {
+        if(close(connection_filesystem.socket_connection.fd)) {
             log_error_close();
             exit_sigint();
         }

@@ -48,9 +48,6 @@ extern t_Payload SYSCALL_INSTRUCTION;
 
 int module(int, char*[]);
 
-int initialize_global_variables(void);
-int finish_global_variables(void);
-
 int read_module_config(t_config *module_config);
 
 void instruction_cycle(void);

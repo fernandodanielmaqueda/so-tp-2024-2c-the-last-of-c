@@ -13,19 +13,19 @@ void *server_thread_for_client(t_Client *new_client) {
 
   while(1) {
     while(1) {
-      log_trace(SOCKET_LOGGER, "[%d] Esperando [Cliente] %s en Puerto: %s", new_client->server->fd_listen, PORT_NAMES[new_client->server->clients_type], new_client->server->port);
-      new_client->fd_client = server_accept(new_client->server->fd_listen);
+      log_trace(SOCKET_LOGGER, "[%d] Esperando [Cliente] %s en Puerto: %s", new_client->server->socket_listen.fd, PORT_NAMES[new_client->server->clients_type], new_client->server->port);
+      new_client->socket_client.fd = server_accept(new_client->server->socket_listen.fd);
 
-      if(new_client->fd_client != -1)
+      if((new_client->socket_client.fd) != -1)
           break;
 
-      log_warning(SOCKET_LOGGER, "[%d] Fallo al aceptar [Cliente] %s", new_client->server->fd_listen, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
+      log_warning(SOCKET_LOGGER, "[%d] Fallo al aceptar [Cliente] %s", new_client->server->socket_listen.fd, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE]);
     }
 
-    log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", new_client->server->fd_listen, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE], new_client->fd_client);
+    log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", new_client->server->socket_listen.fd, PORT_NAMES[TO_BE_IDENTIFIED_PORT_TYPE], new_client->socket_client.fd);
 
-    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->fd_client)) {
-      if(close(new_client->fd_client)) {
+    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->socket_client.fd)) {
+      if(close(new_client->socket_client.fd)) {
         log_error_close();
       }
       continue;
@@ -34,8 +34,8 @@ void *server_thread_for_client(t_Client *new_client) {
     break;
   }
 
-  log_debug(SOCKET_LOGGER, "[%d] Cierre de [Servidor] %s para Cliente [%s] en Puerto: %s", new_client->server->fd_listen, PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type], new_client->server->port);
-  if(close(new_client->server->fd_listen)) {
+  log_debug(SOCKET_LOGGER, "[%d] Cierre de [Servidor] %s para Cliente [%s] en Puerto: %s", new_client->server->socket_listen.fd, PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type], new_client->server->port);
+  if(close(new_client->server->socket_listen.fd)) {
     log_error_close();
   }
 
@@ -48,15 +48,15 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 	int fd_new_client;
 	t_Client *new_client;
 
-  pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(server->fd_listen));
+  pthread_cleanup_push((void (*)(void *)) wrapper_close, (void *) &(server->socket_listen.fd));
 	server_start(server);
 
 	while(1) {
-		log_trace(SOCKET_LOGGER, "[%d] Esperando [Cliente] %s en Puerto: %s", server->fd_listen, PORT_NAMES[server->clients_type], server->port);
-		fd_new_client = server_accept(server->fd_listen);
+		log_trace(SOCKET_LOGGER, "[%d] Esperando [Cliente] %s en Puerto: %s", server->socket_listen.fd, PORT_NAMES[server->clients_type], server->port);
+		fd_new_client = server_accept(server->socket_listen.fd);
 
 		if(fd_new_client == -1) {
-			log_warning(SOCKET_LOGGER, "[%d] Fallo al aceptar [Cliente] %s", server->fd_listen, PORT_NAMES[server->clients_type]);
+			log_warning(SOCKET_LOGGER, "[%d] Fallo al aceptar [Cliente] %s", server->socket_listen.fd, PORT_NAMES[server->clients_type]);
 			continue;
 		}
 
@@ -70,12 +70,12 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 		}
     pthread_cleanup_push((void (*)(void *)) free, new_client);
 
-    log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->fd_listen, PORT_NAMES[server->clients_type], fd_new_client);
+    log_trace(SOCKET_LOGGER, "[%d] Aceptado [Cliente] %s [%d]", server->socket_listen.fd, PORT_NAMES[server->clients_type], fd_new_client);
 
-    new_client->fd_client = fd_new_client;
+    new_client->socket_client.fd = fd_new_client;
+    new_client->socket_client.bool_thread.running = false;
     new_client->client_type = server->clients_type;
     new_client->server = server;
-    new_client->thread_client_handler.running = false;
 
     pthread_cleanup_pop(retval); // new_client
 
@@ -89,7 +89,7 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
     client_handler(new_client);
 	}
 
-  pthread_cleanup_pop(1); // server->fd_listen
+  pthread_cleanup_pop(1); // server->socket_listen.fd
 
 	return NULL;
 }
@@ -98,9 +98,9 @@ void server_start(t_Server *server) {
 
   while(1) {
     log_info(SOCKET_LOGGER, "Intentando iniciar [Servidor] %s en Puerto: %s...", PORT_NAMES[server->server_type], server->port);
-    server->fd_listen = server_start_try(server->port);
+    server->socket_listen.fd = server_start_try(server->port);
 
-    if(server->fd_listen != -1)
+    if((server->socket_listen.fd) != -1)
       break;
 
     log_warning(SOCKET_LOGGER, "No se pudo iniciar [Servidor] %s en Puerto: %s. Reintentando en %d segundos...", PORT_NAMES[server->server_type], server->port, RETRY_CONNECTION_IN_SECONDS);
@@ -108,7 +108,7 @@ void server_start(t_Server *server) {
 
   }
 
-  log_debug(SOCKET_LOGGER, "[%d] Escuchando [Servidor] %s en Puerto: %s", server->fd_listen, PORT_NAMES[server->server_type], server->port);
+  log_debug(SOCKET_LOGGER, "[%d] Escuchando [Servidor] %s en Puerto: %s", server->socket_listen.fd, PORT_NAMES[server->server_type], server->port);
 }
 
 int server_start_try(char *port) {
@@ -223,30 +223,30 @@ void *client_thread_connect_to_server(t_Connection *connection) {
   while(1) {
     while(1) {
       log_info(SOCKET_LOGGER, "Intentando conectar con [Servidor] %s en IP: %s - Puerto: %s...", PORT_NAMES[connection->server_type], connection->ip, connection->port);
-      connection->fd_connection = client_start_try(connection->ip, connection->port);
+      connection->socket_connection.fd = client_start_try(connection->ip, connection->port);
 
-      if(connection->fd_connection != -1)
+      if((connection->socket_connection.fd) != -1)
         break;
 
       log_warning(SOCKET_LOGGER, "No se pudo conectar con [Servidor] %s en IP: %s - Puerto: %s. Reintentando en %d segundos...", PORT_NAMES[connection->server_type], connection->ip, connection->port, RETRY_CONNECTION_IN_SECONDS);
       sleep(RETRY_CONNECTION_IN_SECONDS);
     }
 
-    log_trace(SOCKET_LOGGER, "[%d] Conectado con [Servidor] %s", connection->fd_connection, PORT_NAMES[connection->server_type]);
+    log_trace(SOCKET_LOGGER, "[%d] Conectado con [Servidor] %s", connection->socket_connection.fd, PORT_NAMES[connection->server_type]);
 
     // Handshake
 
-    if(send_port_type(connection->client_type, connection->fd_connection)) {
-      log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      if(close(connection->fd_connection)) {
+    if(send_port_type(connection->client_type, connection->socket_connection.fd)) {
+      log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
+      if(close(connection->socket_connection.fd)) {
         log_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
-    if(receive_port_type(&port_type, connection->fd_connection)) {
-      log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      if(close(connection->fd_connection)) {
+    if(receive_port_type(&port_type, connection->socket_connection.fd)) {
+      log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
+      if(close(connection->socket_connection.fd)) {
         log_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
@@ -254,19 +254,19 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     }
 
     if(port_type != connection->server_type) {
-      log_warning(SOCKET_LOGGER, "[%d] No reconocido Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->fd_connection, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
-      if(close(connection->fd_connection)) {
+      log_warning(SOCKET_LOGGER, "[%d] No reconocido Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
+      if(close(connection->socket_connection.fd)) {
         log_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
 
-    log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Servidor] %s", connection->fd_connection, PORT_NAMES[connection->server_type]);
+    log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Servidor] %s", connection->socket_connection.fd, PORT_NAMES[connection->server_type]);
     break;
   }
 
-  log_trace(MODULE_LOGGER, "[%d] Conexión con [Servidor] %s exitosa", connection->fd_connection, PORT_NAMES[connection->server_type]);
+  log_trace(MODULE_LOGGER, "[%d] Conexión con [Servidor] %s exitosa", connection->socket_connection.fd, PORT_NAMES[connection->server_type]);
 
   return NULL;
 }

@@ -387,8 +387,8 @@ int read_module_config(t_config *module_config) {
         return -1;
     }
 
-	CONNECTION_CPU_DISPATCH = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH"), .thread_connection = {.running = false}};
-	CONNECTION_CPU_INTERRUPT = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT"), .thread_connection = {.running = false}};
+	CONNECTION_CPU_DISPATCH = (t_Connection) {.socket_connection.fd = -1, .socket_connection.bool_thread.running = false, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
+	CONNECTION_CPU_INTERRUPT = (t_Connection) {.socket_connection.fd = -1, .socket_connection.bool_thread.running = false, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
 
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
@@ -873,25 +873,25 @@ int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
 	client_thread_connect_to_server(&connection_memory);
-	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
-		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.socket_connection.fd)) {
+			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 
-		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.socket_connection.fd)) {
+			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 
 	cleanup_connection:
 	pthread_cleanup_pop(0);
-	if(close(connection_memory.fd_connection)) {
+	if(close(connection_memory.socket_connection.fd)) {
 		log_error_close();
 		return -1;
 	}
