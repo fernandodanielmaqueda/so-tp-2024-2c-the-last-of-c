@@ -31,11 +31,11 @@ int module(int argc, char *argv[])
 	// Bloquea todas las señales para este y los hilos creados
 	sigset_t set;
 	if(sigfillset(&set)) {
-		log_error_sigfillset();
+		report_error_sigfillset();
 		return EXIT_FAILURE;
 	}
 	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
-		log_error_pthread_sigmask(status);
+		report_error_pthread_sigmask(status);
 		return EXIT_FAILURE;
 	}
 
@@ -45,7 +45,7 @@ int module(int argc, char *argv[])
 
 	// Crea hilo para manejar señales
 	if((status = pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		return EXIT_FAILURE;
 	}
 	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
@@ -67,7 +67,7 @@ int module(int argc, char *argv[])
 
 	// Loggers
 	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
@@ -77,7 +77,7 @@ int module(int argc, char *argv[])
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
@@ -87,7 +87,7 @@ int module(int argc, char *argv[])
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
@@ -97,7 +97,7 @@ int module(int argc, char *argv[])
 	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
 
 	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
@@ -109,7 +109,7 @@ int module(int argc, char *argv[])
 
     // MUTEX_EXEC_CONTEXT
     if((status = pthread_mutex_init(&MUTEX_EXEC_CONTEXT, NULL))) {
-        log_error_pthread_mutex_init(status);
+        report_error_pthread_mutex_init(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXEC_CONTEXT);
@@ -117,7 +117,7 @@ int module(int argc, char *argv[])
 
     // MUTEX_EXECUTING
     if((status = pthread_mutex_init(&MUTEX_EXECUTING, NULL))) {
-        log_error_pthread_mutex_init(status);
+        report_error_pthread_mutex_init(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXECUTING);
@@ -125,7 +125,7 @@ int module(int argc, char *argv[])
 
     // MUTEX_KERNEL_INTERRUPT
     if((status = pthread_mutex_init(&MUTEX_KERNEL_INTERRUPT, NULL))) {
-        log_error_pthread_mutex_init(status);
+        report_error_pthread_mutex_init(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_KERNEL_INTERRUPT);
@@ -136,7 +136,7 @@ int module(int argc, char *argv[])
 	initialize_sockets();
 
     if((status = pthread_create(&(CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.thread), NULL, (void *(*)(void *)) kernel_cpu_interrupt_handler, NULL))) {
-        log_error_pthread_create(status);
+        report_error_pthread_create(status);
          exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &(CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.thread));
@@ -204,14 +204,14 @@ void instruction_cycle(void)
     while(1) {
 
         if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
             KERNEL_INTERRUPT = NONE_KERNEL_INTERRUPT;
         pthread_cleanup_pop(0);
         if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 
@@ -219,7 +219,7 @@ void instruction_cycle(void)
         pthread_cleanup_push((void (*)(void *)) payload_destroy, &SYSCALL_INSTRUCTION);
 
             if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
@@ -273,19 +273,19 @@ void instruction_cycle(void)
 
             pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
             if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
             if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
                 EXECUTING = 1;
             pthread_cleanup_pop(0); // MUTEX_EXECUTING
             if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
@@ -357,7 +357,7 @@ void instruction_cycle(void)
                 }
 
                 if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-                    log_error_pthread_mutex_lock(status);
+                    report_error_pthread_mutex_lock(status);
                     exit_sigint();
                 }
                 pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
@@ -367,7 +367,7 @@ void instruction_cycle(void)
                     }
                 pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
                 if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-                    log_error_pthread_mutex_unlock(status);
+                    report_error_pthread_mutex_unlock(status);
                     exit_sigint();
                 }
 
@@ -382,7 +382,7 @@ void instruction_cycle(void)
                 }
 
                 if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-                    log_error_pthread_mutex_lock(status);
+                    report_error_pthread_mutex_lock(status);
                     exit_sigint();
                 }
                 pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
@@ -393,7 +393,7 @@ void instruction_cycle(void)
                     }
                 pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
                 if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-                    log_error_pthread_mutex_unlock(status);
+                    report_error_pthread_mutex_unlock(status);
                     exit_sigint();
                 }
 
@@ -405,19 +405,19 @@ void instruction_cycle(void)
             eviction:
 
             if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
                 EXECUTING = 0;
             pthread_cleanup_pop(0); // MUTEX_EXECUTING
             if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
             if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
@@ -494,7 +494,7 @@ void instruction_cycle(void)
 
             pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
             if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
@@ -524,7 +524,7 @@ void *kernel_cpu_interrupt_handler(void) {
         log_trace(MODULE_LOGGER, "[%d]: Se recibe interrupción de [Cliente] %s [PID: %u - TID: %u - Interrupción: %s]", CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_INTERRUPT.client_type], pid, tid, KERNEL_INTERRUPT_NAMES[kernel_interrupt]);
 
         if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
@@ -533,7 +533,7 @@ void *kernel_cpu_interrupt_handler(void) {
             }
         pthread_cleanup_pop(0); // MUTEX_EXECUTING
         if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 
@@ -542,7 +542,7 @@ void *kernel_cpu_interrupt_handler(void) {
         }
 
         if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
@@ -551,7 +551,7 @@ void *kernel_cpu_interrupt_handler(void) {
             }
         pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
         if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 
@@ -562,7 +562,7 @@ void *kernel_cpu_interrupt_handler(void) {
         log_info(MINIMAL_LOGGER, "## Llega interrupción al puerto Interrupt");
 
         if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
@@ -571,7 +571,7 @@ void *kernel_cpu_interrupt_handler(void) {
                 KERNEL_INTERRUPT = kernel_interrupt;
         pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
         if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 

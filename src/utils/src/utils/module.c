@@ -34,41 +34,41 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 	sigset_t set_SIGINT, set_rest;
 
 	if(sigemptyset(&set_SIGINT)) {
-		log_error_sigemptyset();
+		report_error_sigemptyset();
 		goto cancel;
 	}
 
 	if(sigaddset(&set_SIGINT, SIGINT)) {
-		log_error_sigaddset();
+		report_error_sigaddset();
 		goto cancel;
 	}
 
 	/*
 	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
-		log_error_pthread_sigmask(status);
+		report_error_pthread_sigmask(status);
 		goto cancel;
 	}
 	*/
 
 	if(sigfillset(&set_rest)) {
-		log_error_sigfillset();
+		report_error_sigfillset();
 		goto cancel;
 	}
 
 	if(sigdelset(&set_rest, SIGINT)) {
-		log_error_sigdelset();
+		report_error_sigdelset();
 		goto cancel;
 	}
 
 	if((status = pthread_sigmask(SIG_UNBLOCK, &set_rest, NULL))) {
-		log_error_pthread_sigmask(status);
+		report_error_pthread_sigmask(status);
 		goto cancel;
 	}
 
 	siginfo_t info;
 	int signo;
 	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
-		log_error_sigwaitinfo();
+		report_error_sigwaitinfo();
 		//goto cancel;
 	}
 
@@ -76,15 +76,15 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 
 	cancel:
 		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
-			log_error_pthread_sigmask(status);
+			report_error_pthread_sigmask(status);
 		}
 
 		if((status = pthread_sigmask(SIG_BLOCK, &set_rest, NULL))) {
-			log_error_pthread_sigmask(status);
+			report_error_pthread_sigmask(status);
 		}
 
 		if((status = pthread_cancel(*thread_to_cancel))) {
-			log_error_pthread_cancel(status);
+			report_error_pthread_cancel(status);
 		}
 
 		pthread_exit(NULL);
@@ -197,147 +197,147 @@ int finish_logger(t_log **logger) {
 	return 0;
 }
 
-void log_error_close(void) {
+void report_error_close(void) {
 	fprintf(stderr, "close: %s\n", strerror(errno));
 }
 
-void log_error_fclose(void) {
+void report_error_fclose(void) {
 	fprintf(stderr, "fclose: %s\n", strerror(errno));
 }
 
-void log_error_sem_init(void) {
+void report_error_sem_init(void) {
 	fprintf(stderr, "sem_init: %s\n", strerror(errno));
 }
 
-void log_error_sem_destroy(void) {
+void report_error_sem_destroy(void) {
 	fprintf(stderr, "sem_destroy: %s\n", strerror(errno));
 }
 
-void log_error_sem_wait(void) {
+void report_error_sem_wait(void) {
 	fprintf(stderr, "sem_wait: %s\n", strerror(errno));
 }
 
-void log_error_sem_post(void) {
+void report_error_sem_post(void) {
 	fprintf(stderr, "sem_post: %s\n", strerror(errno));
 }
 
-void log_error_pthread_mutex_init(int status) {
+void report_error_pthread_mutex_init(int status) {
 	fprintf(stderr, "pthread_mutex_init: %s\n", strerror(status));
 }
 
-void log_error_pthread_mutex_destroy(int status) {
+void report_error_pthread_mutex_destroy(int status) {
 	fprintf(stderr, "pthread_mutex_destroy: %s\n", strerror(status));
 }
 
-void log_error_pthread_mutex_lock(int status) {
+void report_error_pthread_mutex_lock(int status) {
 	fprintf(stderr, "pthread_mutex_lock: %s\n", strerror(status));
 }
 
-void log_error_pthread_mutex_unlock(int status) {
+void report_error_pthread_mutex_unlock(int status) {
 	fprintf(stderr, "pthread_mutex_unlock: %s\n", strerror(status));
 }
 
-void log_error_pthread_rwlock_init(int status) {
+void report_error_pthread_rwlock_init(int status) {
 	fprintf(stderr, "pthread_rwlock_init: %s\n", strerror(status));
 }
 
-void log_error_pthread_rwlock_destroy(int status) {
+void report_error_pthread_rwlock_destroy(int status) {
 	fprintf(stderr, "pthread_rwlock_destroy: %s\n", strerror(status));
 }
 
-void log_error_pthread_rwlock_wrlock(int status) {
+void report_error_pthread_rwlock_wrlock(int status) {
 	fprintf(stderr, "pthread_rwlock_wrlock: %s\n", strerror(status));
 }
 
-void log_error_pthread_rwlock_rdlock(int status) {
+void report_error_pthread_rwlock_rdlock(int status) {
 	fprintf(stderr, "pthread_rwlock_rdlock: %s\n", strerror(status));
 }
 
-void log_error_pthread_rwlock_unlock(int status) {
+void report_error_pthread_rwlock_unlock(int status) {
 	fprintf(stderr, "pthread_rwlock_unlock: %s\n", strerror(status));
 }
 
-void log_error_pthread_create(int status) {
+void report_error_pthread_create(int status) {
 	fprintf(stderr, "pthread_create: %s\n", strerror(status));
 }
 
-void log_error_pthread_detach(int status) {
+void report_error_pthread_detach(int status) {
 	fprintf(stderr, "pthread_detach: %s\n", strerror(status));
 }
 
-void log_error_pthread_cancel(int status) {
+void report_error_pthread_cancel(int status) {
 	fprintf(stderr, "pthread_cancel: %s\n", strerror(status));
 }
 
-void log_error_pthread_join(int status) {
+void report_error_pthread_join(int status) {
 	fprintf(stderr, "pthread_join: %s\n", strerror(status));
 }
 
-void log_error_pthread_condattr_init(int status) {
+void report_error_pthread_condattr_init(int status) {
 	fprintf(stderr, "pthread_condattr_init: %s\n", strerror(status));
 }
 
-void log_error_pthread_condattr_destroy(int status) {
+void report_error_pthread_condattr_destroy(int status) {
 	fprintf(stderr, "pthread_condattr_destroy: %s\n", strerror(status));
 }
 
-void log_error_pthread_condattr_setclock(int status) {
+void report_error_pthread_condattr_setclock(int status) {
 	fprintf(stderr, "pthread_condattr_setclock: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_init(int status) {
+void report_error_pthread_cond_init(int status) {
 	fprintf(stderr, "pthread_cond_init: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_destroy(int status) {
+void report_error_pthread_cond_destroy(int status) {
 	fprintf(stderr, "pthread_cond_destroy: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_wait(int status) {
+void report_error_pthread_cond_wait(int status) {
 	fprintf(stderr, "pthread_cond_wait: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_timedwait(int status) {
+void report_error_pthread_cond_timedwait(int status) {
 	fprintf(stderr, "pthread_cond_timedwait: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_signal(int status) {
+void report_error_pthread_cond_signal(int status) {
 	fprintf(stderr, "pthread_cond_signal: %s\n", strerror(status));
 }
 
-void log_error_pthread_cond_broadcast(int status) {
+void report_error_pthread_cond_broadcast(int status) {
 	fprintf(stderr, "pthread_cond_broadcast: %s\n", strerror(status));
 }
 
-void log_error_sigemptyset(void) {
+void report_error_sigemptyset(void) {
 	fprintf(stderr, "sigemptyset: %s\n", strerror(errno));
 }
 
-void log_error_sigfillset(void) {
+void report_error_sigfillset(void) {
 	fprintf(stderr, "sigfillset: %s\n", strerror(errno));
 }
 
-void log_error_sigaddset(void) {
+void report_error_sigaddset(void) {
 	fprintf(stderr, "sigaddset: %s\n", strerror(errno));
 }
 
-void log_error_sigdelset(void) {
+void report_error_sigdelset(void) {
 	fprintf(stderr, "sigdelset: %s\n", strerror(errno));
 }
 
-void log_error_pthread_sigmask(int status) {
+void report_error_pthread_sigmask(int status) {
 	fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
 }
 
-void log_error_sigaction(void) {
+void report_error_sigaction(void) {
 	fprintf(stderr, "sigaction: %s\n", strerror(errno));
 }
 
-void log_error_sigwaitinfo(void) {
+void report_error_sigwaitinfo(void) {
 	fprintf(stderr, "sigwaitinfo: %s\n", strerror(errno));
 }
 
-void log_error_clock_gettime(void) {
+void report_error_clock_gettime(void) {
 	fprintf(stderr, "clock_gettime: %s\n", strerror(errno));
 }
 
@@ -428,7 +428,7 @@ int shared_list_init(t_Shared_List *shared_list) {
 	int retval = 0, status;
 
 	if((status = pthread_mutex_init(&(shared_list->mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto ret;
 	}
@@ -453,7 +453,7 @@ int shared_list_destroy(t_Shared_List *shared_list) {
 	list_destroy(shared_list->list);
 
 	if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		retval = -1;
 	}
 
@@ -478,12 +478,12 @@ int cancel_and_join_pthread(pthread_t *thread) {
 	}
 
 	if((status = pthread_cancel(*thread))) {
-		log_error_pthread_cancel(status);
+		report_error_pthread_cancel(status);
 		return -1;
 	}
 
 	if((status = pthread_join(*thread, NULL))) {
-		log_error_pthread_join(status);
+		report_error_pthread_join(status);
 		return -1;
 	}
 
@@ -494,7 +494,7 @@ int wrapper_pthread_cancel(pthread_t *thread) {
 	int status;
 
 	if((status = pthread_cancel(*thread))) {
-		log_error_pthread_cancel(status);
+		report_error_pthread_cancel(status);
 		return -1;
 	}
 
@@ -505,7 +505,7 @@ int wrapper_pthread_join(pthread_t *thread) {
 	int status;
 
 	if((status = pthread_join(*thread, NULL))) {
-		log_error_pthread_join(status);
+		report_error_pthread_join(status);
 		return -1;
 	}
 

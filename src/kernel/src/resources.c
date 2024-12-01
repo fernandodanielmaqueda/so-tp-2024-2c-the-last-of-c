@@ -15,7 +15,7 @@ t_Resource *resource_create(void) {
 	pthread_cleanup_push((void (*)(void *)) free, resource);
 
 	if((status = pthread_mutex_init(&(resource->mutex_resource), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto cleanup_resource;
 	}
@@ -31,7 +31,7 @@ t_Resource *resource_create(void) {
 	pthread_cleanup_pop(0); // resource->list_blocked.mutex
 	if(retval) {
 		if((status = pthread_mutex_destroy(&(resource->mutex_resource)))) {
-			log_error_pthread_mutex_destroy(status);
+			report_error_pthread_mutex_destroy(status);
 		}
 	}
 	cleanup_resource:
@@ -49,7 +49,7 @@ void resource_destroy(t_Resource *resource) {
 
 	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
 	if((status = pthread_mutex_destroy(&(resource->shared_list_blocked.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		// TODO
 	}
 
@@ -76,13 +76,13 @@ void resources_unassign(t_TCB *tcb) {
 			resource = (t_Resource *) element->data;
 
 			if((status = pthread_rwlock_rdlock(&(tcb->pcb->rwlock_resources)))) {
-				log_error_pthread_rwlock_rdlock(status);
+				report_error_pthread_rwlock_rdlock(status);
 				exit_sigint();
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(tcb->pcb->rwlock_resources));
 
 				if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
-					log_error_pthread_mutex_lock(status);
+					report_error_pthread_mutex_lock(status);
 					exit_sigint();
 				}
 				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
@@ -99,13 +99,13 @@ void resources_unassign(t_TCB *tcb) {
 
 				pthread_cleanup_pop(0); // mutex_resource
 				if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
-					log_error_pthread_mutex_unlock(status);
+					report_error_pthread_mutex_unlock(status);
 					exit_sigint();
 				}
 
 			pthread_cleanup_pop(0); // rwlock_resources
 			if((status = pthread_rwlock_unlock(&(tcb->pcb->rwlock_resources)))) {
-				log_error_pthread_rwlock_unlock(status);
+				report_error_pthread_rwlock_unlock(status);
 				exit_sigint();
 			}
 

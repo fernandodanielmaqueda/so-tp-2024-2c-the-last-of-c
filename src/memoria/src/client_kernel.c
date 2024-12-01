@@ -76,7 +76,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     pthread_cleanup_push((void (*)(void *)) memory_process_destroy, new_process);
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_wrlock(status);
+        report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
@@ -105,7 +105,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
     }
 
     pthread_cleanup_pop(result); // new_process
@@ -134,7 +134,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     t_Memory_Process *process = NULL;
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_wrlock(status);
+        report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
@@ -157,7 +157,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
 
@@ -213,7 +213,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     }
 
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_rdlock(status);
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
@@ -225,7 +225,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
         }
 
         if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
-            log_error_pthread_rwlock_wrlock(status);
+            report_error_pthread_rwlock_wrlock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
@@ -243,14 +243,14 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
         pthread_cleanup_pop(0); // rwlock_array_memory_threads
         if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
-            log_error_pthread_rwlock_unlock(status);
+            report_error_pthread_rwlock_unlock(status);
             exit_sigint();
         }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
 
@@ -375,7 +375,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
 
         pthread_cleanup_pop(0);
         if(close(connection_filesystem.socket_connection.fd)) {
-            log_error_close();
+            report_error_close();
             exit_sigint();
         }
 
@@ -670,7 +670,7 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
 
     pthread_cleanup_pop(0); // file
     if(fclose(file)) {
-        log_error_fclose();
+        report_error_fclose();
         retval = -1;
     }
 

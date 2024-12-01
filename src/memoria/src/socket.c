@@ -28,13 +28,13 @@ void memory_client_handler(t_Client *new_client) {
         pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
 
             if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
 
                 if((status = pthread_create(&(new_client->socket_client.bool_thread.thread), NULL, (void *(*)(void *)) memory_thread_for_client, (void *) new_client))) {
-                    log_error_pthread_create(status);
+                    report_error_pthread_create(status);
                     exit_sigint();
                 }
                 pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->socket_client.bool_thread.thread));
@@ -43,7 +43,7 @@ void memory_client_handler(t_Client *new_client) {
 
                     join = true;
                         if((status = pthread_detach(new_client->socket_client.bool_thread.thread))) {
-                            log_error_pthread_detach(status);
+                            report_error_pthread_detach(status);
                             exit_sigint();
                         }
                     join = false;
@@ -57,7 +57,7 @@ void memory_client_handler(t_Client *new_client) {
             pthread_cleanup_pop(0);
             if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
                 join = false;
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
@@ -107,7 +107,7 @@ void *memory_thread_for_client(t_Client *new_client) {
             new_client->client_type = CPU_PORT_TYPE;
 
             if((status = pthread_mutex_lock(&MUTEX_CLIENT_CPU))) {
-                log_error_pthread_mutex_lock(status);
+                report_error_pthread_mutex_lock(status);
                 exit_sigint();
             }
             pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CLIENT_CPU);
@@ -123,7 +123,7 @@ void *memory_thread_for_client(t_Client *new_client) {
             cleanup_mutex_client_cpu:
             pthread_cleanup_pop(0); // MUTEX_CLIENT_CPU
             if((status = pthread_mutex_unlock(&MUTEX_CLIENT_CPU))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 exit_sigint();
             }
 
@@ -178,7 +178,7 @@ int remove_client_thread(t_Client *client) {
     pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->socket_client.fd));
 
         if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             retval = -1;
             goto cleanup_fd_client;
         }
@@ -194,7 +194,7 @@ int remove_client_thread(t_Client *client) {
         cleanup_mutex_clients:
         pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
         if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             retval = -1;
             goto cleanup_fd_client;
         }
@@ -202,7 +202,7 @@ int remove_client_thread(t_Client *client) {
     cleanup_fd_client:
     pthread_cleanup_pop(0); // fd_client
     if(close(client->socket_client.fd)) {
-        log_error_close();
+        report_error_close();
         retval = -1;
     }
 
@@ -215,7 +215,7 @@ int wait_client_threads(void) {
     int retval = 0, status;
 
     if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
-        log_error_pthread_mutex_lock(status);
+        report_error_pthread_mutex_lock(status);
         return -1;
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
@@ -224,7 +224,7 @@ int wait_client_threads(void) {
         while(current != NULL) {
             t_Client *client = current->data;
             if((status = pthread_cancel(client->socket_client.bool_thread.thread))) {
-                log_error_pthread_cancel(status);
+                report_error_pthread_cancel(status);
                 retval = -1;
                 goto cleanup_mutex_clients;
             }
@@ -235,7 +235,7 @@ int wait_client_threads(void) {
         
         while(SHARED_LIST_CLIENTS.list->head != NULL) {
             if((status = pthread_cond_wait(&COND_CLIENTS, &(SHARED_LIST_CLIENTS.mutex)))) {
-                log_error_pthread_cond_wait(status);
+                report_error_pthread_cond_wait(status);
                 retval = -1;
                 break;
             }
@@ -244,7 +244,7 @@ int wait_client_threads(void) {
     cleanup_mutex_clients:
     pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
     if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
-        log_error_pthread_mutex_unlock(status);
+        report_error_pthread_mutex_unlock(status);
         return -1;
     }
 
@@ -256,7 +256,7 @@ int signal_client_threads(void) {
 
     if(SHARED_LIST_CLIENTS.list->head == NULL) {
         if((status = pthread_cond_signal(&COND_CLIENTS))) {
-            log_error_pthread_cond_signal(status);
+            report_error_pthread_cond_signal(status);
             return -1;
         }
     }

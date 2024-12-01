@@ -26,7 +26,7 @@ void *server_thread_for_client(t_Client *new_client) {
 
     if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->socket_client.fd)) {
       if(close(new_client->socket_client.fd)) {
-        log_error_close();
+        report_error_close();
       }
       continue;
     }
@@ -36,7 +36,7 @@ void *server_thread_for_client(t_Client *new_client) {
 
   log_debug(SOCKET_LOGGER, "[%d] Cierre de [Servidor] %s para Cliente [%s] en Puerto: %s", new_client->server->socket_listen.fd, PORT_NAMES[new_client->server->server_type], PORT_NAMES[new_client->server->clients_type], new_client->server->port);
   if(close(new_client->server->socket_listen.fd)) {
-    log_error_close();
+    report_error_close();
   }
 
   return NULL;
@@ -145,7 +145,7 @@ int server_start_try(char *port) {
     if(setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &(int){1}, (socklen_t) sizeof(int)) == -1) {
         log_warning(SOCKET_LOGGER, "setsockopt: %s", strerror(errno));
         if(close(fd_server)) {
-          log_error_close();
+          report_error_close();
         }
         continue; // This one failed
     }
@@ -153,7 +153,7 @@ int server_start_try(char *port) {
     if(bind(fd_server, rp->ai_addr, rp->ai_addrlen) == -1) {
       log_warning(SOCKET_LOGGER, "bind: %s", strerror(errno));
       if(close(fd_server)) {
-        log_error_close();
+        report_error_close();
       }
       continue; // This one failed
     }
@@ -239,7 +239,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     if(send_port_type(connection->client_type, connection->socket_connection.fd)) {
       log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
       if(close(connection->socket_connection.fd)) {
-        log_error_close();
+        report_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
@@ -247,7 +247,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     if(receive_port_type(&port_type, connection->socket_connection.fd)) {
       log_warning(SOCKET_LOGGER, "[%d] Error al recibir Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
       if(close(connection->socket_connection.fd)) {
-        log_error_close();
+        report_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
@@ -256,7 +256,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
     if(port_type != connection->server_type) {
       log_warning(SOCKET_LOGGER, "[%d] No reconocido Handshake de [Servidor] %s. Reintentando en %d segundos...", connection->socket_connection.fd, PORT_NAMES[connection->server_type], RETRY_CONNECTION_IN_SECONDS);
       if(close(connection->socket_connection.fd)) {
-        log_error_close();
+        report_error_close();
       }
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
@@ -306,7 +306,7 @@ int client_start_try(char *ip, char *port) {
 
     log_warning(SOCKET_LOGGER, "connect: %s", strerror(errno));
     if(close(fd_client)) {
-      log_error_close();
+      report_error_close();
     }
   }
 
@@ -325,7 +325,7 @@ int wrapper_close(int *fd) {
 	}
 
 	if(close(*fd)) {
-		log_error_close();
+		report_error_close();
 		return -1;
 	}
 
@@ -339,7 +339,7 @@ int socket_array_finish(t_Socket *sockets[]) {
   for(i = 0; sockets[i] != NULL; i++) {
     if(sockets[i]->bool_thread.running) {
       if((status = pthread_cancel(sockets[i]->bool_thread.thread))) {
-        log_error_pthread_cancel(status);
+        report_error_pthread_cancel(status);
         retval = -1;
       }
     }
@@ -348,7 +348,7 @@ int socket_array_finish(t_Socket *sockets[]) {
   for(i = 0; sockets[i] != NULL; i++) {
     if(sockets[i]->bool_thread.running) {
       if((status = pthread_join(sockets[i]->bool_thread.thread, NULL))) {
-        log_error_pthread_join(status);
+        report_error_pthread_join(status);
         retval = -1;
       }
     }
@@ -357,7 +357,7 @@ int socket_array_finish(t_Socket *sockets[]) {
   for(i = 0; sockets[i] != NULL; i++) {
     if(sockets[i]->fd >= 0) {
       if(close(sockets[i]->fd)) {
-        log_error_close();
+        report_error_close();
         retval = -1;
       }
       sockets[i]->fd = -1;

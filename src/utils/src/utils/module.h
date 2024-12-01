@@ -78,51 +78,51 @@ int finish_loggers(void);
 int initialize_logger(t_log **logger, char *pathname, char *module_name);
 int finish_logger(t_log **logger);
 
-void log_error_close(void);
+void report_error_close(void);
 
-void log_error_fclose(void);
+void report_error_fclose(void);
 
-void log_error_sem_init(void);
-void log_error_sem_destroy(void);
-void log_error_sem_wait(void);
-void log_error_sem_post(void);
+void report_error_sem_init(void);
+void report_error_sem_destroy(void);
+void report_error_sem_wait(void);
+void report_error_sem_post(void);
 
-void log_error_pthread_mutex_init(int status);
-void log_error_pthread_mutex_destroy(int status);
-void log_error_pthread_mutex_lock(int statusoid);
-void log_error_pthread_mutex_unlock(int status);
+void report_error_pthread_mutex_init(int status);
+void report_error_pthread_mutex_destroy(int status);
+void report_error_pthread_mutex_lock(int statusoid);
+void report_error_pthread_mutex_unlock(int status);
 
-void log_error_pthread_rwlock_init(int status);
-void log_error_pthread_rwlock_destroy(int status);
-void log_error_pthread_rwlock_wrlock(int status);
-void log_error_pthread_rwlock_rdlock(int status);
-void log_error_pthread_rwlock_unlock(int status);
+void report_error_pthread_rwlock_init(int status);
+void report_error_pthread_rwlock_destroy(int status);
+void report_error_pthread_rwlock_wrlock(int status);
+void report_error_pthread_rwlock_rdlock(int status);
+void report_error_pthread_rwlock_unlock(int status);
 
-void log_error_pthread_create(int status);
-void log_error_pthread_detach(int status);
-void log_error_pthread_cancel(int status);
-void log_error_pthread_join(int status);
+void report_error_pthread_create(int status);
+void report_error_pthread_detach(int status);
+void report_error_pthread_cancel(int status);
+void report_error_pthread_join(int status);
 
-void log_error_pthread_condattr_init(int status);
-void log_error_pthread_condattr_destroy(int status);
-void log_error_pthread_condattr_setclock(int status);
+void report_error_pthread_condattr_init(int status);
+void report_error_pthread_condattr_destroy(int status);
+void report_error_pthread_condattr_setclock(int status);
 
-void log_error_pthread_cond_init(int status);
-void log_error_pthread_cond_destroy(int status);
-void log_error_pthread_cond_wait(int status);
-void log_error_pthread_cond_timedwait(int status);
-void log_error_pthread_cond_signal(int status);
-void log_error_pthread_cond_broadcast(int status);
+void report_error_pthread_cond_init(int status);
+void report_error_pthread_cond_destroy(int status);
+void report_error_pthread_cond_wait(int status);
+void report_error_pthread_cond_timedwait(int status);
+void report_error_pthread_cond_signal(int status);
+void report_error_pthread_cond_broadcast(int status);
 
-void log_error_sigemptyset(void);
-void log_error_sigfillset(void);
-void log_error_sigaddset(void);
-void log_error_sigdelset(void);
-void log_error_pthread_sigmask(int status);
-void log_error_sigaction(void);
-void log_error_sigwaitinfo(void);
+void report_error_sigemptyset(void);
+void report_error_sigfillset(void);
+void report_error_sigaddset(void);
+void report_error_sigdelset(void);
+void report_error_pthread_sigmask(int status);
+void report_error_sigaction(void);
+void report_error_sigwaitinfo(void);
 
-void log_error_clock_gettime(void);
+void report_error_clock_gettime(void);
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);

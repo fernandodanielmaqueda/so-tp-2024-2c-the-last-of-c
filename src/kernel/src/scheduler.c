@@ -64,13 +64,13 @@ void initialize_scheduling(void) {
 
 	// Long term scheduler
 	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_NEW.thread, NULL, (void *(*)(void *)) long_term_scheduler_new, NULL))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		exit_sigint();
 	}
 	THREAD_LONG_TERM_SCHEDULER_NEW.running = true;
 
 	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT.thread, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		exit_sigint();
 	}
 	THREAD_LONG_TERM_SCHEDULER_EXIT.running = true;
@@ -84,7 +84,7 @@ void initialize_scheduling(void) {
 
 		case MLQ_SCHEDULING_ALGORITHM:
 			if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER.thread, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
-				log_error_pthread_create(status);
+				report_error_pthread_create(status);
 				exit_sigint();
 			}
 			THREAD_QUANTUM_INTERRUPTER.running = true;
@@ -93,7 +93,7 @@ void initialize_scheduling(void) {
 
 	// IO Device
 	if((status = pthread_create(&THREAD_IO_DEVICE.thread, NULL, (void *(*)(void *)) io_device, NULL))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		exit_sigint();
 	}
 	THREAD_IO_DEVICE.running = true;
@@ -108,7 +108,7 @@ int finish_scheduling(void) {
 	for(i = 0; threads[i] != NULL; i++) {
 		if(threads[i]->running) {
 			if((status = pthread_cancel(threads[i]->thread))) {
-				log_error_pthread_cancel(status);
+				report_error_pthread_cancel(status);
 				retval = -1;
 			}
 		}
@@ -117,7 +117,7 @@ int finish_scheduling(void) {
 	for(i = 0; threads[i] != NULL; i++) {
 		if(threads[i]->running) {
 			if((status = pthread_join(threads[i]->thread, NULL))) {
-				log_error_pthread_join(status);
+				report_error_pthread_join(status);
 				retval = -1;
 			}
 		}
@@ -142,12 +142,12 @@ void *long_term_scheduler_new(void) {
 		}
 
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -158,7 +158,7 @@ void *long_term_scheduler_new(void) {
 
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 
@@ -185,23 +185,23 @@ void *long_term_scheduler_new(void) {
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {
-				log_error_close();
+				report_error_close();
 				exit_sigint();
 			}
 
 			if(result) {
 				if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
-					log_error_pthread_mutex_lock(status);
+					report_error_pthread_mutex_lock(status);
 					exit_sigint();
 				}
 					FREE_MEMORY = 0;
 				if((status = pthread_mutex_unlock(&MUTEX_FREE_MEMORY))) {
-					log_error_pthread_mutex_unlock(status);
+					report_error_pthread_mutex_unlock(status);
 					exit_sigint();
 				}
 
 				if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
-					log_error_sem_post();
+					report_error_sem_post();
 					exit_sigint();
 				}
 
@@ -219,7 +219,7 @@ void *long_term_scheduler_new(void) {
 		if(result) {
 			if(process_created) {
 				if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-					log_error_pthread_rwlock_rdlock(status);
+					report_error_pthread_rwlock_rdlock(status);
 					exit_sigint();
 				}
 				pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -229,7 +229,7 @@ void *long_term_scheduler_new(void) {
 					}
 				pthread_cleanup_pop(0);
 				if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-					log_error_pthread_rwlock_unlock(status);
+					report_error_pthread_rwlock_unlock(status);
 					exit_sigint();
 				}
 
@@ -244,7 +244,7 @@ void *long_term_scheduler_new(void) {
 		}
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -259,7 +259,7 @@ void *long_term_scheduler_new(void) {
 
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 	}
@@ -276,12 +276,12 @@ void *long_term_scheduler_exit(void) {
 
 	while(1) {
 		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -292,7 +292,7 @@ void *long_term_scheduler_exit(void) {
 
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 
@@ -319,7 +319,7 @@ void *long_term_scheduler_exit(void) {
 
 		pthread_cleanup_pop(0);
 		if(close(connection_memory.socket_connection.fd)) {
-			log_error_close();
+			report_error_close();
 			exit_sigint();
 		}
 
@@ -358,7 +358,7 @@ void *long_term_scheduler_exit(void) {
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {
-				log_error_close();
+				report_error_close();
 				exit_sigint();
 			}
 
@@ -389,12 +389,12 @@ void *quantum_interrupter(void) {
 
 	while(1) {
 		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 
 		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
-			log_error_clock_gettime();
+			report_error_clock_gettime();
 			exit_sigint();
 		}
 		ts_quantum = timespec_from_ms(TCB_EXEC->quantum);
@@ -402,7 +402,7 @@ void *quantum_interrupter(void) {
 		ts_abstime = timespec_add(ts_now, ts_quantum);
 
 		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-			log_error_pthread_mutex_lock(status);
+			report_error_pthread_mutex_lock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
@@ -419,13 +419,13 @@ void *quantum_interrupter(void) {
 					// Se agotó el quantum
 					break;
 				default:
-					log_error_pthread_cond_timedwait(status);
+					report_error_pthread_cond_timedwait(status);
 					exit_sigint();
 			}
 
 		pthread_cleanup_pop(0);
 		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-			log_error_pthread_mutex_unlock(status);
+			report_error_pthread_mutex_unlock(status);
 			exit_sigint();
 		}
 
@@ -435,16 +435,16 @@ void *quantum_interrupter(void) {
 
 		// Envio la interrupción solo si hay más procesos en la cola de READY
 		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 		if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_post();
+			report_error_sem_post();
 			exit_sigint();
 		}
 
 		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-			log_error_pthread_mutex_lock(status);
+			report_error_pthread_mutex_lock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
@@ -453,7 +453,7 @@ void *quantum_interrupter(void) {
 			}
 		pthread_cleanup_pop(0);
 		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-			log_error_pthread_mutex_unlock(status);
+			report_error_pthread_mutex_unlock(status);
 			exit_sigint();
 		}
 
@@ -469,7 +469,7 @@ void *quantum_interrupter(void) {
 	
 		post_binary_short_term_scheduler:
 		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_post();
+			report_error_sem_post();
 			exit_sigint();
 		}
 	}
@@ -488,12 +488,12 @@ void *short_term_scheduler(void) {
 
 	while(1) {
 		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -521,7 +521,7 @@ void *short_term_scheduler(void) {
 		cleanup_rwlock_scheduling:
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 
@@ -533,14 +533,14 @@ void *short_term_scheduler(void) {
 		do {
 
 			if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-				log_error_pthread_mutex_lock(status);
+				report_error_pthread_mutex_lock(status);
 				exit_sigint();
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 				IS_TCB_IN_CPU = true;
 			pthread_cleanup_pop(0);
 			if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-				log_error_pthread_mutex_unlock(status);
+				report_error_pthread_mutex_unlock(status);
 				exit_sigint();
 			}
 
@@ -552,7 +552,7 @@ void *short_term_scheduler(void) {
 
 				case MLQ_SCHEDULING_ALGORITHM:
 					if(sem_post(&BINARY_QUANTUM_INTERRUPTER)) {
-						log_error_sem_post();
+						report_error_sem_post();
 						exit_sigint();
 					}
 					break;
@@ -577,7 +577,7 @@ void *short_term_scheduler(void) {
 				case MLQ_SCHEDULING_ALGORITHM:
 
 					if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-						log_error_pthread_mutex_lock(status);
+						report_error_pthread_mutex_lock(status);
 						exit_sigint();
 					}
 					pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
@@ -585,22 +585,22 @@ void *short_term_scheduler(void) {
 						pthread_cond_signal(&COND_IS_TCB_IN_CPU);
 					pthread_cleanup_pop(0);
 					if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-						log_error_pthread_mutex_unlock(status);
+						report_error_pthread_mutex_unlock(status);
 						exit_sigint();
 					}
 
 					if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-						log_error_sem_post();
+						report_error_sem_post();
 						exit_sigint();
 					}
 					pthread_cleanup_push((void (*)(void *)) sem_wait, &SEM_SHORT_TERM_SCHEDULER);
 						if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
-							log_error_sem_wait();
+							report_error_sem_wait();
 							exit_sigint();
 						}
 					pthread_cleanup_pop(0);
 					if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
-						log_error_sem_wait();
+						report_error_sem_wait();
 						exit_sigint();
 					}
 
@@ -609,7 +609,7 @@ void *short_term_scheduler(void) {
 			}
 
 			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_rdlock(status);
+				report_error_pthread_rwlock_rdlock(status);
 				exit_sigint();
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -728,7 +728,7 @@ void *short_term_scheduler(void) {
 
 			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_unlock(status);
+				report_error_pthread_rwlock_unlock(status);
 				exit_sigint();
 			}
 
@@ -750,12 +750,12 @@ void *io_device(void) {
 
 	while(1) {
 		if(sem_wait(&SEM_IO_DEVICE)) {
-			log_error_sem_wait();
+			report_error_sem_wait();
 			exit_sigint();
 		}
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -779,7 +779,7 @@ void *io_device(void) {
 		cleanup_rwlock_scheduling:
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 
@@ -789,7 +789,7 @@ void *io_device(void) {
 		}
 
 		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
-			log_error_clock_gettime();
+			report_error_clock_gettime();
 			exit_sigint();
 		}
 		ts_time = timespec_from_ms(time);
@@ -797,7 +797,7 @@ void *io_device(void) {
 		ts_abstime = timespec_add(ts_now, ts_time);
 
 		if((status = pthread_mutex_lock(&MUTEX_CANCEL_IO_OPERATION))) {
-			log_error_pthread_mutex_lock(status);
+			report_error_pthread_mutex_lock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CANCEL_IO_OPERATION);
@@ -813,19 +813,19 @@ void *io_device(void) {
 					// Se terminó la operación de entrada/salida
 					break;
 				default:
-					log_error_pthread_cond_timedwait(status);
+					report_error_pthread_cond_timedwait(status);
 					exit_sigint();
 			}
 
 		pthread_cleanup_pop(0);
 		if((status = pthread_mutex_unlock(&MUTEX_CANCEL_IO_OPERATION))) {
-			log_error_pthread_mutex_unlock(status);
+			report_error_pthread_mutex_unlock(status);
 			exit_sigint();
 		}
 
 
 		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_rdlock(status);
+			report_error_pthread_rwlock_rdlock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
@@ -843,7 +843,7 @@ void *io_device(void) {
 
 		pthread_cleanup_pop(0);
 		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			log_error_pthread_rwlock_unlock(status);
+			report_error_pthread_rwlock_unlock(status);
 			exit_sigint();
 		}
 	}
@@ -855,21 +855,21 @@ int wait_free_memory(void) {
 	int retval = 0, status;
 
 	if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		retval = -1;
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_FREE_MEMORY);
 		while(!FREE_MEMORY) {
 			if((status = pthread_cond_wait(&COND_FREE_MEMORY, &MUTEX_FREE_MEMORY))) {
-				log_error_pthread_cond_wait(status);
+				report_error_pthread_cond_wait(status);
 				retval = -1;
 				break;
 			}
 		}
 	pthread_cleanup_pop(0);
 	if((status = pthread_mutex_unlock(&MUTEX_FREE_MEMORY))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		retval = -1;
 		goto ret;
 	}
@@ -907,7 +907,7 @@ void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 
 	pthread_cleanup_pop(0);
 	if(close(connection_memory.socket_connection.fd)) {
-		log_error_close();
+		report_error_close();
 		exit_sigint();
 	}
 
@@ -927,14 +927,14 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 		if((*(dump_memory_petition->result)) == 0) {
 
 			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_rdlock(status);
+				report_error_pthread_rwlock_rdlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 				if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-					log_error_pthread_mutex_lock(status);
+					report_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_rwlock_rdlock_scheduling;
 				}
@@ -944,14 +944,14 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 
 					if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
 						if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
-							log_error_pthread_cond_signal(status);
+							report_error_pthread_cond_signal(status);
 							retval = -1;
 						}
 					}
 
 				pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
 				if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
-					log_error_pthread_mutex_unlock(status);
+					report_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_rwlock_rdlock_scheduling;
 				}
@@ -969,7 +969,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			cleanup_rwlock_rdlock_scheduling:
 			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_unlock(status);
+				report_error_pthread_rwlock_unlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
@@ -978,7 +978,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 		else {
 
 			if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_wrlock(status);
+				report_error_pthread_rwlock_wrlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
@@ -1000,7 +1000,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 
 				if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
 					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
-						log_error_pthread_cond_signal(status);
+						report_error_pthread_cond_signal(status);
 						retval = -1;
 					}
 				}
@@ -1008,7 +1008,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			cleanup_rwlock_wrlock_scheduling:
 			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-				log_error_pthread_rwlock_unlock(status);
+				report_error_pthread_rwlock_unlock(status);
 				retval = -1;
 				goto cleanup_dump_memory_petition;
 			}
@@ -1029,19 +1029,19 @@ int signal_free_memory(void) {
 	int retval = 0, status;
 	
 	if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		retval = -1;
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_FREE_MEMORY);
 		FREE_MEMORY = 1;
 		if((status = pthread_cond_signal(&COND_FREE_MEMORY))) {
-			log_error_pthread_cond_signal(status);
+			report_error_pthread_cond_signal(status);
 			retval = -1;
 		}
 	pthread_cleanup_pop(0);
 	if((status = pthread_mutex_unlock(&MUTEX_FREE_MEMORY))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		retval = -1;
 		goto ret;
 	}

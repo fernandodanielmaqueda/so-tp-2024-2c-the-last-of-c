@@ -102,7 +102,7 @@ int bitmap_init() {
     if(ftruncate(fd, BITMAP_FILE_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
         log_error(MODULE_LOGGER, "Error al ajustar el tamaño del archivo bitmap.dat: %s", strerror(errno));
         if(close(fd)) {
-            log_error_close();
+            report_error_close();
         }
         return -1;
     }
@@ -115,7 +115,7 @@ int bitmap_init() {
 	if(PTRO_BITMAP == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
         if(close(fd)) {
-            log_error_close();
+            report_error_close();
         }
         return -1;
     }
@@ -127,7 +127,7 @@ int bitmap_init() {
         log_error(MODULE_LOGGER, "Error al crear la estructura del bitmap");
         munmap(PTRO_BITMAP, BITMAP_FILE_SIZE);//liberar la memoria reservada
         if(close(fd)) {
-            log_error_close();
+            report_error_close();
         }
         return -1;
     }
@@ -182,7 +182,7 @@ int bloques_init(void) {
     if(ftruncate(fd, BLOCKS_TOTAL_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
         log_error(MODULE_LOGGER, "Error al ajustar el tamaño del archivo bloques.dat: %s", strerror(errno));
         if(close(fd)) {
-            log_error_close();
+            report_error_close();
         }
         return -1;
     }
@@ -194,7 +194,7 @@ int bloques_init(void) {
     if(PTRO_BLOCKS == MAP_FAILED) {
         log_error(MODULE_LOGGER, "Error al mapear el archivo bloques.dat a memoria: %s", strerror(errno));
         if(close(fd)) {
-            log_error_close();
+            report_error_close();
         }
         return -1;
     }
@@ -230,13 +230,13 @@ void filesystem_client_handler_for_memory(int fd_client) {
     t_Block_Pointer array[blocks_necessary]; // array[3]: 0,1,2
  	//Inicio bloqueo zona critica 
     if((status = pthread_mutex_lock(&MUTEX_BITMAP))) {
-        log_error_pthread_mutex_lock(status);
+        report_error_pthread_mutex_lock(status);
         // TODO
     }
         // Verificar si hay suficientes bloques libres para almacenar el archivo
 		if(BITMAP.blocks_free < blocks_necessary) {
 			if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
-                log_error_pthread_mutex_unlock(status);
+                report_error_pthread_mutex_unlock(status);
                 // TODO
             }
             send_result_with_header(MEMORY_DUMP_HEADER, 1, fd_client);
@@ -260,7 +260,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     // dar acceso al bitmap.dat a los otros hilos.
     if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
-        log_error_pthread_mutex_unlock(status);
+        report_error_pthread_mutex_unlock(status);
         // TODO
 
     }

@@ -69,11 +69,11 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
     // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_wrlock(status);
+        report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
         if(kill_process(TCB_EXEC->pcb, PROCESS_EXIT_EXIT_REASON)) {
@@ -81,11 +81,11 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
         }
     // Regreso del wrlock al rdlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_rdlock(status);
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
 
@@ -151,11 +151,11 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
     // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_wrlock(status);
+        report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
 
@@ -186,11 +186,11 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
     cleanup_rwlock_scheduling:
     // Regreso del wrlock al rdlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_rdlock(status);
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
 
@@ -218,11 +218,11 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
 
     // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_wrlock(status);
+        report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
 
@@ -244,11 +244,11 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     cleanup_rwlock_scheduling:
     // Regreso del wrlock al rdlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
     if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-        log_error_pthread_rwlock_rdlock(status);
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
 
@@ -275,7 +275,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
 
 	if((status = pthread_rwlock_wrlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_wrlock(status);
+		report_error_pthread_rwlock_wrlock(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_resources));
@@ -299,7 +299,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
     cleanup_rwlock_resources:
 	pthread_cleanup_pop(0); // rwlock_resources
 	if((status = pthread_rwlock_unlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_unlock(status);
+		report_error_pthread_rwlock_unlock(status);
 		exit_sigint();
 	}
 
@@ -327,7 +327,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
 
 	if((status = pthread_rwlock_rdlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_rdlock(status);
+		report_error_pthread_rwlock_rdlock(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_resources));
@@ -344,7 +344,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
         }
 
         if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
@@ -362,14 +362,14 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
 
         pthread_cleanup_pop(0); // mutex_resource
         if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 
     cleanup_rwlock_resources:
     pthread_cleanup_pop(0); // rwlock_resources
     if((status = pthread_rwlock_unlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-        log_error_pthread_rwlock_unlock(status);
+        report_error_pthread_rwlock_unlock(status);
         exit_sigint();
     }
 
@@ -401,7 +401,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
     log_trace(MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
 
 	if((status = pthread_rwlock_rdlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_rdlock(status);
+		report_error_pthread_rwlock_rdlock(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_resources));
@@ -425,7 +425,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
         SHOULD_REDISPATCH = 1;
 
         if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
-            log_error_pthread_mutex_lock(status);
+            report_error_pthread_mutex_lock(status);
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
@@ -442,14 +442,14 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
         pthread_cleanup_pop(0); // mutex_resource
         if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
-            log_error_pthread_mutex_unlock(status);
+            report_error_pthread_mutex_unlock(status);
             exit_sigint();
         }
 
     cleanup_rwlock_resources:
 	pthread_cleanup_pop(0); // rwlock_resources
 	if((status = pthread_rwlock_unlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_unlock(status);
+		report_error_pthread_rwlock_unlock(status);
 		exit_sigint();
 	}
 

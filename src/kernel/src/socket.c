@@ -11,27 +11,27 @@ void initialize_sockets(void) {
 
 	// [Client] Kernel -> [Server] CPU (Dispatch Port)
 	if((status = pthread_create(&(CONNECTION_CPU_DISPATCH.socket_connection.bool_thread.thread), NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_CPU_DISPATCH))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		exit_sigint();
 	}
 	CONNECTION_CPU_DISPATCH.socket_connection.bool_thread.running = true;
 
 	// [Client] Kernel -> [Server] CPU (Interrupt Port)
 	if((status = pthread_create(&(CONNECTION_CPU_INTERRUPT.socket_connection.bool_thread.thread), NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_CPU_INTERRUPT))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		exit_sigint();
 	}
 	CONNECTION_CPU_INTERRUPT.socket_connection.bool_thread.running = true;
 
 	// Se bloquea hasta que se realicen todas las conexiones
 	if((status = pthread_join(CONNECTION_CPU_INTERRUPT.socket_connection.bool_thread.thread, NULL))) {
-		log_error_pthread_join(status);
+		report_error_pthread_join(status);
 		exit_sigint();
 	}
 	CONNECTION_CPU_DISPATCH.socket_connection.bool_thread.running = false;
 
 	if((status = pthread_join(CONNECTION_CPU_DISPATCH.socket_connection.bool_thread.thread, NULL))) {
-		log_error_pthread_join(status);
+		report_error_pthread_join(status);
 		exit_sigint();
 	}
 	CONNECTION_CPU_INTERRUPT.socket_connection.bool_thread.running = false;
