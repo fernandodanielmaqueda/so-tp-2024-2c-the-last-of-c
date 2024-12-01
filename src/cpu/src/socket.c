@@ -56,20 +56,10 @@ void initialize_sockets(void) {
 }
 
 int finish_sockets(void) {
-	int retval = 0, status;
+	t_Socket *sockets[] = { &(SERVER_CPU_DISPATCH.socket_listen), &(CLIENT_KERNEL_CPU_DISPATCH.socket_client), &(SERVER_CPU_INTERRUPT.socket_listen), &(CLIENT_KERNEL_CPU_INTERRUPT.socket_client), &(CONNECTION_MEMORY.socket_connection), NULL};
+	if(socket_array_finish(sockets)) {
+		return -1;
+	}
 
-    if(close(CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
-        log_error_close();
-        retval = -1;
-    }
-    if(close(CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd)) {
-        log_error_close();
-        retval = -1;
-    }
-    if(close(CONNECTION_MEMORY.socket_connection.fd)) {
-        log_error_close();
-        retval = -1;
-    }
-
-    return retval;
+    return 0;
 }

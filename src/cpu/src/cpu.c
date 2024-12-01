@@ -7,20 +7,17 @@ t_PID PID;
 t_TID TID;
 t_Exec_Context EXEC_CONTEXT;
 pthread_mutex_t MUTEX_EXEC_CONTEXT;
-bool IS_MUTEX_EXEC_CONTEXT_INITIALIZED = false;
 
 bool EXECUTING = 0;
 pthread_mutex_t MUTEX_EXECUTING;
-bool IS_MUTEX_EXECUTING_INITIALIZED = false;
 
 e_Eviction_Reason EVICTION_REASON;
 
 e_Kernel_Interrupt KERNEL_INTERRUPT;
 pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
-bool IS_MUTEX_KERNEL_INTERRUPT_INITIALIZED = false;
 
 bool SYSCALL_CALLED;
-t_Payload SYSCALL_INSTRUCTION = {0};
+t_Payload SYSCALL_INSTRUCTION;
 
 int module(int argc, char *argv[])
 {
@@ -142,7 +139,8 @@ int module(int argc, char *argv[])
         log_error_pthread_create(status);
          exit_sigint();
     }
-    CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.running = true;
+    pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &(CLIENT_KERNEL_CPU_INTERRUPT.socket_client.bool_thread.thread));
+
 
     log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
@@ -151,6 +149,7 @@ int module(int argc, char *argv[])
 
 
 	// Cleanup
+	pthread_cleanup_pop(1); // CLIENT_KERNEL_CPU_INTERRUPT
 	pthread_cleanup_pop(1); // Sockets
 	pthread_cleanup_pop(1); // MUTEX_KERNEL_INTERRUPT
 	pthread_cleanup_pop(1); // MUTEX_EXECUTING
@@ -192,214 +191,317 @@ int read_module_config(t_config *MODULE_CONFIG) {
 void instruction_cycle(void)
 {
 
-    char *IR;
-    t_Arguments *arguments = arguments_create(MAX_CPU_INSTRUCTION_ARGUMENTS);
+    char *ir = NULL;
     e_CPU_OpCode cpu_opcode;
     int status;
+
+    t_Arguments *arguments = arguments_create(MAX_CPU_INSTRUCTION_ARGUMENTS);
+    if(arguments == NULL) {
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) arguments_destroy, arguments);
 
     while(1) {
 
         if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
             log_error_pthread_mutex_lock(status);
-            // TODO
+            exit_sigint();
         }
-            
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
             KERNEL_INTERRUPT = NONE_KERNEL_INTERRUPT;
-        
+        pthread_cleanup_pop(0);
         if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
             log_error_pthread_mutex_unlock(status);
-            // TODO
+            exit_sigint();
         }
 
         payload_init(&SYSCALL_INSTRUCTION);
+        pthread_cleanup_push((void (*)(void *)) payload_destroy, &SYSCALL_INSTRUCTION);
 
-        if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_lock(status);
-            // TODO
-        }
-            if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
-                log_error(MODULE_LOGGER, "[%d] Error al recibir dispatch de hilo de [Cliente] %s", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type]);
-                exit(EXIT_FAILURE);
+            if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
+                log_error_pthread_mutex_lock(status);
+                exit_sigint();
             }
-            log_trace(MODULE_LOGGER, "[%d] Se recibe dispatch de hilo de [Cliente] %s [PID: %u - TID: %u]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID);
+            pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
 
-            log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
+                if(receive_pid_and_tid_with_expected_header(THREAD_DISPATCH_HEADER, &PID, &TID, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al recibir dispatch de hilo de [Cliente] %s", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type]);
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER, "[%d] Se recibe dispatch de hilo de [Cliente] %s [PID: %u - TID: %u]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID);
 
-            // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
-            if(send_pid_and_tid_with_header(EXEC_CONTEXT_REQUEST_HEADER, PID, TID, CONNECTION_MEMORY.socket_connection.fd)) {
-                log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
-                exit(EXIT_FAILURE);
+                log_info(MINIMAL_LOGGER, "## TID: %u - Solicito Contexto Ejecución", TID);
+
+                // Esto funciona como solicitud a memoria para que me mande el contexto de ejecución
+                if(send_pid_and_tid_with_header(EXEC_CONTEXT_REQUEST_HEADER, PID, TID, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER, "[%d] Se envía solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+
+                // Recibo la respuesta de memoria con el contexto de ejecución
+                if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER,
+                "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]\n"
+                "* PC: %u\n"
+                "* AX: %u\n"
+                "* BX: %u\n"
+                "* CX: %u\n"
+                "* DX: %u\n"
+                "* EX: %u\n"
+                "* FX: %u\n"
+                "* GX: %u\n"
+                "* HX: %u\n"
+                "* base: %u\n"
+                "* limit: %u"
+                , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
+                , EXEC_CONTEXT.cpu_registers.PC
+                , EXEC_CONTEXT.cpu_registers.AX
+                , EXEC_CONTEXT.cpu_registers.BX
+                , EXEC_CONTEXT.cpu_registers.CX
+                , EXEC_CONTEXT.cpu_registers.DX
+                , EXEC_CONTEXT.cpu_registers.EX
+                , EXEC_CONTEXT.cpu_registers.FX
+                , EXEC_CONTEXT.cpu_registers.GX
+                , EXEC_CONTEXT.cpu_registers.HX
+                , EXEC_CONTEXT.base
+                , EXEC_CONTEXT.limit
+                );
+
+            pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
+            if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+                log_error_pthread_mutex_unlock(status);
+                exit_sigint();
             }
-            log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
 
-            // Recibo la respuesta de memoria con el contexto de ejecución
-            if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
-                log_error(MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
-                exit(EXIT_FAILURE);
+            if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
+                log_error_pthread_mutex_lock(status);
+                exit_sigint();
             }
-            log_trace(MODULE_LOGGER, "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
-
-        if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_unlock(status);
-            // TODO
-        }
-
-        if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_lock(status);
-            // TODO
-        }
-
-            EXECUTING = 1;
-
-        if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_unlock(status);
-            // TODO
-        }
-
-        while(1) {
-
-            // Fetch
-            log_info(MINIMAL_LOGGER, "## TID: %u - FETCH - Program Counter: %u", TID, EXEC_CONTEXT.cpu_registers.PC);
-            cpu_fetch_next_instruction(&IR);
-            if(IR == NULL) {
-                log_error(MODULE_LOGGER, "Error al fetchear la instruccion");
-                EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
-                break;
+            pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
+                EXECUTING = 1;
+            pthread_cleanup_pop(0); // MUTEX_EXECUTING
+            if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
+                log_error_pthread_mutex_unlock(status);
+                exit_sigint();
             }
 
-            // Decode
-            if((status = arguments_use(arguments, IR))) {
-                switch(errno) {
-                    case E2BIG:
-                        log_error(MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", IR);
-                        break;
-                    case ENOMEM:
-                        log_error(MODULE_LOGGER, "arguments_use: Error al reservar memoria para los argumentos");
-                        exit(EXIT_FAILURE);
+            bool evict = false;
+            while(!evict) {
+
+                // Fetch
+                log_info(MINIMAL_LOGGER, "## TID: %u - FETCH - Program Counter: %u", TID, EXEC_CONTEXT.cpu_registers.PC);
+                cpu_fetch_next_instruction(&ir);
+                if(ir == NULL) {
+                    log_warning(MODULE_LOGGER, "Error en el fetch de la instrucción [PID: %u - TID: %u - PC: %u]", PID, TID, EXEC_CONTEXT.cpu_registers.PC);
+                    evict = true;
+                    EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+                    goto cleanup_ir;
+                }
+                pthread_cleanup_push((void (*)(void *)) free, ir);
+
+                // Decode
+                if((status = arguments_use(arguments, ir))) {
+                    switch(errno) {
+                        case E2BIG:
+                            log_error(MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", ir);
+                            evict = true;
+                            EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+                            goto cleanup_ir;
+                        default:
+                            log_error(MODULE_LOGGER, "arguments_use: %s", strerror(errno));
+                            exit_sigint();
+                    }
+                }
+
+                pthread_cleanup_push((void (*)(void *)) arguments_remove, arguments);
+
+                if(decode_instruction(arguments->argv[0], &cpu_opcode)) {
+                    log_warning(MODULE_LOGGER, "%s: Error en el decode de la instrucción [PID: %u - TID: %u - PC: %u]", arguments->argv[0], PID, TID, EXEC_CONTEXT.cpu_registers.PC);
+                    evict = true;
+                    EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+                    goto cleanup_arguments_remove;
+                }
+
+                // Execute
+                if((status = CPU_OPERATIONS[cpu_opcode].function(arguments->argc, arguments->argv))) {
+                    log_warning(MODULE_LOGGER, "%s: Error en la ejecución de la instrucción [PID: %u - TID: %u - PC: %u]", arguments->argv[0], PID, TID, EXEC_CONTEXT.cpu_registers.PC);
+                    evict = true;
+                    // EVICTION_REASON ya debe ser asignado por la instrucción cuando falla
+                    goto cleanup_arguments_remove;
+                }
+
+                cleanup_arguments_remove:
+                pthread_cleanup_pop(1); // arguments_remove
+                cleanup_ir:
+                pthread_cleanup_pop(1); // ir
+
+                if(evict) {
+                    goto eviction;
+                }
+
+                // Check Interrupts
+                switch(cpu_opcode) {
+
+                    case PROCESS_EXIT_CPU_OPCODE:
+                    case THREAD_EXIT_CPU_OPCODE:
+                        EVICTION_REASON = EXIT_EVICTION_REASON;
+                        goto eviction;
+
                     default:
-                        log_error(MODULE_LOGGER, "arguments_use: %s", strerror(errno));
                         break;
+
                 }
-                arguments_remove(arguments);
-                free(IR);
-                EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
-                break;
-            }
 
-            if(decode_instruction(arguments->argv[0], &cpu_opcode)) {
-                log_error(MODULE_LOGGER, "%s: Error al decodificar la instruccion", arguments->argv[0]);
-                arguments_remove(arguments);
-                free(IR);
-                EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
-                break;
-            }
-
-            // Execute
-            status = CPU_OPERATIONS[cpu_opcode].function(arguments->argc, arguments->argv);
-
-            arguments_remove(arguments);
-            free(IR);
-
-            if(status) {
-                log_trace(MODULE_LOGGER, "Error en la ejecucion de la instruccion");
-                // EVICTION_REASON ya debe ser asignado por la instrucción cuando falla
-                break;
-            }
-
-            // Check Interrupts
-            switch(cpu_opcode) {
-
-                case PROCESS_EXIT_CPU_OPCODE:
-                case THREAD_EXIT_CPU_OPCODE:
-                    EVICTION_REASON = EXIT_EVICTION_REASON;
-                    break;
-
-                default:
-                    break;
-
-            }
-
-            if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-                log_error_pthread_mutex_lock(status);
-                // TODO
-            }
-                if(KERNEL_INTERRUPT == KILL_KERNEL_INTERRUPT) {
-                    if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-                        log_error_pthread_mutex_unlock(status);
-                        // TODO
+                if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+                    log_error_pthread_mutex_lock(status);
+                    exit_sigint();
+                }
+                pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
+                    if(KERNEL_INTERRUPT == KILL_KERNEL_INTERRUPT) {
+                        evict = true;
+                        EVICTION_REASON = KILL_EVICTION_REASON;
                     }
-                    EVICTION_REASON = KILL_EVICTION_REASON;
-                    break;
+                pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
+                if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                    log_error_pthread_mutex_unlock(status);
+                    exit_sigint();
                 }
-            if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-                log_error_pthread_mutex_unlock(status);
-                // TODO
-            }
 
-            if(SYSCALL_CALLED) {
-                EVICTION_REASON = SYSCALL_EVICTION_REASON;
-                break;
-            }
+                if(evict) {
+                    goto eviction;
+                }
 
-            if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
-                log_error_pthread_mutex_lock(status);
-                // TODO
-            }
-                if(KERNEL_INTERRUPT == QUANTUM_KERNEL_INTERRUPT) {
-                    if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
-                        log_error_pthread_mutex_unlock(status);
-                        // TODO
+                if(SYSCALL_CALLED) {
+                    evict = true;
+                    EVICTION_REASON = SYSCALL_EVICTION_REASON;
+                    goto eviction;
+                }
+
+                if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
+                    log_error_pthread_mutex_lock(status);
+                    exit_sigint();
+                }
+                pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
+                    if(KERNEL_INTERRUPT == QUANTUM_KERNEL_INTERRUPT) {
+                        evict = true;
+                        EVICTION_REASON = QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON;
+                        goto eviction;
                     }
-                    EVICTION_REASON = QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON;
-                    break;
+                pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
+                if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+                    log_error_pthread_mutex_unlock(status);
+                    exit_sigint();
                 }
-            if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
+
+                if(evict) {
+                    goto eviction;
+                }
+            }
+
+            eviction:
+
+            if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
+                log_error_pthread_mutex_lock(status);
+                exit_sigint();
+            }
+            pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
+                EXECUTING = 0;
+            pthread_cleanup_pop(0); // MUTEX_EXECUTING
+            if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
                 log_error_pthread_mutex_unlock(status);
-                // TODO
-            }
-        }
-
-        if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_lock(status);
-            // TODO
-        }
-            EXECUTING = 0;
-        if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-            log_error_pthread_mutex_unlock(status);
-            // TODO
-        }
-
-        if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_lock(status);
-            // TODO
-        }
-            log_info(MINIMAL_LOGGER, "## TID: %u - Actualizo Contexto Ejecución", TID);
-
-            if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
-                // TODO
-                exit(EXIT_FAILURE);
+                exit_sigint();
             }
 
-            if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
-                // TODO
-                exit(EXIT_FAILURE);
+            if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
+                log_error_pthread_mutex_lock(status);
+                exit_sigint();
+            }
+            pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
+
+                log_info(MINIMAL_LOGGER, "## TID: %u - Actualizo Contexto Ejecución", TID);
+
+                if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error(MODULE_LOGGER,
+                      "[%d] Error al enviar actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]\n"
+                      "* PC: %u\n"
+                      "* AX: %u\n"
+                      "* BX: %u\n"
+                      "* CX: %u\n"
+                      "* DX: %u\n"
+                      "* EX: %u\n"
+                      "* FX: %u\n"
+                      "* GX: %u\n"
+                      "* HX: %u\n"
+                      "* base: %u\n"
+                      "* limit: %u"
+                      , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
+                      , EXEC_CONTEXT.cpu_registers.PC
+                      , EXEC_CONTEXT.cpu_registers.AX
+                      , EXEC_CONTEXT.cpu_registers.BX
+                      , EXEC_CONTEXT.cpu_registers.CX
+                      , EXEC_CONTEXT.cpu_registers.DX
+                      , EXEC_CONTEXT.cpu_registers.EX
+                      , EXEC_CONTEXT.cpu_registers.FX
+                      , EXEC_CONTEXT.cpu_registers.GX
+                      , EXEC_CONTEXT.cpu_registers.HX
+                      , EXEC_CONTEXT.base
+                      , EXEC_CONTEXT.limit
+                    );
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER,
+                  "[%d] Se envía actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]\n"
+                  "* PC: %u\n"
+                  "* AX: %u\n"
+                  "* BX: %u\n"
+                  "* CX: %u\n"
+                  "* DX: %u\n"
+                  "* EX: %u\n"
+                  "* FX: %u\n"
+                  "* GX: %u\n"
+                  "* HX: %u\n"
+                  "* base: %u\n"
+                  "* limit: %u"
+                  , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
+                  , EXEC_CONTEXT.cpu_registers.PC
+                  , EXEC_CONTEXT.cpu_registers.AX
+                  , EXEC_CONTEXT.cpu_registers.BX
+                  , EXEC_CONTEXT.cpu_registers.CX
+                  , EXEC_CONTEXT.cpu_registers.DX
+                  , EXEC_CONTEXT.cpu_registers.EX
+                  , EXEC_CONTEXT.cpu_registers.FX
+                  , EXEC_CONTEXT.cpu_registers.GX
+                  , EXEC_CONTEXT.cpu_registers.HX
+                  , EXEC_CONTEXT.base
+                  , EXEC_CONTEXT.limit
+                );
+
+                if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al recibir confirmación de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER, "[%d] Se recibe confirmación de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+
+                if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
+                    log_error(MODULE_LOGGER, "[%d] Error al enviar desalojo de hilo a [Cliente] %s [PID: %u - TID: %u - Motivo: :%s]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID, EVICTION_REASON_NAMES[EVICTION_REASON]);
+                    exit_sigint();
+                }
+                log_trace(MODULE_LOGGER, "[%d] Se envía desalojo de hilo a [Cliente] %s [PID: %u - TID: %u - Motivo: %s]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID, EVICTION_REASON_NAMES[EVICTION_REASON]);
+
+            pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
+            if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
+                log_error_pthread_mutex_unlock(status);
+                exit_sigint();
             }
 
-            if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
-                // TODO
-                exit(EXIT_FAILURE);
-            }
-        if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-            log_error_pthread_mutex_unlock(status);
-            // TODO
-        }
-
-        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-            payload_destroy(&SYSCALL_INSTRUCTION);
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_cleanup_pop(1); // SYSCALL_INSTRUCTION
     }
 
-    arguments_destroy(arguments);
+    pthread_cleanup_pop(1); // arguments_destroy
 }
 
 void *kernel_cpu_interrupt_handler(void) {
@@ -410,58 +512,67 @@ void *kernel_cpu_interrupt_handler(void) {
     t_PID pid;
     t_TID tid;
     int status;
+    bool next_cycle;
 
     while(1) {
+        next_cycle = false;
 
         if(receive_kernel_interrupt(&kernel_interrupt, &pid, &tid, CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd)) {
-            // TODO
-            exit(EXIT_FAILURE);
+            log_error(MODULE_LOGGER, "[%d]: Error al recibir interrupción de [Cliente] %s", CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_INTERRUPT.client_type]);
+            exit_sigint();
         }
+        log_trace(MODULE_LOGGER, "[%d]: Se recibe interrupción de [Cliente] %s [PID: %u - TID: %u - Interrupción: %s]", CLIENT_KERNEL_CPU_INTERRUPT.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_INTERRUPT.client_type], pid, tid, KERNEL_INTERRUPT_NAMES[kernel_interrupt]);
 
         if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
             log_error_pthread_mutex_lock(status);
-            // TODO
+            exit_sigint();
         }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXECUTING);
             if(!EXECUTING) {
-                if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
-                    log_error_pthread_mutex_unlock(status);
-                    // TODO
-                }
-                continue;
+                next_cycle = true;
             }
+        pthread_cleanup_pop(0); // MUTEX_EXECUTING
         if((status = pthread_mutex_unlock(&MUTEX_EXECUTING))) {
             log_error_pthread_mutex_unlock(status);
-            // TODO
+            exit_sigint();
+        }
+
+        if(next_cycle) {
+            continue;
         }
 
         if((status = pthread_mutex_lock(&MUTEX_EXEC_CONTEXT))) {
             log_error_pthread_mutex_lock(status);
-            // TODO
+            exit_sigint();
         }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_EXEC_CONTEXT);
             if(pid != PID && tid != TID) {
-                if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
-                    log_error_pthread_mutex_unlock(status);
-                    // TODO
-                }
-                continue;
+                next_cycle = true;
             }
+        pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
         if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
             log_error_pthread_mutex_unlock(status);
-            // TODO
+            exit_sigint();
+        }
+
+        if(next_cycle) {
+            continue;
         }
 
         log_info(MINIMAL_LOGGER, "## Llega interrupción al puerto Interrupt");
 
         if((status = pthread_mutex_lock(&MUTEX_KERNEL_INTERRUPT))) {
             log_error_pthread_mutex_lock(status);
-            // TODO
+            exit_sigint();
         }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
             // Una forma de establecer prioridad entre interrupciones que se pisan, sólo va a quedar una
             if(KERNEL_INTERRUPT < kernel_interrupt)
                 KERNEL_INTERRUPT = kernel_interrupt;
+        pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
         if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
             log_error_pthread_mutex_unlock(status);
-            // TODO
+            exit_sigint();
         }
 
     }
@@ -469,22 +580,19 @@ void *kernel_cpu_interrupt_handler(void) {
     return NULL;
 }
 
-int cpu_fetch_next_instruction(char **line) {
-    if(line == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
+void cpu_fetch_next_instruction(char **line) {
 
     if(send_instruction_request(PID, TID, EXEC_CONTEXT.cpu_registers.PC, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        return -1;
+        log_error(MODULE_LOGGER, "[%d]: Error al enviar solicitud de instrucción a [Servidor] %s [PID: %u - TID: %u - PC: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, EXEC_CONTEXT.cpu_registers.PC);
+        exit_sigint();
     }
-    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        return -1;
-    }
+    log_trace(MODULE_LOGGER, "[%d]: Se envía solicitud de instrucción a [Servidor] %s [PID: %u - TID: %u - PC: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, EXEC_CONTEXT.cpu_registers.PC);
 
-    return 0;
+    if(receive_text_with_expected_header(INSTRUCTION_REQUEST_HEADER, line, CONNECTION_MEMORY.socket_connection.fd)) {
+        log_error(MODULE_LOGGER, "[%d]: Error al recibir instrucción de [Servidor] %s [PID: %u - TID: %u - PC: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, EXEC_CONTEXT.cpu_registers.PC);
+        exit_sigint();
+    }
+    log_trace(MODULE_LOGGER, "[%d]: Se recibe instrucción de [Servidor] %s [PID: %u - TID: %u - PC: %u - Instrucción: %s]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, EXEC_CONTEXT.cpu_registers.PC, *line);
 }
 
 int mmu(size_t logical_address, size_t bytes, size_t *destination) {
@@ -519,55 +627,80 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     return 0;
 }
 
-int request_memory_write(size_t physical_address, void *source, size_t bytes) {
+void request_memory_write(size_t physical_address, void *source, size_t bytes) {
     if(source == NULL) {
         log_error(MODULE_LOGGER, "request_memory_write: %s", strerror(EINVAL));
-        errno = EINVAL;
-        return -1;
+        exit_sigint();
     }
 
-    if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        return -1;
-    }
+    char *data_string = mem_hexstring(source, bytes);
+    pthread_cleanup_push((void (*)(void *)) free, data_string);
+
+        if(send_write_request(PID, TID, physical_address, source, bytes, CONNECTION_MEMORY.socket_connection.fd)) {
+            log_error(MODULE_LOGGER, 
+            "[%d] Error al enviar solicitud de escritura en espacio de usuario a [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+            "%s"
+            , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes
+            , data_string
+            );
+            exit_sigint();
+        }
+        log_trace(MODULE_LOGGER,
+          "[%d] Se envía solicitud de escritura en espacio de usuario a [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+          "%s"
+          , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes
+          , data_string
+        );
+
+    pthread_cleanup_pop(1); // data_string
 
     if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        return -1;
+        log_error(MODULE_LOGGER, "[%d] Error al recibir confirmación de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+        exit_sigint();
     }
-
-    return 0;
+    log_trace(MODULE_LOGGER, "[%d] Se recibe confirmación de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
 }
 
-int request_memory_read(size_t physical_address, void *destination, size_t bytes) {
+void request_memory_read(size_t physical_address, void *destination, size_t bytes) {
     if(destination == NULL) {
         log_error(MODULE_LOGGER, "request_memory_read: %s", strerror(EINVAL));
-        errno = EINVAL;
-        return -1;
+        exit_sigint();
     }
 
     if(send_read_request(PID, TID, physical_address, bytes, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        exit(EXIT_FAILURE);
+        log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de lectura en espacio de usuario a [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+        exit_sigint();
     }
+    log_trace(MODULE_LOGGER, "[%d] Se envía solicitud de lectura en espacio de usuario a [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
 
-    void *buffer;
-    size_t bufferSize;
+    void *buffer = NULL;
+    size_t bufferSize = 0;
+    pthread_cleanup_push((void (*)(void *)) free, buffer);
 
-    if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.socket_connection.fd)) {
-        // TODO
-        exit(EXIT_FAILURE);
-    }
+        if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.socket_connection.fd)) {
+            log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de lectura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+            exit_sigint();
+        }
+        char *data_string = mem_hexstring(buffer, bufferSize);
+        pthread_cleanup_push((void (*)(void *)) free, data_string);
+            log_trace(MODULE_LOGGER,
+            "[%d] Se recibe resultado de lectura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+            "%s"
+            , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes
+            , data_string
+            );
+        pthread_cleanup_pop(1); // data_string
 
-    if(bufferSize != bytes) {
-        log_error(MODULE_LOGGER, "request_memory_read: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
-        errno = EIO;
-        free(buffer);
-        return -1;
-    }
+        /*
+        if(bufferSize != bytes) {
+            log_error(MODULE_LOGGER, "request_memory_read: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
+            errno = EIO;
+            free(buffer);
+            return -1;
+        }
+        */
 
-    memcpy(destination, buffer, bytes);
-    free(buffer);
-
-    return 0;
+        memcpy(destination, buffer, bytes);
+    
+    pthread_cleanup_pop(1); // buffer
 }

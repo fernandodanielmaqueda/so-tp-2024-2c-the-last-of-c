@@ -880,7 +880,7 @@ int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		log_trace(MODULE_LOGGER, "[%d] Se envía solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 
 		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.socket_connection.fd)) {
 			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
