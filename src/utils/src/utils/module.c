@@ -12,6 +12,7 @@ char *MODULE_CONFIG_PATHNAME;
 
 t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
 
+pthread_mutex_t MUTEX_LOGGERS;
 t_Logger MODULE_LOGGER;
 t_Logger MINIMAL_LOGGER;
 t_Logger SOCKET_LOGGER;
@@ -113,12 +114,6 @@ int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool
 	}
 	pthread_cleanup_push((void (*)(void *)) log_destroy, logger->log);
 
-	if((status = pthread_mutex_init(&(logger->mutex), NULL))) {
-		report_error_pthread_mutex_init(status);
-		retval = -1;
-		goto cleanup_log;
-	}
-
 	cleanup_log:
 	pthread_cleanup_pop(retval); // log
 
@@ -134,90 +129,8 @@ int logger_destroy(t_Logger *logger) {
 
 	log_destroy(logger->log);
 
-	if((status = pthread_mutex_destroy(&(logger->mutex)))) {
-		report_error_pthread_mutex_destroy(status);
-		retval = -1;
-	}
-
 	return retval;
 }
-
-/*
-void log_trace_r(t_Logger logger, const char *format, ...) {
-	if(!logger.enabled) {
-		return;
-	}
-
-	va_list arguments;
-	va_start(arguments, format);
-
-	pthread_mutex_lock(&(logger.mutex));
-		log_trace(logger.log, format, arguments);
-	pthread_mutex_unlock(&(logger.mutex));
-
-	va_end(arguments);
-}
-
-void log_debug_r(t_Logger logger, const char *format, ...) {
-	if(!logger.enabled) {
-		return;
-	}
-
-	va_list arguments;
-	va_start(arguments, format);
-
-	pthread_mutex_lock(&(logger.mutex));
-		log_debug(logger.log, format, arguments);
-	pthread_mutex_unlock(&(logger.mutex));
-
-	va_end(arguments);
-}
-
-void log_info_r(t_Logger logger, const char *format, ...) {
-	if(!logger.enabled) {
-		return;
-	}
-
-	va_list arguments;
-	va_start(arguments, format);
-
-	pthread_mutex_lock(&(logger.mutex));
-		log_info(logger.log, format, arguments);
-	pthread_mutex_unlock(&(logger.mutex));
-
-	va_end(arguments);
-}
-
-void log_warning_r(t_Logger logger, const char *format, ...) {
-	if(!logger.enabled) {
-		return;
-	}
-
-	va_list arguments;
-	va_start(arguments, format);
-
-	pthread_mutex_lock(&(logger.mutex));
-		log_warning(logger.log, format, arguments);
-	pthread_mutex_unlock(&(logger.mutex));
-
-	va_end(arguments);
-}
-
-void log_error_r(t_Logger logger, const char *format, ...) {
-	if(!logger.enabled) {
-		return;
-	}
-
-	va_list arguments;
-	va_start(arguments, format);
-
-	pthread_mutex_lock(&(logger.mutex));
-		log_error(logger.log, format, arguments);
-	pthread_mutex_unlock(&(logger.mutex));
-
-	va_end(arguments);
-}
-*/
 
 void report_error_close(void) {
 	fprintf(stderr, "close: %s\n", strerror(errno));

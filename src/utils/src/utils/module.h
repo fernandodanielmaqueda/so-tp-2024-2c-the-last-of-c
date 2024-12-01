@@ -17,7 +17,6 @@
 typedef struct t_Logger {
     bool enabled;
     t_log *log;
-    pthread_mutex_t mutex;
 } t_Logger;
 
 typedef struct t_Bool_Thread {
@@ -46,6 +45,7 @@ extern char *MODULE_CONFIG_PATHNAME;
 
 extern t_log_level LOG_LEVEL;
 
+extern pthread_mutex_t MUTEX_LOGGERS;
 extern t_Logger MODULE_LOGGER;
 extern t_Logger MINIMAL_LOGGER;
 extern t_Logger SOCKET_LOGGER;
@@ -103,45 +103,45 @@ void log_error_r(t_Logger logger, const char *format, ...);
 #define log_trace_r(logger, format, ...)          \
     do {                                            \
         if ((logger).enabled) {                     \
-            pthread_mutex_lock(&(logger).mutex);    \
+            pthread_mutex_lock(&MUTEX_LOGGERS);    \
             log_trace((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&(logger).mutex);  \
+            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
         }                                           \
     } while (0)
 
 #define log_debug_r(logger, format, ...)          \
     do {                                            \
         if ((logger).enabled) {                     \
-            pthread_mutex_lock(&(logger).mutex);    \
+            pthread_mutex_lock(&MUTEX_LOGGERS);    \
             log_debug((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&(logger).mutex);  \
+            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
         }                                           \
     } while (0)
 
 #define log_info_r(logger, format, ...)          \
     do {                                            \
         if ((logger).enabled) {                     \
-            pthread_mutex_lock(&(logger).mutex);    \
+            pthread_mutex_lock(&MUTEX_LOGGERS);    \
             log_info((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&(logger).mutex);  \
+            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
         }                                           \
     } while (0)
 
 #define log_warning_r(logger, format, ...)          \
     do {                                            \
         if ((logger).enabled) {                     \
-            pthread_mutex_lock(&(logger).mutex);    \
+            pthread_mutex_lock(&MUTEX_LOGGERS);    \
             log_warning((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&(logger).mutex);  \
+            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
         }                                           \
     } while (0)
 
 #define log_error_r(logger, format, ...)          \
     do {                                            \
         if ((logger).enabled) {                     \
-            pthread_mutex_lock(&(logger).mutex);    \
+            pthread_mutex_lock(&MUTEX_LOGGERS);    \
             log_error((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&(logger).mutex);  \
+            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
         }                                           \
     } while (0)
 

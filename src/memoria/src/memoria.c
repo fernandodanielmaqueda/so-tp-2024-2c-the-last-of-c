@@ -96,6 +96,12 @@ int module(int argc, char* argv[]) {
 	}
 
 	// Loggers
+	if((status = pthread_mutex_init(&MUTEX_LOGGERS, NULL))) {
+		report_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_LOGGERS);
+
 	if(logger_init(&MODULE_LOGGER, MODULE_LOGGER_INIT_ENABLED, MODULE_LOGGER_PATHNAME, MODULE_LOGGER_NAME, MODULE_LOGGER_INIT_ACTIVE_CONSOLE, MODULE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
@@ -176,6 +182,7 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
 	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_LOGGERS
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // PARTITION_TABLE
 	pthread_cleanup_pop(1); // ARRAY_PROCESS_MEMORY
