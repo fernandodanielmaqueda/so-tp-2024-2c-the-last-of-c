@@ -43,11 +43,11 @@ int module(int argc, char* argv[]) {
 	// Bloquea todas las señales para este y los hilos creados
 	sigset_t set;
 	if(sigfillset(&set)) {
-		perror("sigfillset");
+		log_error_sigfillset();
 		return EXIT_FAILURE;
 	}
 	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
-		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		log_error_pthread_sigmask(status);
 		return EXIT_FAILURE;
 	}
 

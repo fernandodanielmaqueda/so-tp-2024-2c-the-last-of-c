@@ -34,41 +34,41 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 	sigset_t set_SIGINT, set_rest;
 
 	if(sigemptyset(&set_SIGINT)) {
-		perror("sigemptyset");
+		log_error_sigemptyset();
 		goto cancel;
 	}
 
 	if(sigaddset(&set_SIGINT, SIGINT)) {
-		perror("sigaddset");
+		log_error_sigaddset();
 		goto cancel;
 	}
 
 	/*
 	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
-		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		log_error_pthread_sigmask(status);
 		goto cancel;
 	}
 	*/
 
 	if(sigfillset(&set_rest)) {
-		perror("sigfillset");
+		log_error_sigfillset();
 		goto cancel;
 	}
 
 	if(sigdelset(&set_rest, SIGINT)) {
-		perror("sigdelset");
+		log_error_sigdelset();
 		goto cancel;
 	}
 
 	if((status = pthread_sigmask(SIG_UNBLOCK, &set_rest, NULL))) {
-		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		log_error_pthread_sigmask(status);
 		goto cancel;
 	}
 
 	siginfo_t info;
 	int signo;
 	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
-		perror("sigwaitinfo");
+		log_error_sigwaitinfo();
 		//goto cancel;
 	}
 
@@ -76,15 +76,15 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 
 	cancel:
 		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
-			fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+			log_error_pthread_sigmask(status);
 		}
 
 		if((status = pthread_sigmask(SIG_BLOCK, &set_rest, NULL))) {
-			fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+			log_error_pthread_sigmask(status);
 		}
 
 		if((status = pthread_cancel(*thread_to_cancel))) {
-			fprintf(stderr, "pthread_cancel: %s\n", strerror(status));
+			log_error_pthread_cancel(status);
 		}
 
 		pthread_exit(NULL);
@@ -198,27 +198,27 @@ int finish_logger(t_log **logger) {
 }
 
 void log_error_close(void) {
-	perror("close");
+	fprintf(stderr, "close: %s\n", strerror(errno));
 }
 
 void log_error_fclose(void) {
-	perror("fclose");
+	fprintf(stderr, "fclose: %s\n", strerror(errno));
 }
 
 void log_error_sem_init(void) {
-	perror("sem_init");
+	fprintf(stderr, "sem_init: %s\n", strerror(errno));
 }
 
 void log_error_sem_destroy(void) {
-	perror("sem_destroy");
+	fprintf(stderr, "sem_destroy: %s\n", strerror(errno));
 }
 
 void log_error_sem_wait(void) {
-	perror("sem_wait");
+	fprintf(stderr, "sem_wait: %s\n", strerror(errno));
 }
 
 void log_error_sem_post(void) {
-	perror("sem_post");
+	fprintf(stderr, "sem_post: %s\n", strerror(errno));
 }
 
 void log_error_pthread_mutex_init(int status) {
@@ -310,11 +310,19 @@ void log_error_pthread_cond_broadcast(int status) {
 }
 
 void log_error_sigemptyset(void) {
-	perror("sigemptyset");
+	fprintf(stderr, "sigemptyset: %s\n", strerror(errno));
+}
+
+void log_error_sigfillset(void) {
+	fprintf(stderr, "sigfillset: %s\n", strerror(errno));
 }
 
 void log_error_sigaddset(void) {
-	perror("sigaddset");
+	fprintf(stderr, "sigaddset: %s\n", strerror(errno));
+}
+
+void log_error_sigdelset(void) {
+	fprintf(stderr, "sigdelset: %s\n", strerror(errno));
 }
 
 void log_error_pthread_sigmask(int status) {
@@ -322,11 +330,15 @@ void log_error_pthread_sigmask(int status) {
 }
 
 void log_error_sigaction(void) {
-	perror("sigaction");
+	fprintf(stderr, "sigaction: %s\n", strerror(errno));
+}
+
+void log_error_sigwaitinfo(void) {
+	fprintf(stderr, "sigwaitinfo: %s\n", strerror(errno));
 }
 
 void log_error_clock_gettime(void) {
-	perror("clock_gettime");
+	fprintf(stderr, "clock_gettime: %s\n", strerror(errno));
 }
 
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
@@ -504,18 +516,3 @@ void exit_sigint(void) {
 	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL + C
 	pthread_exit(NULL);
 }
-
-/*
-void _perror(const char *__s) {
-	int oldstate;
-
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldstate);
-		perror(__s);
-	pthread_setcancelstate(oldstate, NULL);
-}
-
-perror
-fprintf
-strerror
-log_info
-*/

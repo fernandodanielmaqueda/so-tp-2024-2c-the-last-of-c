@@ -115,9 +115,12 @@ void log_error_pthread_cond_signal(int status);
 void log_error_pthread_cond_broadcast(int status);
 
 void log_error_sigemptyset(void);
+void log_error_sigfillset(void);
 void log_error_sigaddset(void);
+void log_error_sigdelset(void);
 void log_error_pthread_sigmask(int status);
 void log_error_sigaction(void);
+void log_error_sigwaitinfo(void);
 
 void log_error_clock_gettime(void);
 
