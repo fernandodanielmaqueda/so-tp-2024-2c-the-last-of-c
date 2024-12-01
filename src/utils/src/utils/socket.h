@@ -67,4 +67,8 @@ int client_start_try(char *ip, char *port);
 
 int wrapper_close(int *fd);
 
+// Array de sockets
+
+int socket_array_finish(t_Socket *sockets[]);
+
 #endif // UTILS_SOCKET_H

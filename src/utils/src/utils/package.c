@@ -58,7 +58,7 @@ void package_destroy(t_Package *package) {
 
 int package_send(t_Package *package, int fd_socket) {
   
-  // Si el paquete es NULL, no se envia nada
+  // Si el paquete es NULL, no se envía nada
   if(package == NULL)
     return -1;
 

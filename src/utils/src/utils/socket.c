@@ -331,3 +331,38 @@ int wrapper_close(int *fd) {
 
 	return 0;
 }
+
+int socket_array_finish(t_Socket *sockets[]) {
+  int retval = 0, status;
+  register unsigned int i;
+
+  for(i = 0; sockets[i] != NULL; i++) {
+    if(sockets[i]->bool_thread.running) {
+      if((status = pthread_cancel(sockets[i]->bool_thread.thread))) {
+        log_error_pthread_cancel(status);
+        retval = -1;
+      }
+    }
+  }
+
+  for(i = 0; sockets[i] != NULL; i++) {
+    if(sockets[i]->bool_thread.running) {
+      if((status = pthread_join(sockets[i]->bool_thread.thread, NULL))) {
+        log_error_pthread_join(status);
+        retval = -1;
+      }
+    }
+  }
+
+  for(i = 0; sockets[i] != NULL; i++) {
+    if(sockets[i]->fd >= 0) {
+      if(close(sockets[i]->fd)) {
+        log_error_close();
+        retval = -1;
+      }
+      sockets[i]->fd = -1;
+    }
+  }
+
+  return retval;
+}
