@@ -41,7 +41,7 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
   for(; list_size > 0; list_size--) {
     new_element = malloc(sizeof(t_link_element));
     if(new_element == NULL) {
-      log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar un elemento de la lista", sizeof(t_link_element));
+      log_warning_r(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar un elemento de la lista", sizeof(t_link_element));
       errno = ENOMEM;
       return -1;
     }
@@ -66,7 +66,7 @@ int list_deserialize(t_Payload *payload, t_list *destination, int (*element_dese
 int list_log(e_Serialization serialization, t_list list) {
   char *string_elements = string_new();
   if(string_elements == NULL) {
-    log_warning(SERIALIZE_LOGGER, "string_new: No se pudo reservar memoria para loguear los elementos de la lista");
+    log_warning_r(SERIALIZE_LOGGER, "string_new: No se pudo reservar memoria para loguear los elementos de la lista");
     errno = ENOMEM;
     return -1;
   }
@@ -77,7 +77,7 @@ int list_log(e_Serialization serialization, t_list list) {
     element = element->next;
   }
 
-  log_info(SERIALIZE_LOGGER,
+  log_info_r(SERIALIZE_LOGGER,
     "[%s] t_list:\n"
     "* elements_count: %d\n"
     "* head: %p\n"

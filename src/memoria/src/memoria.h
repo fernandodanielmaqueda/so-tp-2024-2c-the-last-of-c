@@ -93,6 +93,18 @@ extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
 #include "client_cpu.h"
 #include "socket.h"
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "Memoria"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "memoria.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "memoria.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "Memoria"
+
 int module(int, char*[]);
 
 int array_memory_processes_destroy(void);

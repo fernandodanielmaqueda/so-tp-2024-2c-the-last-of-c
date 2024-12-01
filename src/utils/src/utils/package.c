@@ -29,7 +29,7 @@ t_Package *package_create(void) {
 
   t_Package *package = malloc(sizeof(t_Package));
   if(package == NULL) {
-    log_error(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
+    log_error_r(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
     return NULL;
   }
 
@@ -87,11 +87,11 @@ int package_send(t_Package *package, int fd_socket) {
   payload_seek(&(package->payload), previous_offset, SEEK_CUR);
 
   if(bytes == -1) {
-      log_warning(SERIALIZE_LOGGER, "[%d] send: %s\n", fd_socket, strerror(errno));
+      log_warning_r(SERIALIZE_LOGGER, "[%d] send: %s\n", fd_socket, strerror(errno));
       return -1;
   }
   if(bytes != bufferSize) {
-      log_warning(SERIALIZE_LOGGER, "[%d] send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", fd_socket, bufferSize, bytes);
+      log_warning_r(SERIALIZE_LOGGER, "[%d] send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", fd_socket, bufferSize, bytes);
       return -1;
   }
 
@@ -143,7 +143,7 @@ int package_receive_payload(t_Package *package, int fd_socket) {
 
   package->payload.stream = malloc((size_t) package->payload.size);
   if(package->payload.stream == NULL) {
-    log_error(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
+    log_error_r(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
     return -1;
   }
 
@@ -154,15 +154,15 @@ int receive(int fd_socket, void *destination, size_t expected_bytes) {
 
   ssize_t bytes = recv(fd_socket, destination, expected_bytes, 0); // MSG_WAITALL
   if(bytes == 0) {
-      log_warning(SERIALIZE_LOGGER, "[%d] recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n", fd_socket);
+      log_warning_r(SERIALIZE_LOGGER, "[%d] recv: No hay mensajes disponibles para recibir y el par ha realizado un cierre ordenado\n", fd_socket);
       return -1;
   }
   if(bytes == -1) {
-      log_warning(SERIALIZE_LOGGER, "[%d] recv: %s\n", fd_socket, strerror(errno));
+      log_warning_r(SERIALIZE_LOGGER, "[%d] recv: %s\n", fd_socket, strerror(errno));
       return -1;
   }
   if(bytes != expected_bytes) {
-      log_warning(SERIALIZE_LOGGER, "[%d] recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", fd_socket, expected_bytes, bytes);
+      log_warning_r(SERIALIZE_LOGGER, "[%d] recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", fd_socket, expected_bytes, bytes);
       return -1;
   }
 

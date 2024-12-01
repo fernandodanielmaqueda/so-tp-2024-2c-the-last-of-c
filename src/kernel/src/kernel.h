@@ -117,9 +117,21 @@ typedef struct t_Dump_Memory_Petition {
 #include "scheduler.h"
 #include "syscalls.h"
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "Kernel"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "kernel.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "kernel.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "Kernel"
+
 extern char *MODULE_NAME;
 
-extern t_log *MODULE_LOGGER;
+extern t_Logger MODULE_LOGGER;
 extern char *MINIMAL_LOG_PATHNAME;
 
 extern t_config *MODULE_CONFIG;
@@ -169,7 +181,7 @@ int array_list_ready_update(t_Priority priority);
 int array_list_ready_resize(t_Priority priority);
 int array_list_ready_destroy(void);
 
-void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list);
+void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
 void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination);
 void dump_memmory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);

@@ -52,10 +52,10 @@ int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
             KILL_EXEC_TCB = 1;
 
             if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-                log_error(MODULE_LOGGER, "[%d] Error al enviar interrupción a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+                log_error_r(MODULE_LOGGER, "[%d] Error al enviar interrupción a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
                 return -1;
             }
-            log_trace(MODULE_LOGGER, "[%d] Se envía interrupción a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+            log_trace_r(MODULE_LOGGER, "[%d] Se envía interrupción a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
 
 			return 0;
         }
@@ -502,7 +502,7 @@ int insert_state_new(t_PCB *pcb) {
 		return -1;
 	}
 
-	log_info(MINIMAL_LOGGER, "## (%u:0) Se crea el proceso - Estado: NEW", pcb->PID);
+	log_info_r(MINIMAL_LOGGER, "## (%u:0) Se crea el proceso - Estado: NEW", pcb->PID);
 
 	if(sem_post(&SEM_LONG_TERM_SCHEDULER_NEW)) {
 		report_error_sem_post();
@@ -558,10 +558,10 @@ int insert_state_ready(t_TCB *tcb) {
 				break;
 		}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	if(previous_state == NEW_STATE) {
-		log_info(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", tcb->pcb->PID, tcb->TID);
+		log_info_r(MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", tcb->pcb->PID, tcb->TID);
 	}
 
 	if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
@@ -599,7 +599,7 @@ int insert_state_exec(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	return 0;
 }
@@ -621,8 +621,8 @@ int insert_state_blocked_join(t_TCB *tcb, t_TCB *target) {
 		return -1;
 	}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_JOIN", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
-	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: THREAD_JOIN", tcb->pcb->PID, tcb->TID);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_JOIN", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: THREAD_JOIN", tcb->pcb->PID, tcb->TID);
 
 	return 0;
 }
@@ -635,8 +635,8 @@ int insert_state_blocked_mutex(t_TCB *tcb, t_Resource *resource) {
 	list_add(resource->list_blocked, tcb);
 	tcb->location = resource;
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_MUTEX", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
-	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: MUTEX", tcb->pcb->PID, tcb->TID);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_MUTEX", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: MUTEX", tcb->pcb->PID, tcb->TID);
 
 	return 0;
 }
@@ -651,7 +651,7 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 
 	t_Dump_Memory_Petition *dump_memory_petition = malloc(sizeof(t_Dump_Memory_Petition));
 	if(dump_memory_petition == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
+		log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
 		exit_sigint();
 	}
 	bool created = false;
@@ -722,8 +722,8 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 		}
 
 	pthread_cleanup_pop(0); // dump_memory_petition
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
-	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", pid, tid);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
+	log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", pid, tid);
 
 	return 0;
 }
@@ -745,8 +745,8 @@ int insert_state_blocked_io_ready(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
-	log_info(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", tcb->pcb->PID, tcb->TID);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", tcb->pcb->PID, tcb->TID);
 
 	if(sem_post(&SEM_IO_DEVICE)) {
 		report_error_sem_post();
@@ -773,7 +773,7 @@ int insert_state_blocked_io_exec(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	return 0;
 }
@@ -795,7 +795,7 @@ int insert_state_exit(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXIT", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_info_r(MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXIT", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	if(sem_post(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 		report_error_sem_post();

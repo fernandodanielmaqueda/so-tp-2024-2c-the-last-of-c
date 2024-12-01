@@ -46,7 +46,7 @@ int text_deserialize(t_Payload *payload, char **destination) {
   } else {
     *destination = malloc((size_t) textLength);
     if(*destination == NULL) {
-      log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar el texto", (size_t) textLength);
+      log_warning_r(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar el texto", (size_t) textLength);
       errno = ENOMEM;
       return -1;
     }
@@ -63,7 +63,7 @@ int text_deserialize(t_Payload *payload, char **destination) {
 
 int text_log(e_Serialization serialization, char *text) {
 
-  log_info(SERIALIZE_LOGGER,
+  log_info_r(SERIALIZE_LOGGER,
     "[%s] text: %s"
     , SERIALIZATION_NAMES[serialization]
     , (text != NULL) ? text : "(nil)"

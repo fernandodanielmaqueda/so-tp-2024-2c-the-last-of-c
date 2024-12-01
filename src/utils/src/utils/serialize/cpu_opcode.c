@@ -60,7 +60,7 @@ int cpu_opcode_deserialize(t_Payload *payload, e_CPU_OpCode *destination) {
 }
 
 int cpu_opcode_log(e_Serialization serialization, e_CPU_OpCode cpu_opcode) {
-  log_info(SERIALIZE_LOGGER,
+  log_info_r(SERIALIZE_LOGGER,
     "[%s] e_CPU_OpCode: %s"
     , SERIALIZATION_NAMES[serialization]
     , CPU_OPCODE_NAMES[cpu_opcode]

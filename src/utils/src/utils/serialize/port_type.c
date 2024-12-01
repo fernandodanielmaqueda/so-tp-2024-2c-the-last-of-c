@@ -49,7 +49,7 @@ int port_type_deserialize(t_Payload *payload, e_Port_Type *destination) {
 }
 
 int port_type_log(e_Serialization serialization, e_Port_Type source) {
-  log_info(SERIALIZE_LOGGER,
+  log_info_r(SERIALIZE_LOGGER,
     "[%s] e_Port_Type: %s"
     , SERIALIZATION_NAMES[serialization]
     , PORT_NAMES[source]

@@ -28,6 +28,18 @@
 #include "opcodes.h"
 #include "registers.h"
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "CPU"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "cpu.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "cpu.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "CPU"
+
 extern t_PID PID;
 extern t_TID TID;
 extern t_Exec_Context EXEC_CONTEXT;

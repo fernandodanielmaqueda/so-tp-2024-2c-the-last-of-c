@@ -36,7 +36,6 @@ int module(int argc, char* argv[]) {
     int status;
 
     MODULE_NAME = "memoria";
-    MODULE_LOG_PATHNAME = "memoria.log";
     MODULE_CONFIG_PATHNAME = "memoria.config";
 
 
@@ -76,7 +75,7 @@ int module(int argc, char* argv[]) {
     // PARTITION_TABLE
     PARTITION_TABLE = list_create();
     if(PARTITION_TABLE == NULL) {
-        log_error(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
+        log_error_r(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) partition_table_destroy, NULL);
@@ -97,51 +96,31 @@ int module(int argc, char* argv[]) {
 	}
 
 	// Loggers
-	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&MODULE_LOGGER, MODULE_LOGGER_INIT_ENABLED, MODULE_LOGGER_PATHNAME, MODULE_LOGGER_NAME, MODULE_LOGGER_INIT_ACTIVE_CONSOLE, MODULE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
-	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MODULE_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&MINIMAL_LOGGER, MINIMAL_LOGGER_INIT_ENABLED, MINIMAL_LOGGER_PATHNAME, MINIMAL_LOGGER_NAME, MINIMAL_LOGGER_ACTIVE_CONSOLE, MINIMAL_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
-	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MINIMAL_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&SOCKET_LOGGER, SOCKET_LOGGER_INIT_ENABLED, SOCKET_LOGGER_PATHNAME, SOCKET_LOGGER_NAME, SOCKET_LOGGER_INIT_ACTIVE_CONSOLE, SOCKET_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
-	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SOCKET_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&SERIALIZE_LOGGER, SERIALIZE_LOGGER_INIT_ENABLED, SERIALIZE_LOGGER_PATHNAME, SERIALIZE_LOGGER_NAME, SERIALIZE_LOGGER_INIT_ACTIVE_CONSOLE, SERIALIZE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
-	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SERIALIZE_LOGGER);
 
 
     // MAIN_MEMORY
     MAIN_MEMORY = malloc(MEMORY_SIZE);
     if(MAIN_MEMORY == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
+        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
         exit_sigint();
     }
 	pthread_cleanup_push((void (*)(void *)) free, (void *) MAIN_MEMORY);
@@ -166,7 +145,7 @@ int module(int argc, char* argv[]) {
     // LIST_JOBS_KERNEL
     SHARED_LIST_CLIENTS.list = list_create();
     if(SHARED_LIST_CLIENTS.list == NULL) {
-        log_error(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
+        log_error_r(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
@@ -179,7 +158,7 @@ int module(int argc, char* argv[]) {
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CLIENT_CPU);
 
-    log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
+    log_debug_r(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
     pthread_cleanup_push((void (*)(void *)) wait_client_threads, NULL);
@@ -194,13 +173,9 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_pop(1); // COND_CLIENTS
 	pthread_cleanup_pop(1); // MAIN_MEMORY
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MODULE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // PARTITION_TABLE
 	pthread_cleanup_pop(1); // ARRAY_PROCESS_MEMORY
@@ -246,7 +221,7 @@ t_Memory_Process *memory_process_create(t_PID pid, size_t size) {
 
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
+        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_process);
@@ -301,7 +276,7 @@ t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path) {
 
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
+        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_thread);

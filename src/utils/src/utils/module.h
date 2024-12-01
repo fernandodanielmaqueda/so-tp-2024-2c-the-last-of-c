@@ -14,6 +14,12 @@
 #include "commons/log.h"
 #include "commons/config.h"
 
+typedef struct t_Logger {
+    bool enabled;
+    t_log *log;
+    pthread_mutex_t mutex;
+} t_Logger;
+
 typedef struct t_Bool_Thread {
     pthread_t thread;
     bool running;
@@ -40,21 +46,34 @@ extern char *MODULE_CONFIG_PATHNAME;
 
 extern t_log_level LOG_LEVEL;
 
-extern t_log *MINIMAL_LOGGER;
-extern char *MINIMAL_LOG_PATHNAME;
-extern pthread_mutex_t MUTEX_MINIMAL_LOGGER;
+extern t_Logger MODULE_LOGGER;
+extern t_Logger MINIMAL_LOGGER;
+extern t_Logger SOCKET_LOGGER;
+extern t_Logger SERIALIZE_LOGGER;
 
-extern t_log *MODULE_LOGGER;
-extern char *MODULE_LOG_PATHNAME;
-extern pthread_mutex_t MUTEX_MODULE_LOGGER;
+#define MODULE_LOGGER_INIT_ENABLED true
+#define MODULE_LOGGER_PATHNAME "module.log"
+#define MODULE_LOGGER_NAME "Module"
+#define MODULE_LOGGER_INIT_ACTIVE_CONSOLE true
+#define MODULE_LOGGER_INIT_LOG_LEVEL LOG_LEVEL
 
-extern t_log *SOCKET_LOGGER;
-extern char *SOCKET_LOG_PATHNAME;
-extern pthread_mutex_t MUTEX_SOCKET_LOGGER;
+#define MINIMAL_LOGGER_INIT_ENABLED true
+#define MINIMAL_LOGGER_PATHNAME "minimal.log"
+#define MINIMAL_LOGGER_NAME "Minimal"
+#define MINIMAL_LOGGER_ACTIVE_CONSOLE true
+#define MINIMAL_LOGGER_INIT_LOG_LEVEL LOG_LEVEL
 
-extern t_log *SERIALIZE_LOGGER;
-extern char *SERIALIZE_LOG_PATHNAME;
-extern pthread_mutex_t MUTEX_SERIALIZE_LOGGER;
+#define SOCKET_LOGGER_INIT_ENABLED true
+#define SOCKET_LOGGER_PATHNAME "socket.log"
+#define SOCKET_LOGGER_NAME "Socket"
+#define SOCKET_LOGGER_INIT_ACTIVE_CONSOLE true
+#define SOCKET_LOGGER_INIT_LOG_LEVEL LOG_LEVEL
+
+#define SERIALIZE_LOGGER_INIT_ENABLED true
+#define SERIALIZE_LOGGER_PATHNAME "serialize.log"
+#define SERIALIZE_LOGGER_NAME "Serialize"
+#define SERIALIZE_LOGGER_INIT_ACTIVE_CONSOLE false
+#define SERIALIZE_LOGGER_INIT_LOG_LEVEL LOG_LEVEL
 
 #define PTHREAD_SETCANCELSTATE_DISABLE() \
     do {                         \
@@ -67,16 +86,64 @@ extern pthread_mutex_t MUTEX_SERIALIZE_LOGGER;
 
 void *signal_manager(pthread_t *thread_to_cancel);
 
-int initialize_configs(char *pathname);
-void finish_configs(void);
 bool config_has_properties(t_config *config, ...);
 extern int read_module_config(t_config *); // Se debe implementar en cada módulo
 
-int initialize_loggers(void);
-int finish_loggers(void);
+int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool is_active_console, t_log_level log_level);
+int logger_destroy(t_Logger *logger);
 
-int initialize_logger(t_log **logger, char *pathname, char *module_name);
-int finish_logger(t_log **logger);
+/*
+void log_trace_r(t_Logger logger, const char *format, ...);
+void log_debug_r(t_Logger logger, const char *format, ...);
+void log_info_r(t_Logger logger, const char *format, ...);
+void log_warning_r(t_Logger logger, const char *format, ...);
+void log_error_r(t_Logger logger, const char *format, ...);
+*/
+
+#define log_trace_r(logger, format, ...)          \
+    do {                                            \
+        if ((logger).enabled) {                     \
+            pthread_mutex_lock(&(logger).mutex);    \
+            log_trace((logger).log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&(logger).mutex);  \
+        }                                           \
+    } while (0)
+
+#define log_debug_r(logger, format, ...)          \
+    do {                                            \
+        if ((logger).enabled) {                     \
+            pthread_mutex_lock(&(logger).mutex);    \
+            log_debug((logger).log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&(logger).mutex);  \
+        }                                           \
+    } while (0)
+
+#define log_info_r(logger, format, ...)          \
+    do {                                            \
+        if ((logger).enabled) {                     \
+            pthread_mutex_lock(&(logger).mutex);    \
+            log_info((logger).log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&(logger).mutex);  \
+        }                                           \
+    } while (0)
+
+#define log_warning_r(logger, format, ...)          \
+    do {                                            \
+        if ((logger).enabled) {                     \
+            pthread_mutex_lock(&(logger).mutex);    \
+            log_warning((logger).log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&(logger).mutex);  \
+        }                                           \
+    } while (0)
+
+#define log_error_r(logger, format, ...)          \
+    do {                                            \
+        if ((logger).enabled) {                     \
+            pthread_mutex_lock(&(logger).mutex);    \
+            log_error((logger).log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&(logger).mutex);  \
+        }                                           \
+    } while (0)
 
 void report_error_close(void);
 

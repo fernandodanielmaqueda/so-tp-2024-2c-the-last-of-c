@@ -12,21 +12,10 @@ char *MODULE_CONFIG_PATHNAME;
 
 t_log_level LOG_LEVEL = LOG_LEVEL_TRACE;
 
-t_log *MODULE_LOGGER = NULL;
-char *MODULE_LOG_PATHNAME;
-pthread_mutex_t MUTEX_MODULE_LOGGER;
-
-t_log *MINIMAL_LOGGER = NULL;
-char *MINIMAL_LOG_PATHNAME = "minimal.log";
-pthread_mutex_t MUTEX_MINIMAL_LOGGER;
-
-t_log *SOCKET_LOGGER = NULL;
-char *SOCKET_LOG_PATHNAME = "socket.log";
-pthread_mutex_t MUTEX_SOCKET_LOGGER;
-
-t_log *SERIALIZE_LOGGER = NULL;
-char *SERIALIZE_LOG_PATHNAME = "serialize.log";
-pthread_mutex_t MUTEX_SERIALIZE_LOGGER;
+t_Logger MODULE_LOGGER;
+t_Logger MINIMAL_LOGGER;
+t_Logger SOCKET_LOGGER;
+t_Logger SERIALIZE_LOGGER;
 
 void *signal_manager(pthread_t *thread_to_cancel) {
 	int status;
@@ -90,31 +79,6 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 		pthread_exit(NULL);
 }
 
-int initialize_configs(char *pathname) {
-	MODULE_CONFIG = config_create(pathname);
-	if(MODULE_CONFIG == NULL) {
-		fprintf(stderr, "%s: No se pudo abrir el archivo de configuracion\n", pathname);
-        goto error;
-	}
-
-	if(read_module_config(MODULE_CONFIG)) {
-		fprintf(stderr, "%s: El archivo de configuración no se pudo leer correctamente\n", pathname);
-		goto error_config;
-	}
-
-	return 0;
-
-	error_config:
-	config_destroy(MODULE_CONFIG);
-	error:
-	return -1;
-}
-
-void finish_configs(void) {
-	if(MODULE_CONFIG != NULL)
-		config_destroy(MODULE_CONFIG);
-}
-
 bool config_has_properties(t_config *config, ...) {
     va_list args;
     va_start(args, config);
@@ -134,68 +98,126 @@ bool config_has_properties(t_config *config, ...) {
     return result;
 }
 
-int initialize_loggers(void) {
-	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal"))
-		goto error;
-	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME))
-		goto error_minimal_logger;
-	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket"))
-		goto error_module_logger;
-	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize"))
-		goto error_socket_logger;
+int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool is_active_console, t_log_level log_level) {
+	int retval = 0, status;
+	if(logger == NULL || pathname == NULL || name == NULL) {
+		fprintf(stderr, "logger_init: %s\n", strerror(EINVAL));
+		return -1;
+	}
 
-	return 0;
+	logger->enabled = enabled;
 
-	error_socket_logger:
-	finish_logger(&SOCKET_LOGGER);
-	error_module_logger:
-	finish_logger(&MODULE_LOGGER);
-	error_minimal_logger:
-	finish_logger(&MINIMAL_LOGGER);
-	error:
-	return -1;
-}
+	if(((logger->log) = log_create(pathname, name, is_active_console, log_level)) == NULL) {
+		fprintf(stderr, "%s: No se pudo crear el log\n", pathname);
+		return -1;
+	}
+	pthread_cleanup_push((void (*)(void *)) log_destroy, logger->log);
 
-int finish_loggers(void) {
-	int retval = 0;
+	if((status = pthread_mutex_init(&(logger->mutex), NULL))) {
+		report_error_pthread_mutex_init(status);
+		retval = -1;
+		goto cleanup_log;
+	}
 
-	if(finish_logger(&SERIALIZE_LOGGER))
-		retval = -1;
-	if(finish_logger(&SOCKET_LOGGER))
-		retval = -1;
-	if(finish_logger(&MODULE_LOGGER))
-		retval = -1;
-	if(finish_logger(&MINIMAL_LOGGER))
-		retval = -1;
+	cleanup_log:
+	pthread_cleanup_pop(retval); // log
 
 	return retval;
 }
 
-int initialize_logger(t_log **logger, char *pathname, char *module_name) {
-	if(logger == NULL || pathname == NULL || module_name == NULL) {
-		return -1;
-	}
-
-	if((*logger = log_create(pathname, module_name, true, LOG_LEVEL)) == NULL) {
-		fprintf(stderr, "%s: No se pudo crear el logger\n", pathname);
-		return -1;
-	}
-
-	return 0;
-}
-
-int finish_logger(t_log **logger) {
+int logger_destroy(t_Logger *logger) {
+	int retval = 0, status;
 	if(logger == NULL) {
+		fprintf(stderr, "logger_destroy: %s\n", strerror(EINVAL));
 		return -1;
 	}
 
-	if(*logger != NULL) {
-		log_destroy(*logger);
-		*logger = NULL;
+	log_destroy(logger->log);
+
+	if((status = pthread_mutex_destroy(&(logger->mutex)))) {
+		report_error_pthread_mutex_destroy(status);
+		retval = -1;
 	}
 
-	return 0;
+	return retval;
 }
+
+/*
+void log_trace_r(t_Logger logger, const char *format, ...) {
+	if(!logger.enabled) {
+		return;
+	}
+
+	va_list arguments;
+	va_start(arguments, format);
+
+	pthread_mutex_lock(&(logger.mutex));
+		log_trace(logger.log, format, arguments);
+	pthread_mutex_unlock(&(logger.mutex));
+
+	va_end(arguments);
+}
+
+void log_debug_r(t_Logger logger, const char *format, ...) {
+	if(!logger.enabled) {
+		return;
+	}
+
+	va_list arguments;
+	va_start(arguments, format);
+
+	pthread_mutex_lock(&(logger.mutex));
+		log_debug(logger.log, format, arguments);
+	pthread_mutex_unlock(&(logger.mutex));
+
+	va_end(arguments);
+}
+
+void log_info_r(t_Logger logger, const char *format, ...) {
+	if(!logger.enabled) {
+		return;
+	}
+
+	va_list arguments;
+	va_start(arguments, format);
+
+	pthread_mutex_lock(&(logger.mutex));
+		log_info(logger.log, format, arguments);
+	pthread_mutex_unlock(&(logger.mutex));
+
+	va_end(arguments);
+}
+
+void log_warning_r(t_Logger logger, const char *format, ...) {
+	if(!logger.enabled) {
+		return;
+	}
+
+	va_list arguments;
+	va_start(arguments, format);
+
+	pthread_mutex_lock(&(logger.mutex));
+		log_warning(logger.log, format, arguments);
+	pthread_mutex_unlock(&(logger.mutex));
+
+	va_end(arguments);
+}
+
+void log_error_r(t_Logger logger, const char *format, ...) {
+	if(!logger.enabled) {
+		return;
+	}
+
+	va_list arguments;
+	va_start(arguments, format);
+
+	pthread_mutex_lock(&(logger.mutex));
+		log_error(logger.log, format, arguments);
+	pthread_mutex_unlock(&(logger.mutex));
+
+	va_end(arguments);
+}
+*/
 
 void report_error_close(void) {
 	fprintf(stderr, "close: %s\n", strerror(errno));
@@ -376,7 +398,7 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 
     t_link_element *new_element = (t_link_element *) malloc(sizeof(t_link_element));
     if(new_element == NULL) {
-        log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento de la lista", sizeof(t_link_element));
+        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento de la lista", sizeof(t_link_element));
         return -1;
     }
 
@@ -436,7 +458,7 @@ int shared_list_init(t_Shared_List *shared_list) {
 
 	shared_list->list = list_create();
 	if(shared_list->list == NULL) {
-		log_error(MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
+		log_error_r(MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
 		retval = -1;
 		goto cleanup;
 	}

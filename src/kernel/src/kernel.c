@@ -43,7 +43,6 @@ int module(int argc, char *argv[]) {
 
 
 	MODULE_NAME = "kernel";
-	MODULE_LOG_PATHNAME = "kernel.log";
 	MODULE_CONFIG_PATHNAME = "kernel.config";
 
 
@@ -98,45 +97,25 @@ int module(int argc, char *argv[]) {
 	}
 
 	// Loggers
-	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&MODULE_LOGGER, MODULE_LOGGER_INIT_ENABLED, MODULE_LOGGER_PATHNAME, MODULE_LOGGER_NAME, MODULE_LOGGER_INIT_ACTIVE_CONSOLE, MODULE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
-	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MODULE_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&MINIMAL_LOGGER, MINIMAL_LOGGER_INIT_ENABLED, MINIMAL_LOGGER_PATHNAME, MINIMAL_LOGGER_NAME, MINIMAL_LOGGER_ACTIVE_CONSOLE, MINIMAL_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
-	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MINIMAL_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&SOCKET_LOGGER, SOCKET_LOGGER_INIT_ENABLED, SOCKET_LOGGER_PATHNAME, SOCKET_LOGGER_NAME, SOCKET_LOGGER_INIT_ACTIVE_CONSOLE, SOCKET_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
-	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SOCKET_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
-		report_error_pthread_mutex_init(status);
+	if(logger_init(&SERIALIZE_LOGGER, SERIALIZE_LOGGER_INIT_ENABLED, SERIALIZE_LOGGER_PATHNAME, SERIALIZE_LOGGER_NAME, SERIALIZE_LOGGER_INIT_ACTIVE_CONSOLE, SERIALIZE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
-	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SERIALIZE_LOGGER);
 
 
 	// RWLOCK_SCHEDULING
@@ -311,19 +290,19 @@ int module(int argc, char *argv[]) {
 	// Initial process
 	char *pseudocode_filename = strdup(argv[1]);
 	if(pseudocode_filename == NULL) {
-		log_error(MODULE_LOGGER, "strdup: No se pudo duplicar el nombre del archivo de pseudocodigo");
+		log_error_r(MODULE_LOGGER, "strdup: No se pudo duplicar el nombre del archivo de pseudocodigo");
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) free, pseudocode_filename);
 		if(new_process(process_size, pseudocode_filename, 0)) {
-			log_error(MODULE_LOGGER, "No se pudo crear el proceso");
+			log_error_r(MODULE_LOGGER, "No se pudo crear el proceso");
 			exit_sigint();
 		}
 		// TODO
 	pthread_cleanup_pop(0); // pseudocode_filename
 
 
-	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
+	log_debug_r(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
 
 	/*
@@ -367,13 +346,9 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_NEW
 	pthread_cleanup_pop(1); // RWLOCK_SCHEDULING
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MODULE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
 
@@ -431,7 +406,7 @@ t_PCB *pcb_create(size_t size) {
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
 	if(pcb == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_PCB));
+		log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_PCB));
 		retval = -1;
 		goto ret;
 	}
@@ -516,7 +491,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
+		log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
 		retval = -1;
 		goto ret;
 	}
@@ -615,7 +590,7 @@ int pid_manager_init(t_PID_Manager *id_manager) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
+		log_error_r(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
@@ -639,7 +614,7 @@ int tid_manager_init(t_TID_Manager *id_manager) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
+		log_error_r(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
@@ -691,13 +666,13 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
+		log_error_r(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if(id_manager->size == PID_MAX) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
+		log_error_r(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
 	}
@@ -711,7 +686,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 
 		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
+			log_error_r(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
@@ -743,13 +718,13 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
+		log_error_r(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if(id_manager->size == TID_MAX) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
+		log_error_r(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
 	}
@@ -763,7 +738,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 
 		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
+			log_error_r(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
@@ -840,7 +815,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 
 	t_PCB *pcb = pcb_create(size);
 	if(pcb == NULL) {
-		log_error(MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
+		log_error_r(MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
 		retval = -1;
 		goto ret;
 	}
@@ -848,7 +823,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 
 	t_TCB *tcb = tcb_create(pcb, pseudocode_filename, priority);
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
+		log_error_r(MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
 		retval = -1;
 		goto cleanup_pcb;
 	}
@@ -876,18 +851,18 @@ int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.socket_connection.fd)) {
-			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+			log_error_r(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envía solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		log_trace_r(MODULE_LOGGER, "[%d] Se envía solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 
 		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.socket_connection.fd)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+			log_error_r(MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		log_trace_r(MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 
 	cleanup_connection:
 	pthread_cleanup_pop(0);
@@ -931,7 +906,7 @@ int array_list_ready_resize(t_Priority priority) {
 
 	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
 	if(priority >= PRIORITY_LIMIT) {
-		log_error(MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
+		log_error_r(MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
 		errno = ERANGE;
 		return -1;
 	}
@@ -944,7 +919,7 @@ int array_list_ready_resize(t_Priority priority) {
 
 		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
 		if(new_array_list_ready == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
+			log_error_r(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
 			errno = ENOMEM;
 			return -1;
 		}
@@ -956,7 +931,7 @@ int array_list_ready_resize(t_Priority priority) {
 				// Si una de las inicializaciones falla, Se trunca el array para sólo incluir las listas de READY que se pudieron inicializar
 				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * i);
 				if(new_array_list_ready == NULL) {
-					log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
+					log_error_r(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
 				}
 				else {
 					ARRAY_LIST_READY = new_array_list_ready;
@@ -993,10 +968,10 @@ int array_list_ready_destroy(void) {
 	return retval;
 }
 
-void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
+void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list) {
 	char *pid_string = string_new();
 	pcb_list_to_pid_string(pcb_list, &pid_string);
-	log_info(logger, "%s: [%s]", state_name, pid_string);
+	log_info_r(logger, "%s: [%s]", state_name, pid_string);
 	free(pid_string);
 }
 

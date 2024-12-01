@@ -80,6 +80,18 @@ extern size_t BLOCKS_TOTAL_SIZE;
 
 #define BLOCKS_TOTAL_SIZE (BLOCK_COUNT * BLOCK_SIZE) // cantidad de bloques * tamaño de bloque
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "Filesystem"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "filesystem.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "filesystem.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "Filesystem"
+
 int module(int, char*[]);
 
 int initialize_global_variables(void);

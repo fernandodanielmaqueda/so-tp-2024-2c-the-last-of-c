@@ -43,7 +43,7 @@ int kernel_interrupt_deserialize(t_Payload *payload, e_Kernel_Interrupt *destina
 }
 
 int kernel_interrupt_log(e_Serialization serialization, e_Kernel_Interrupt source) {
-  log_info(SERIALIZE_LOGGER,
+  log_info_r(SERIALIZE_LOGGER,
     "[%s] e_Kernel_Interrupt: %s"
     , SERIALIZATION_NAMES[serialization]
     , KERNEL_INTERRUPT_NAMES[source]
