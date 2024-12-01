@@ -63,7 +63,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
 
     // TODO: ¿Y si el proceso ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
 
@@ -128,7 +128,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
 
     size_t size;
     t_Memory_Process *process = NULL;
@@ -194,7 +194,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     }
     pthread_cleanup_push((void (*)(void *)) free, argument_path);
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de creación de hilo de [Cliente] %s [PID: %u - TID: %u - Archivo: %s]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, argument_path);
 
     t_Memory_Thread *new_thread = memory_thread_create(tid, argument_path);
     if(new_thread == NULL) {
@@ -278,7 +278,7 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -318,7 +318,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
+    log_trace(MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 
     // 1-0-12:51:59:331.dmp
     char *filename = string_from_format("%u-%u-", pid, tid);

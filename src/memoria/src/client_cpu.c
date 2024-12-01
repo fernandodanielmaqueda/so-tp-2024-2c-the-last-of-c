@@ -66,7 +66,7 @@ void seek_cpu_context(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -87,14 +87,58 @@ void seek_cpu_context(t_Payload *payload) {
 
     if(send_exec_context(context, CLIENT_CPU->socket_client.fd)) {
         log_error(MODULE_LOGGER,
-          "[%d] Error al enviar contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]"
+          "[%d] Error al enviar contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]\n"
+          "* PC: %u\n"
+          "* AX: %u\n"
+          "* BX: %u\n"
+          "* CX: %u\n"
+          "* DX: %u\n"
+          "* EX: %u\n"
+          "* FX: %u\n"
+          "* GX: %u\n"
+          "* HX: %u\n"
+          "* base: %u\n"
+          "* limit: %u"
           , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
+          , context.cpu_registers.PC
+          , context.cpu_registers.AX
+          , context.cpu_registers.BX
+          , context.cpu_registers.CX
+          , context.cpu_registers.DX
+          , context.cpu_registers.EX
+          , context.cpu_registers.FX
+          , context.cpu_registers.GX
+          , context.cpu_registers.HX
+          , context.base
+          , context.limit
         );
         exit_sigint();
     }
     log_trace(MODULE_LOGGER,
-      "[%d] Se envía contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]"
+      "[%d] Se envía contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]\n"
+      "* PC: %u\n"
+      "* AX: %u\n"
+      "* BX: %u\n"
+      "* CX: %u\n"
+      "* DX: %u\n"
+      "* EX: %u\n"
+      "* FX: %u\n"
+      "* GX: %u\n"
+      "* HX: %u\n"
+      "* base: %u\n"
+      "* limit: %u"
       , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
+      , context.cpu_registers.PC
+      , context.cpu_registers.AX
+      , context.cpu_registers.BX
+      , context.cpu_registers.CX
+      , context.cpu_registers.DX
+      , context.cpu_registers.EX
+      , context.cpu_registers.FX
+      , context.cpu_registers.GX
+      , context.cpu_registers.HX
+      , context.base
+      , context.limit
     );
     
     log_info(MINIMAL_LOGGER, "## Contexto Solicitado - (PID:TID) - (%u:%u)", pid, tid);
@@ -119,7 +163,32 @@ void update_cpu_context(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+    log_trace(MODULE_LOGGER,
+      "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]\n"
+      "* PC: %u\n"
+      "* AX: %u\n"
+      "* BX: %u\n"
+      "* CX: %u\n"
+      "* DX: %u\n"
+      "* EX: %u\n"
+      "* FX: %u\n"
+      "* GX: %u\n"
+      "* HX: %u\n"
+      "* base: %u\n"
+      "* limit: %u"
+      , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
+      , context.cpu_registers.PC
+      , context.cpu_registers.AX
+      , context.cpu_registers.BX
+      , context.cpu_registers.CX
+      , context.cpu_registers.DX
+      , context.cpu_registers.EX
+      , context.cpu_registers.FX
+      , context.cpu_registers.GX
+      , context.cpu_registers.HX
+      , context.base
+      , context.limit
+    );
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -163,7 +232,7 @@ void seek_instruccion(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de instrucción de [Cliente] %s [PID: %u - TID: %u - PC: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de instrucción de [Cliente] %s [PID: %u - TID: %u - PC: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -186,10 +255,10 @@ void seek_instruccion(t_Payload *payload) {
     char *instruction = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
 
     if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruction, CLIENT_CPU->socket_client.fd)) {
-        log_error(MODULE_LOGGER, "[%d] Error al enviar instrucción a [Cliente] %s [PID: %u - TID: %u - Instrucción: %s]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, instruction);
+        log_error(MODULE_LOGGER, "[%d] Error al enviar instrucción a [Cliente] %s [PID: %u - TID: %u - PC: %u - Instrucción: %s]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc, instruction);
         exit_sigint();
     }
-    log_trace(MODULE_LOGGER, "[%d] Se envía instrucción a [Cliente] %s [PID: %u - TID: %u - Instrucción: %s]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, instruction);
+    log_trace(MODULE_LOGGER, "[%d] Se envía instrucción a [Cliente] %s [PID: %u - TID: %u - PC: %u - Instrucción: %s]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc, instruction);
 
     log_info(MINIMAL_LOGGER, "## Obtener instruccion - (PID:TID) - (%u:%u) - Instruccion: %s", pid, tid, instruction);
 }
@@ -217,7 +286,7 @@ void read_memory(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud de lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    log_trace(MODULE_LOGGER, "[%d] Se recibe solicitud de lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
@@ -279,7 +348,15 @@ void write_memory(t_Payload *payload) {
         exit_sigint();
     }
 
-    log_info(MODULE_LOGGER, "[%d] Se recibe solicitud escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
+    pthread_cleanup_push((void (*)(void *)) free, data_string);
+        log_trace(MODULE_LOGGER,
+          "[%d] Se recibe solicitud de escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+          "%s"
+          , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+          , data_string
+        );
+    pthread_cleanup_pop(1); // data_string
 
     if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
         log_warning(MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);

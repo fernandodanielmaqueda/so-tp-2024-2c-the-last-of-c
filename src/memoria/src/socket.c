@@ -94,7 +94,7 @@ void *memory_thread_for_client(t_Client *new_client) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envía Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
             log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
@@ -132,7 +132,7 @@ void *memory_thread_for_client(t_Client *new_client) {
                     log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                     exit_sigint();
                 }
-                log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+                log_trace(SOCKET_LOGGER, "[%d] Se envía no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
                 break;
             }
@@ -141,7 +141,7 @@ void *memory_thread_for_client(t_Client *new_client) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envía reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
             log_debug(SOCKET_LOGGER, "[%d] OK Handshake con [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
@@ -157,7 +157,7 @@ void *memory_thread_for_client(t_Client *new_client) {
                 log_warning(SOCKET_LOGGER, "[%d] Error al enviar no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
                 exit_sigint();
             }
-            log_trace(SOCKET_LOGGER, "[%d] Se envia no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
+            log_trace(SOCKET_LOGGER, "[%d] Se envía no reconocimiento de Handshake a [Cliente] %s", new_client->socket_client.fd, PORT_NAMES[port_type]);
 
             break;
         }
