@@ -28,6 +28,7 @@ void *server_thread_for_client(t_Client *new_client) {
       if(close(new_client->socket_client.fd)) {
         report_error_close();
       }
+      new_client->socket_client.fd = -1;
       continue;
     }
     
@@ -38,6 +39,7 @@ void *server_thread_for_client(t_Client *new_client) {
   if(close(new_client->server->socket_listen.fd)) {
     report_error_close();
   }
+  new_client->server->socket_listen.fd = -1;
 
   return NULL;
 }
@@ -241,6 +243,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
       if(close(connection->socket_connection.fd)) {
         report_error_close();
       }
+      connection->socket_connection.fd = -1;
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
@@ -249,6 +252,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
       if(close(connection->socket_connection.fd)) {
         report_error_close();
       }
+      connection->socket_connection.fd = -1;
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }
@@ -258,6 +262,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
       if(close(connection->socket_connection.fd)) {
         report_error_close();
       }
+      connection->socket_connection.fd = -1;
       sleep(RETRY_CONNECTION_IN_SECONDS);
       continue;
     }

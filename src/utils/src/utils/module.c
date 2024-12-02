@@ -100,7 +100,7 @@ bool config_has_properties(t_config *config, ...) {
 }
 
 int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool is_active_console, t_log_level log_level) {
-	int retval = 0, status;
+	int retval = 0;
 	if(logger == NULL || pathname == NULL || name == NULL) {
 		fprintf(stderr, "logger_init: %s\n", strerror(EINVAL));
 		return -1;
@@ -114,14 +114,13 @@ int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool
 	}
 	pthread_cleanup_push((void (*)(void *)) log_destroy, logger->log);
 
-	cleanup_log:
 	pthread_cleanup_pop(retval); // log
 
 	return retval;
 }
 
 int logger_destroy(t_Logger *logger) {
-	int retval = 0, status;
+	int retval = 0;
 	if(logger == NULL) {
 		fprintf(stderr, "logger_destroy: %s\n", strerror(EINVAL));
 		return -1;

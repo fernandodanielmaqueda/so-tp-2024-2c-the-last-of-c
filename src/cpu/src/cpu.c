@@ -157,13 +157,13 @@ int read_module_config(t_config *MODULE_CONFIG) {
         return -1;
     }
 
-    CONNECTION_MEMORY = (t_Connection) {.client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
+    CONNECTION_MEMORY = (t_Connection) {.socket_connection.fd = -1, .socket_connection.bool_thread.running = false, .client_type = CPU_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
-    SERVER_CPU_DISPATCH = (t_Server) {.server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
-    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
+    SERVER_CPU_DISPATCH = (t_Server) {.socket_listen.fd = -1, .socket_listen.bool_thread.running = false, .server_type = CPU_DISPATCH_PORT_TYPE, .clients_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_DISPATCH")};
+    CLIENT_KERNEL_CPU_DISPATCH = (t_Client) {.socket_client.fd = -1, .socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server = &SERVER_CPU_DISPATCH};
 
-    SERVER_CPU_INTERRUPT = (t_Server) {.server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
-    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
+    SERVER_CPU_INTERRUPT = (t_Server) {.socket_listen.fd = -1, .socket_listen.bool_thread.running = false, .server_type = CPU_INTERRUPT_PORT_TYPE, .clients_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .port = config_get_string_value(MODULE_CONFIG, "PUERTO_ESCUCHA_INTERRUPT")};
+    CLIENT_KERNEL_CPU_INTERRUPT = (t_Client) {.socket_client.fd = -1, .socket_client.bool_thread.running = false, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server = &SERVER_CPU_INTERRUPT};
 
     LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
 
