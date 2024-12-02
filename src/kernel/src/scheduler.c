@@ -128,7 +128,7 @@ int finish_scheduling(void) {
 
 void *long_term_scheduler_new(void) {
 
-	log_trace_r(MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_PCB *pcb;
@@ -172,16 +172,16 @@ void *long_term_scheduler_new(void) {
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 				if(send_process_create(pcb->PID, pcb->size, connection_memory.socket_connection.fd)) {
-					log_error_r(MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
 					exit_sigint();
 				}
-				log_trace_r(MODULE_LOGGER, "[%d] Se envía solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
 
 				if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &result, connection_memory.socket_connection.fd)) {
-					log_error_r(MODULE_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
-				log_trace_r(MODULE_LOGGER, "[%d] Se recibe resultado de creacion de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creacion de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {
@@ -267,7 +267,7 @@ void *long_term_scheduler_new(void) {
 
 void *long_term_scheduler_exit(void) {
 
-	log_trace_r(MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_TCB *tcb;
@@ -300,22 +300,22 @@ void *long_term_scheduler_exit(void) {
 			continue;
 		}
 
-		log_info_r(MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
+		log_info_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
 
 		client_thread_connect_to_server(&connection_memory);
 		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 			if(send_thread_destroy(tcb->pcb->PID, tcb->TID, connection_memory.socket_connection.fd)) {
-				log_error_r(MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+				log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 				exit_sigint();
 			}
-			log_trace_r(MODULE_LOGGER, "[%d] Se envía solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 
 			if(receive_expected_header(THREAD_DESTROY_HEADER, connection_memory.socket_connection.fd)) {
-				log_error_r(MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 				exit_sigint();
 			}
-			log_trace_r(MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 
 		pthread_cleanup_pop(0);
 		if(close(connection_memory.socket_connection.fd)) {
@@ -345,16 +345,16 @@ void *long_term_scheduler_exit(void) {
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 				if(send_process_destroy(pcb->PID, connection_memory.socket_connection.fd)) {
-					log_error_r(MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
-				log_trace_r(MODULE_LOGGER, "[%d] Se envía solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 
 				if(receive_expected_header(PROCESS_DESTROY_HEADER, connection_memory.socket_connection.fd)) {
-					log_error_r(MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
-				log_trace_r(MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {
@@ -382,7 +382,7 @@ void *long_term_scheduler_exit(void) {
 
 void *quantum_interrupter(void) {
 
-	log_trace_r(MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
 
 	struct timespec ts_now, ts_quantum, ts_abstime;
 	int retval = 0, status;
@@ -462,10 +462,10 @@ void *quantum_interrupter(void) {
 		}
 
 		if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-			log_error_r(SOCKET_LOGGER, "[%d] Error al enviar interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			log_error_r(&SOCKET_LOGGER, "[%d] Error al enviar interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 			exit_sigint();
 		}
-		log_trace_r(SOCKET_LOGGER, "[%d] Se envía interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+		log_trace_r(&SOCKET_LOGGER, "[%d] Se envía interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 	
 		post_binary_short_term_scheduler:
 		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
@@ -479,7 +479,7 @@ void *quantum_interrupter(void) {
 
 void *short_term_scheduler(void) {
 
-	log_trace_r(MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
 
 	t_TCB *tcb;
 	e_Eviction_Reason eviction_reason;
@@ -513,10 +513,10 @@ void *short_term_scheduler(void) {
 			}
 
 			if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
-				log_error_r(MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+				log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 				exit_sigint();
 			}
-			log_trace_r(MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 
 		cleanup_rwlock_scheduling:
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
@@ -563,10 +563,10 @@ void *short_term_scheduler(void) {
 			pthread_cleanup_push((void (*)(void *)) payload_destroy, &syscall_instruction);
 
 			if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
-				log_error_r(MODULE_LOGGER, "[%d] Error al recibir desalojo de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir desalojo de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 				exit_sigint();
 			}
-			log_trace_r(MODULE_LOGGER, "[%d] Se recibe desalojo de hilo de [Servidor] %s [PID: %u - TID: %u - Motivo: %s]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, EVICTION_REASON_NAMES[eviction_reason]);
+			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe desalojo de hilo de [Servidor] %s [PID: %u - TID: %u - Motivo: %s]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, EVICTION_REASON_NAMES[eviction_reason]);
 
 			switch(SCHEDULING_ALGORITHM) {
 
@@ -694,7 +694,7 @@ void *short_term_scheduler(void) {
 					break;
 
 				case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
-					log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Desalojado por fin de Quantum", TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Desalojado por fin de Quantum", TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
@@ -720,10 +720,10 @@ void *short_term_scheduler(void) {
 
 			if(SHOULD_REDISPATCH) {
 				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
-					log_error_r(MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 					exit_sigint();
 				}
-				log_trace_r(MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 			}
 
 			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
@@ -741,7 +741,7 @@ void *short_term_scheduler(void) {
 
 void *io_device(void) {
 
-	log_trace_r(MODULE_LOGGER, "Hilo de IO iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo de IO iniciado");
 
 	t_TCB *tcb;
 	t_Time time;
@@ -835,7 +835,7 @@ void *io_device(void) {
 			}
 
 			if(tcb != NULL) {
-				log_info_r(MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", tcb->pcb->PID, tcb->TID);
+				log_info_r(&MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", tcb->pcb->PID, tcb->TID);
 				if(insert_state_ready(tcb)) {
 					exit_sigint();
 				}
@@ -886,7 +886,7 @@ void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 
 	pthread_cleanup_push((void (*)(void *)) remove_dump_memory_thread, dump_memory_petition);
 
-	log_trace_r(MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
+	log_trace_r(&MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 
@@ -894,16 +894,16 @@ void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, dump_memory_petition->pid, dump_memory_petition->tid, connection_memory.socket_connection.fd)) {
-			log_error_r(MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
+			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
-		log_trace_r(MODULE_LOGGER, "[%d] Se envía solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
+		log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 
 		if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_memory.socket_connection.fd)) {
-			log_error_r(MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
+			log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
-		log_trace_r(MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid, result);
+		log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid, result);
 
 	pthread_cleanup_pop(0);
 	if(close(connection_memory.socket_connection.fd)) {

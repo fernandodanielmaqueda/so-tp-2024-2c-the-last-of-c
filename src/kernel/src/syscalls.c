@@ -22,11 +22,11 @@ int syscall_execute(t_Payload *syscall_instruction) {
     }
 
     if(syscall_opcode >= (sizeof(SYSCALLS) / sizeof(t_Syscall))) {
-        log_warning_r(MODULE_LOGGER, "Syscall no encontrada");
+        log_warning_r(&MODULE_LOGGER, "Syscall no encontrada");
         exit_sigint();
     }
 
-    log_info_r(MINIMAL_LOGGER, "## (%u:%u) - Solicitó syscall: %s", TCB_EXEC->pcb->PID, TCB_EXEC->TID, SYSCALLS[syscall_opcode].name);
+    log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Solicitó syscall: %s", TCB_EXEC->pcb->PID, TCB_EXEC->TID, SYSCALLS[syscall_opcode].name);
 
     if(SYSCALLS[syscall_opcode].function(syscall_instruction)) {
         return -1;
@@ -52,7 +52,7 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    log_trace_r(MODULE_LOGGER, "PROCESS_CREATE %s %zu %u", pseudocode_filename, size, priority);
+    log_trace_r(&MODULE_LOGGER, "PROCESS_CREATE %s %zu %u", pseudocode_filename, size, priority);
 
     if(new_process(size, pseudocode_filename, priority)) {
         exit_sigint();
@@ -65,7 +65,7 @@ int process_create_kernel_syscall(t_Payload *syscall_arguments) {
 int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
     int status;
 
-    log_trace_r(MODULE_LOGGER, "PROCESS_EXIT");
+    log_trace_r(&MODULE_LOGGER, "PROCESS_EXIT");
 
     // Cambio el rdlock por wrlock
     if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
@@ -106,7 +106,7 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    log_trace_r(MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
+    log_trace_r(&MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
 
     t_TCB *new_tcb = tcb_create(TCB_EXEC->pcb, pseudocode_filename, priority);
     if(new_tcb == NULL) {
@@ -141,7 +141,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    log_trace_r(MODULE_LOGGER, "THREAD_JOIN %u", tid);
+    log_trace_r(&MODULE_LOGGER, "THREAD_JOIN %u", tid);
 
     // Caso 1: Si se une a sí mismo (falla pero se hace redispatch)
     if(tid == TCB_EXEC->TID) {
@@ -161,7 +161,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
 
         // Caso 2A: Si se une a otro y falla (se hace redispatch)
         if(tid >= TCB_EXEC->pcb->thread_manager.size) {
-            log_warning_r(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            log_warning_r(&MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             SHOULD_REDISPATCH = 1;
             goto cleanup_rwlock_scheduling;
         }
@@ -169,7 +169,7 @@ int thread_join_kernel_syscall(t_Payload *syscall_arguments) {
         t_TCB *tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
         // Caso 2B: Si se une a otro y falla (se hace redispatch)
         if(tcb == NULL) {
-            log_warning_r(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            log_warning_r(&MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             SHOULD_REDISPATCH = 1;
             goto cleanup_rwlock_scheduling;
         }
@@ -205,7 +205,7 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    log_trace_r(MODULE_LOGGER, "THREAD_CANCEL %u", tid);
+    log_trace_r(&MODULE_LOGGER, "THREAD_CANCEL %u", tid);
 
     // Caso 1: Si se cancela a sí mismo
     if(tid == TCB_EXEC->TID) {
@@ -227,13 +227,13 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
     }
 
         if(tid >= TCB_EXEC->pcb->thread_manager.size) {
-            log_warning_r(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            log_warning_r(&MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             goto cleanup_rwlock_scheduling;
         }
 
         t_TCB *tcb = ((t_TCB **) TCB_EXEC->pcb->thread_manager.array)[tid];
         if(tcb == NULL) {
-            log_warning_r(MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
+            log_warning_r(&MODULE_LOGGER, "No existe un hilo con TID <%u>", tid);
             goto cleanup_rwlock_scheduling;
         }
 
@@ -257,7 +257,7 @@ int thread_cancel_kernel_syscall(t_Payload *syscall_arguments) {
 
 int thread_exit_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace_r(MODULE_LOGGER, "THREAD_EXIT");
+    log_trace_r(&MODULE_LOGGER, "THREAD_EXIT");
 
     TCB_EXEC->exit_reason = THREAD_EXIT_EXIT_REASON;
     return -1;
@@ -272,7 +272,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_push((void (*)(void *)) free, resource_name);
 
-    log_trace_r(MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
+    log_trace_r(&MODULE_LOGGER, "MUTEX_CREATE %s", resource_name);
 
 	if((status = pthread_rwlock_wrlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
 		report_error_pthread_rwlock_wrlock(status);
@@ -281,7 +281,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_resources));
 
         if(dictionary_has_key(TCB_EXEC->pcb->dictionary_resources, resource_name)) {
-            log_warning_r(MODULE_LOGGER, "%s: Ya existe un mutex creado con el mismo nombre", resource_name);
+            log_warning_r(&MODULE_LOGGER, "%s: Ya existe un mutex creado con el mismo nombre", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
             goto cleanup_rwlock_resources;
@@ -289,7 +289,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
 
         t_Resource *resource = resource_create();
         if(resource == NULL) {
-            log_error_r(MODULE_LOGGER, "resource_create: No se pudo crear el recurso");
+            log_error_r(&MODULE_LOGGER, "resource_create: No se pudo crear el recurso");
             exit_sigint();
         }
         pthread_cleanup_push((void (*)(void *)) resource_destroy, resource);
@@ -324,7 +324,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_push((void (*)(void *)) free, resource_name);
 
-    log_trace_r(MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
+    log_trace_r(&MODULE_LOGGER, "MUTEX_LOCK %s", resource_name);
 
 	if((status = pthread_rwlock_rdlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
 		report_error_pthread_rwlock_rdlock(status);
@@ -333,7 +333,7 @@ int mutex_lock_kernel_syscall(t_Payload *syscall_arguments) {
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(TCB_EXEC->pcb->rwlock_resources));
 
         if((resource = dictionary_get(TCB_EXEC->pcb->dictionary_resources, resource_name)) == NULL) {
-            log_warning_r(MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
+            log_warning_r(&MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
             goto cleanup_rwlock_resources;
@@ -398,7 +398,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
     }
     pthread_cleanup_push((void (*)(void *)) free, resource_name);
 
-    log_trace_r(MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
+    log_trace_r(&MODULE_LOGGER, "MUTEX_UNLOCK %s", resource_name);
 
 	if((status = pthread_rwlock_rdlock(&(TCB_EXEC->pcb->rwlock_resources)))) {
 		report_error_pthread_rwlock_rdlock(status);
@@ -408,7 +408,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
         resource = dictionary_get(TCB_EXEC->pcb->dictionary_resources, resource_name);
         if(resource == NULL) {
-            log_warning_r(MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
+            log_warning_r(&MODULE_LOGGER, "%s: No existe un mutex creado con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
             goto cleanup_rwlock_resources;
@@ -416,7 +416,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
         resource = dictionary_remove(TCB_EXEC->dictionary_assigned_resources, resource_name);
         if(resource == NULL) {
-            log_warning_r(MODULE_LOGGER, "%s: El hilo no tiene asignado un mutex con el nombre indicado", resource_name);
+            log_warning_r(&MODULE_LOGGER, "%s: El hilo no tiene asignado un mutex con el nombre indicado", resource_name);
             TCB_EXEC->exit_reason = INVALID_RESOURCE_EXIT_REASON;
             retval = -1;
             goto cleanup_rwlock_resources;
@@ -469,7 +469,7 @@ int mutex_unlock_kernel_syscall(t_Payload *syscall_arguments) {
 
 int dump_memory_kernel_syscall(t_Payload *syscall_arguments) {
 
-    log_trace_r(MODULE_LOGGER, "DUMP_MEMORY");
+    log_trace_r(&MODULE_LOGGER, "DUMP_MEMORY");
 
     if(get_state_exec(&TCB_EXEC)) {
         exit_sigint();
@@ -493,7 +493,7 @@ int io_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    log_trace_r(MODULE_LOGGER, "IO %lu", time);
+    log_trace_r(&MODULE_LOGGER, "IO %lu", time);
 
     if(get_state_exec(&TCB_EXEC)) {
         exit_sigint();

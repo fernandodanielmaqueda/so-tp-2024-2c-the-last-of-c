@@ -38,7 +38,7 @@ int subheader_deserialize(t_Payload *payload, e_Header *destination) {
 }
 
 int subheader_log(e_Serialization serialization, e_Header source) {
-  log_info_r(SERIALIZE_LOGGER,
+  log_info_r(&SERIALIZE_LOGGER,
     "[%s] e_Header: %s"
     , SERIALIZATION_NAMES[serialization]
     , HEADER_NAMES[source]

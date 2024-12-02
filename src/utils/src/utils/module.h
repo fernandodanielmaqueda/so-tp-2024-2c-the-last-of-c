@@ -92,57 +92,49 @@ extern int read_module_config(t_config *); // Se debe implementar en cada módul
 int logger_init(t_Logger *logger, bool enabled, char *pathname, char *name, bool is_active_console, t_log_level log_level);
 int logger_destroy(t_Logger *logger);
 
-/*
-void log_trace_r(t_Logger logger, const char *format, ...);
-void log_debug_r(t_Logger logger, const char *format, ...);
-void log_info_r(t_Logger logger, const char *format, ...);
-void log_warning_r(t_Logger logger, const char *format, ...);
-void log_error_r(t_Logger logger, const char *format, ...);
-*/
-
-#define log_trace_r(logger, format, ...)          \
-    do {                                            \
-        if ((logger).enabled) {                     \
-            pthread_mutex_lock(&MUTEX_LOGGERS);    \
-            log_trace((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
-        }                                           \
+#define log_trace_r(logger, format, ...) \
+    do { \
+        if ((logger)->enabled) { \
+            pthread_mutex_lock(&MUTEX_LOGGERS); \
+                log_trace((logger)->log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&MUTEX_LOGGERS); \
+        } \
     } while (0)
 
-#define log_debug_r(logger, format, ...)          \
-    do {                                            \
-        if ((logger).enabled) {                     \
-            pthread_mutex_lock(&MUTEX_LOGGERS);    \
-            log_debug((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
-        }                                           \
+#define log_debug_r(logger, format, ...) \
+    do { \
+        if ((logger)->enabled) { \
+            pthread_mutex_lock(&MUTEX_LOGGERS); \
+                log_debug((logger)->log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&MUTEX_LOGGERS); \
+        } \
     } while (0)
 
-#define log_info_r(logger, format, ...)          \
-    do {                                            \
-        if ((logger).enabled) {                     \
-            pthread_mutex_lock(&MUTEX_LOGGERS);    \
-            log_info((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
-        }                                           \
+#define log_info_r(logger, format, ...) \
+    do { \
+        if ((logger)->enabled) { \
+            pthread_mutex_lock(&MUTEX_LOGGERS); \
+                log_info((logger)->log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&MUTEX_LOGGERS); \
+        } \
     } while (0)
 
-#define log_warning_r(logger, format, ...)          \
-    do {                                            \
-        if ((logger).enabled) {                     \
-            pthread_mutex_lock(&MUTEX_LOGGERS);    \
-            log_warning((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
-        }                                           \
+#define log_warning_r(logger, format, ...) \
+    do { \
+        if ((logger)->enabled) { \
+            pthread_mutex_lock(&MUTEX_LOGGERS); \
+                log_warning((logger)->log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&MUTEX_LOGGERS); \
+        } \
     } while (0)
 
-#define log_error_r(logger, format, ...)          \
-    do {                                            \
-        if ((logger).enabled) {                     \
-            pthread_mutex_lock(&MUTEX_LOGGERS);    \
-            log_error((logger).log, format, ##__VA_ARGS__); \
-            pthread_mutex_unlock(&MUTEX_LOGGERS);  \
-        }                                           \
+#define log_error_r(logger, format, ...) \
+    do { \
+        if ((logger)->enabled) { \
+            pthread_mutex_lock(&MUTEX_LOGGERS); \
+                log_error((logger)->log, format, ##__VA_ARGS__); \
+            pthread_mutex_unlock(&MUTEX_LOGGERS); \
+        } \
     } while (0)
 
 void report_error_close(void);

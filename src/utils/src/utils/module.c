@@ -311,7 +311,7 @@ int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void
 
     t_link_element *new_element = (t_link_element *) malloc(sizeof(t_link_element));
     if(new_element == NULL) {
-        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento de la lista", sizeof(t_link_element));
+        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un nuevo elemento de la lista", sizeof(t_link_element));
         return -1;
     }
 
@@ -371,7 +371,7 @@ int shared_list_init(t_Shared_List *shared_list) {
 
 	shared_list->list = list_create();
 	if(shared_list->list == NULL) {
-		log_error_r(MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
+		log_error_r(&MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
 		retval = -1;
 		goto cleanup;
 	}

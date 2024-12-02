@@ -75,7 +75,7 @@ int module(int argc, char* argv[]) {
     // PARTITION_TABLE
     PARTITION_TABLE = list_create();
     if(PARTITION_TABLE == NULL) {
-        log_error_r(MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
+        log_error_r(&MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) partition_table_destroy, NULL);
@@ -126,7 +126,7 @@ int module(int argc, char* argv[]) {
     // MAIN_MEMORY
     MAIN_MEMORY = malloc(MEMORY_SIZE);
     if(MAIN_MEMORY == NULL) {
-        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
+        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la memoria principal.", MEMORY_SIZE);
         exit_sigint();
     }
 	pthread_cleanup_push((void (*)(void *)) free, (void *) MAIN_MEMORY);
@@ -151,7 +151,7 @@ int module(int argc, char* argv[]) {
     // LIST_JOBS_KERNEL
     SHARED_LIST_CLIENTS.list = list_create();
     if(SHARED_LIST_CLIENTS.list == NULL) {
-        log_error_r(MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
+        log_error_r(&MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
@@ -164,7 +164,7 @@ int module(int argc, char* argv[]) {
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CLIENT_CPU);
 
-    log_debug_r(MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
+    log_debug_r(&MODULE_LOGGER, "Modulo %s inicializado correctamente", MODULE_NAME);
 
 	// [Servidor] Memoria <- [Cliente(s)] Kernel + CPU
     pthread_cleanup_push((void (*)(void *)) wait_client_threads, NULL);
@@ -228,7 +228,7 @@ t_Memory_Process *memory_process_create(t_PID pid, size_t size) {
 
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
-        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
+        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_process);
@@ -283,7 +283,7 @@ t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path) {
 
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
-        log_error_r(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
+        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_thread);

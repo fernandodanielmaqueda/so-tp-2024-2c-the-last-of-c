@@ -134,7 +134,7 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
 }
 
 int exec_context_log(e_Serialization serialization, t_Exec_Context source) {
-  log_info_r(SERIALIZE_LOGGER,
+  log_info_r(&SERIALIZE_LOGGER,
     "[%s] t_Exec_Context:\n"
     "* PC: %u\n"
     "* AX: %u\n"
