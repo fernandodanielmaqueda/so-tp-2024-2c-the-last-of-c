@@ -111,11 +111,14 @@ size_t necessary_bits(size_t bytes_size);
 void* get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Pointer file_block_pos) ;
 void* get_pointer_to_block_from_file(t_Block_Pointer file_block_pos);
 void block_msync(t_Block_Pointer block_number);
-void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
+void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento,int indice);
 void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 
 bool is_address_in_mapped_area(void *addr) ;	
-
+void print_memory_as_ints(void *ptro_memory_dump_block) ;
+bool is_address_in_mapped_area(void *addr) ;
 void create_directory(const char *path);
+void print_size_t_array(void *array, size_t total_size) ;
+
 #endif // FILESYSTEM_H
