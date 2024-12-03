@@ -371,7 +371,6 @@ void instruction_cycle(void)
                     if(KERNEL_INTERRUPT == QUANTUM_KERNEL_INTERRUPT) {
                         evict = true;
                         EVICTION_REASON = QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON;
-                        goto eviction;
                     }
                 pthread_cleanup_pop(0); // MUTEX_KERNEL_INTERRUPT
                 if((status = pthread_mutex_unlock(&MUTEX_KERNEL_INTERRUPT))) {
