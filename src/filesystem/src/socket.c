@@ -20,11 +20,11 @@ int finish_sockets(void) {
 
 	/*
 	if(close(CONNECTION_KERNEL.fd_connection)) {
-		log_error_close();
+		report_error_close();
 		retval = -1;
 	}
 	if(close(CONNECTION_MEMORY.fd_connection)) {
-		log_error_close();
+		report_error_close();
 		retval = -1;
 	}
 	*/
@@ -33,27 +33,27 @@ int finish_sockets(void) {
 }
 
 void filesystem_client_handler(t_Client *new_client) {
-	pthread_create(&(new_client->thread_client_handler.thread), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
-	new_client->thread_client_handler.running = true;
-	pthread_detach(new_client->thread_client_handler.thread);
+	pthread_create(&(new_client->socket_client.bool_thread.thread), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
+	new_client->socket_client.bool_thread.running = true;
+	pthread_detach(new_client->socket_client.bool_thread.thread);
 }
 
 void *filesystem_thread_for_client(t_Client *new_client) {
-	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
+	log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
-    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->fd_client)) {
-        if(close(new_client->fd_client)) {
-			log_error_close();
+    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->socket_client.fd)) {
+        if(close(new_client->socket_client.fd)) {
+			report_error_close();
 		}
 		free(new_client);
         return NULL;
 	}
 
-	filesystem_client_handler_for_memory(new_client->fd_client);
+	filesystem_client_handler_for_memory(new_client->socket_client.fd);
 
-	log_trace(MODULE_LOGGER, "[%d] Manejador de [Cliente] %s finalizado", new_client->fd_client, PORT_NAMES[new_client->client_type]);
-    if(close(new_client->fd_client)) {
-		log_error_close();
+	log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s finalizado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+    if(close(new_client->socket_client.fd)) {
+		report_error_close();
 	}
 	free(new_client);
     return NULL;

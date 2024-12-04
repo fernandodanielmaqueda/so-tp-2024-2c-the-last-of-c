@@ -28,6 +28,18 @@
 #include "opcodes.h"
 #include "registers.h"
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "CPU"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "cpu.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "cpu.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "CPU"
+
 extern t_PID PID;
 extern t_TID TID;
 extern t_Exec_Context EXEC_CONTEXT;
@@ -48,20 +60,17 @@ extern t_Payload SYSCALL_INSTRUCTION;
 
 int module(int, char*[]);
 
-int initialize_global_variables(void);
-int finish_global_variables(void);
-
 int read_module_config(t_config *module_config);
 
 void instruction_cycle(void);
 
 void *kernel_cpu_interrupt_handler(void);
 
-int cpu_fetch_next_instruction(char **line);
+void cpu_fetch_next_instruction(char **line);
 
 int mmu(size_t logical_address, size_t bytes, size_t *destination);
 
-int request_memory_write(size_t physical_address, void *source, size_t bytes);
-int request_memory_read(size_t physical_address, void *destination, size_t bytes);
+void request_memory_write(size_t physical_address, void *source, size_t bytes);
+void request_memory_read(size_t physical_address, void *destination, size_t bytes);
 
 #endif // CPU_H

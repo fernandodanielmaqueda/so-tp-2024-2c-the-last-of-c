@@ -8,14 +8,14 @@ t_Resource *resource_create(void) {
 
 	t_Resource *resource = malloc(sizeof(t_Resource));
 	if(resource == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
+		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
 		retval = -1;
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) free, resource);
 
 	if((status = pthread_mutex_init(&(resource->mutex_resource), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto cleanup_resource;
 	}
@@ -31,7 +31,7 @@ t_Resource *resource_create(void) {
 	pthread_cleanup_pop(0); // resource->list_blocked.mutex
 	if(retval) {
 		if((status = pthread_mutex_destroy(&(resource->mutex_resource)))) {
-			log_error_pthread_mutex_destroy(status);
+			report_error_pthread_mutex_destroy(status);
 		}
 	}
 	cleanup_resource:
@@ -49,7 +49,7 @@ void resource_destroy(t_Resource *resource) {
 
 	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
 	if((status = pthread_mutex_destroy(&(resource->shared_list_blocked.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		// TODO
 	}
 
@@ -68,7 +68,7 @@ void resources_unassign(t_TCB *tcb) {
 		t_hash_element *element = tcb->dictionary_assigned_resources->elements[table_index];
 		t_hash_element *next_element = NULL;
 
-		while (element != NULL) {
+		while(element != NULL) {
 
 			next_element = element->next;
 
@@ -76,13 +76,13 @@ void resources_unassign(t_TCB *tcb) {
 			resource = (t_Resource *) element->data;
 
 			if((status = pthread_rwlock_rdlock(&(tcb->pcb->rwlock_resources)))) {
-				log_error_pthread_rwlock_rdlock(status);
+				report_error_pthread_rwlock_rdlock(status);
 				exit_sigint();
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(tcb->pcb->rwlock_resources));
 
 				if((status = pthread_mutex_lock(&(resource->mutex_resource)))) {
-					log_error_pthread_mutex_lock(status);
+					report_error_pthread_mutex_lock(status);
 					exit_sigint();
 				}
 				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(resource->mutex_resource));
@@ -99,13 +99,13 @@ void resources_unassign(t_TCB *tcb) {
 
 				pthread_cleanup_pop(0); // mutex_resource
 				if((status = pthread_mutex_unlock(&(resource->mutex_resource)))) {
-					log_error_pthread_mutex_unlock(status);
+					report_error_pthread_mutex_unlock(status);
 					exit_sigint();
 				}
 
 			pthread_cleanup_pop(0); // rwlock_resources
 			if((status = pthread_rwlock_unlock(&(tcb->pcb->rwlock_resources)))) {
-				log_error_pthread_rwlock_unlock(status);
+				report_error_pthread_rwlock_unlock(status);
 				exit_sigint();
 			}
 
@@ -116,21 +116,21 @@ void resources_unassign(t_TCB *tcb) {
 					exit_sigint();
 				}
 			}
-	
-			free(element->key);
-			free(element);
+
+			//free(element->key);
+			//free(element);
 
 			element = next_element;
 		}
 
-		tcb->dictionary_assigned_resources->elements[table_index] = NULL;
+		//tcb->dictionary_assigned_resources->elements[table_index] = NULL;
 	}
 
-	tcb->dictionary_assigned_resources->table_current_size = 0;
-	tcb->dictionary_assigned_resources->elements_amount = 0;
+	//tcb->dictionary_assigned_resources->table_current_size = 0;
+	//tcb->dictionary_assigned_resources->elements_amount = 0;
 
-	free(tcb->dictionary_assigned_resources->elements);
-	free(tcb->dictionary_assigned_resources);
+	//free(tcb->dictionary_assigned_resources->elements);
+	//free(tcb->dictionary_assigned_resources);
 
 	return;
 }

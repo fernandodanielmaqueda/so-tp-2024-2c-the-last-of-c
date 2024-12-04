@@ -4,6 +4,7 @@
 #include "utils/arguments.h"
 
 t_Arguments *arguments_create(int max_argc) {
+
   t_Arguments *arguments = malloc(sizeof(t_Arguments));
   if(arguments == NULL) {
     errno = ENOMEM;
@@ -12,6 +13,7 @@ t_Arguments *arguments_create(int max_argc) {
 
   arguments->argc = 0;
   arguments->argv = NULL;
+  // Me permite inicializar el const
   *(int *)&(arguments->max_argc) = max_argc;
 
   return arguments;

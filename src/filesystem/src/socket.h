@@ -26,7 +26,7 @@
 #include "utils/socket.h"
 #include "filesystem.h"
 
-extern t_log *SOCKET_LOGGER;
+extern t_Logger SOCKET_LOGGER;
 
 extern t_Server SERVER_FILESYSTEM;
 

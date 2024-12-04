@@ -47,6 +47,7 @@ typedef struct t_Memory_Allocation_Algorithm {
 typedef struct t_Partition {
     size_t size; // Tamaño de la partición
     size_t base; // Desplazamiento/Offset
+    pthread_rwlock_t rwlock_partition; // Mutex de lectura/escritura
 
     bool occupied;
     t_PID pid; // PID del proceso que la ocupa (TODO: ¿Podría ser un t_Memory_Process*?)
@@ -68,13 +69,6 @@ typedef struct t_Memory_Process {
     t_Memory_Thread **array_memory_threads;
     pthread_rwlock_t rwlock_array_memory_threads;
 } t_Memory_Process;
-
-typedef struct t_FS_Data{
-        t_PID pid;
-        t_TID tid;
-        char* namefile;
-        void *position;
-} t_FS_Data;
 
 extern size_t MEMORY_SIZE;
 extern char *INSTRUCTIONS_PATH;
@@ -99,16 +93,38 @@ extern t_Memory_Process **ARRAY_PROCESS_MEMORY;
 #include "client_cpu.h"
 #include "socket.h"
 
+//#undef MODULE_NAME
+//#define MODULE_NAME "Memoria"
+
+//#undef MODULE_CONFIG_PATHNAME
+//#define MODULE_CONFIG_PATHNAME "memoria.config"
+
+#undef MODULE_LOGGER_PATHNAME
+#define MODULE_LOGGER_PATHNAME "memoria.log"
+
+#undef MODULE_LOGGER_NAME
+#define MODULE_LOGGER_NAME "Memoria"
+
 int module(int, char*[]);
+
+int array_memory_processes_destroy(void);
+int array_memory_threads_destroy(t_Memory_Process *process);
+
+t_Memory_Process *memory_process_create(t_PID pid, size_t size);
+int memory_process_destroy(t_Memory_Process *process);
+
+t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path);
+int memory_thread_destroy(t_Memory_Thread *thread);
+
+t_Partition *partition_create(size_t size, size_t base);
+int partition_destroy(t_Partition *partition);
+
+int partition_table_destroy(void);
 
 int read_module_config(t_config *module_config);
 
 int memory_management_scheme_find(char *name, e_Memory_Management_Scheme *destination);
 
 int memory_allocation_algorithm_find(char *name, e_Memory_Allocation_Algorithm *destination);
-
-void free_memory();
-
-void free_threads(t_Memory_Process *process);
 
 #endif // MEMORIA_H

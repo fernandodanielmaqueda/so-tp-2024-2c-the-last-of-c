@@ -20,13 +20,14 @@ const char *STATE_NAMES[] = {
 };
 
 const char *EXIT_REASONS[] = {
-	[UNEXPECTED_ERROR_EXIT_REASON] = "UNEXPECTED ERROR",
+	[UNEXPECTED_ERROR_EXIT_REASON] = "UNEXPECTED_ERROR",
 
-	[INVALID_RESOURCE_EXIT_REASON] = "INVALID_RESOURCE",
 	[SEGMENTATION_FAULT_EXIT_REASON] = "SEGMENTATION_FAULT",
 	[PROCESS_EXIT_EXIT_REASON] = "PROCESS_EXIT",
 	[THREAD_EXIT_EXIT_REASON] = "THREAD_EXIT",
-	[THREAD_CANCEL_EXIT_REASON] = "THREAD_CANCEL"
+	[THREAD_CANCEL_EXIT_REASON] = "THREAD_CANCEL",
+	[DUMP_MEMORY_ERROR_EXIT_REASON] = "DUMP_MEMORY_ERROR",
+	[INVALID_RESOURCE_EXIT_REASON] = "INVALID_RESOURCE"
 };
 
 char *SCHEDULING_ALGORITHMS[] = {
@@ -42,18 +43,17 @@ int module(int argc, char *argv[]) {
 
 
 	MODULE_NAME = "kernel";
-	MODULE_LOG_PATHNAME = "kernel.log";
 	MODULE_CONFIG_PATHNAME = "kernel.config";
 
 
 	// Bloquea todas las señales para este y los hilos creados
 	sigset_t set;
 	if(sigfillset(&set)) {
-		perror("sigfillset");
+		report_error_sigfillset();
 		return EXIT_FAILURE;
 	}
 	if((status = pthread_sigmask(SIG_BLOCK, &set, NULL))) {
-		fprintf(stderr, "pthread_sigmask: %s\n", strerror(status));
+		report_error_pthread_sigmask(status);
 		return EXIT_FAILURE;
 	}
 
@@ -76,7 +76,7 @@ int module(int argc, char *argv[]) {
 
 	// Crea hilo para manejar señales
 	if((status = pthread_create(&THREAD_SIGNAL_MANAGER, NULL, (void *(*)(void *)) signal_manager, (void *) &thread_main))) {
-		log_error_pthread_create(status);
+		report_error_pthread_create(status);
 		return EXIT_FAILURE;
 	}
 	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
@@ -97,57 +97,43 @@ int module(int argc, char *argv[]) {
 	}
 
 	// Loggers
-	if((status = pthread_mutex_init(&MUTEX_MINIMAL_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+	if((status = pthread_mutex_init(&MUTEX_LOGGERS, NULL))) {
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MINIMAL_LOGGER);
-	if(initialize_logger(&MINIMAL_LOGGER, MINIMAL_LOG_PATHNAME, "Minimal")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MINIMAL_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_LOGGERS);
 
-	if((status = pthread_mutex_init(&MUTEX_MODULE_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(logger_init(&MODULE_LOGGER, MODULE_LOGGER_INIT_ENABLED, MODULE_LOGGER_PATHNAME, MODULE_LOGGER_NAME, MODULE_LOGGER_INIT_ACTIVE_CONSOLE, MODULE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_MODULE_LOGGER);
-	if(initialize_logger(&MODULE_LOGGER, MODULE_LOG_PATHNAME, MODULE_NAME)) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &MODULE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MODULE_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SOCKET_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(logger_init(&MINIMAL_LOGGER, MINIMAL_LOGGER_INIT_ENABLED, MINIMAL_LOGGER_PATHNAME, MINIMAL_LOGGER_NAME, MINIMAL_LOGGER_ACTIVE_CONSOLE, MINIMAL_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SOCKET_LOGGER);
-	if(initialize_logger(&SOCKET_LOGGER, SOCKET_LOG_PATHNAME, "Socket")) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SOCKET_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &MINIMAL_LOGGER);
 
-	if((status = pthread_mutex_init(&MUTEX_SERIALIZE_LOGGER, NULL))) {
-		log_error_pthread_mutex_init(status);
+	if(logger_init(&SOCKET_LOGGER, SOCKET_LOGGER_INIT_ENABLED, SOCKET_LOGGER_PATHNAME, SOCKET_LOGGER_NAME, SOCKET_LOGGER_INIT_ACTIVE_CONSOLE, SOCKET_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_SERIALIZE_LOGGER);
-	if(initialize_logger(&SERIALIZE_LOGGER, SERIALIZE_LOG_PATHNAME, "Serialize")) {
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SOCKET_LOGGER);
+
+	if(logger_init(&SERIALIZE_LOGGER, SERIALIZE_LOGGER_INIT_ENABLED, SERIALIZE_LOGGER_PATHNAME, SERIALIZE_LOGGER_NAME, SERIALIZE_LOGGER_INIT_ACTIVE_CONSOLE, SERIALIZE_LOGGER_INIT_LOG_LEVEL)) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) finish_logger, (void *) &SERIALIZE_LOGGER);
+	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SERIALIZE_LOGGER);
 
 
-	// SCHEDULING_RWLOCK
-	if((status = pthread_rwlock_init(&SCHEDULING_RWLOCK, NULL))) {
-		log_error_pthread_rwlock_init(status);
+	// RWLOCK_SCHEDULING
+	if((status = pthread_rwlock_init(&RWLOCK_SCHEDULING, NULL))) {
+		report_error_pthread_rwlock_init(status);
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &SCHEDULING_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_SCHEDULING);
 
 	// SHARED_LIST_NEW
 	if((status = pthread_mutex_init(&(SHARED_LIST_NEW.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_NEW.mutex));
@@ -160,7 +146,7 @@ int module(int argc, char *argv[]) {
 
 	// ARRAY_READY_RWLOCK
 	if((status = pthread_rwlock_init(&ARRAY_READY_RWLOCK, NULL))) {
-		log_error_pthread_rwlock_init(status);
+		report_error_pthread_rwlock_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &ARRAY_READY_RWLOCK);
@@ -173,14 +159,14 @@ int module(int argc, char *argv[]) {
 
 	// MUTEX_EXEC
 	if((status = pthread_mutex_init(&MUTEX_EXEC, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_EXEC);
 
 	// SHARED_LIST_BLOCKED_MEMORY_DUMP
 	if((status = pthread_mutex_init(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
@@ -193,14 +179,14 @@ int module(int argc, char *argv[]) {
 
 	// COND_BLOCKED_MEMORY_DUMP
 	if((status = pthread_cond_init(&COND_BLOCKED_MEMORY_DUMP, NULL))) {
-		log_error_pthread_cond_init(status);
+		report_error_pthread_cond_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_BLOCKED_MEMORY_DUMP);
 
 	// SHARED_LIST_BLOCKED_IO_READY
 	if((status = pthread_mutex_init(&(SHARED_LIST_BLOCKED_IO_READY.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_BLOCKED_IO_READY.mutex));
@@ -213,14 +199,14 @@ int module(int argc, char *argv[]) {
 
 	// MUTEX_BLOCKED_IO_EXEC
 	if((status = pthread_mutex_init(&MUTEX_BLOCKED_IO_EXEC, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_BLOCKED_IO_EXEC);
 
 	// SHARED_LIST_EXIT
 	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_EXIT.mutex));
@@ -232,66 +218,104 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_push((void (*)(void *)) list_destroy_and_free_elements, (void *) SHARED_LIST_EXIT.list);
 
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
-		log_error_sem_init();
+		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_NEW);
 
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0)) {
-		log_error_sem_init();
+		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_EXIT);
 
 	if((status = pthread_mutex_init(&MUTEX_IS_TCB_IN_CPU, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_IS_TCB_IN_CPU);
 
 	if((status = pthread_condattr_init(&CONDATTR_IS_TCB_IN_CPU))) {
-		log_error_pthread_condattr_init(status);
+		report_error_pthread_condattr_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_IS_TCB_IN_CPU);
 
 	if((status = pthread_condattr_setclock(&CONDATTR_IS_TCB_IN_CPU, CLOCK_MONOTONIC))) {
-		log_error_pthread_condattr_setclock(status);
+		report_error_pthread_condattr_setclock(status);
 		exit_sigint();
 	}
 
 	if((status = pthread_cond_init(&COND_IS_TCB_IN_CPU, &CONDATTR_IS_TCB_IN_CPU))) {
-		log_error_pthread_cond_init(status);
+		report_error_pthread_cond_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_IS_TCB_IN_CPU);
 
 	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
-		log_error_sem_init();
+		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_QUANTUM_INTERRUPTER);
 
+	if((status = pthread_cond_init(&COND_QUANTUM_INTERRUPTER, NULL))) {
+		report_error_pthread_cond_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_QUANTUM_INTERRUPTER);
+
 	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
-		log_error_sem_init();
+		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_SHORT_TERM_SCHEDULER);
 
 	if(sem_init(&BINARY_SHORT_TERM_SCHEDULER, 0, 0)) {
-		log_error_sem_init();
+		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_SHORT_TERM_SCHEDULER);
 
+
+	if((status = pthread_mutex_init(&MUTEX_CANCEL_IO_OPERATION, NULL))) {
+		report_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CANCEL_IO_OPERATION);
+
+	if((status = pthread_condattr_init(&CONDATTR_CANCEL_IO_OPERATION))) {
+		report_error_pthread_condattr_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_CANCEL_IO_OPERATION);
+
+	if((status = pthread_condattr_setclock(&CONDATTR_CANCEL_IO_OPERATION, CLOCK_MONOTONIC))) {
+		report_error_pthread_condattr_setclock(status);
+		exit_sigint();
+	}
+
+	if((status = pthread_cond_init(&COND_CANCEL_IO_OPERATION, &CONDATTR_CANCEL_IO_OPERATION))) {
+		report_error_pthread_cond_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CANCEL_IO_OPERATION);
+
+
+	if(sem_init(&SEM_IO_DEVICE, 0, 0)) {
+		report_error_sem_init();
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_IO_DEVICE);
+
+
 	if((status = pthread_mutex_init(&MUTEX_FREE_MEMORY, NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_FREE_MEMORY);
 
 	if((status = pthread_cond_init(&COND_FREE_MEMORY, NULL))) {
-		log_error_pthread_cond_init(status);
+		report_error_pthread_cond_init(status);
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_FREE_MEMORY);
@@ -308,20 +332,27 @@ int module(int argc, char *argv[]) {
 
 
 	// Initial process
-	if(new_process(process_size, argv[1], 0)) {
-        log_error(MODULE_LOGGER, "No se pudo crear el proceso");
-       	exit_sigint();
-    }
-	// TODO
+	char *pseudocode_filename = strdup(argv[1]);
+	if(pseudocode_filename == NULL) {
+		log_error_r(&MODULE_LOGGER, "strdup: No se pudo duplicar el nombre del archivo de pseudocodigo");
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) free, pseudocode_filename);
+		if(new_process(process_size, pseudocode_filename, 0)) {
+			log_error_r(&MODULE_LOGGER, "No se pudo crear el proceso");
+			exit_sigint();
+		}
+		// TODO
+	pthread_cleanup_pop(0); // pseudocode_filename
 
 
-	log_debug(MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
+	log_debug_r(&MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
 
 	/*
 	SHARED_LIST_CONNECTIONS_MEMORY.list = list_create();
 	if((status = pthread_mutex_init(&(SHARED_LIST_CONNECTIONS_MEMORY.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		// TODO
 	}
 	*/
@@ -336,8 +367,13 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // Sockets
 	pthread_cleanup_pop(1); // COND_FREE_MEMORY
 	pthread_cleanup_pop(1); // MUTEX_FREE_MEMORY
+	pthread_cleanup_pop(1); // SEM_IO_DEVICE
+	pthread_cleanup_pop(1); // COND_CANCEL_IO_OPERATION
+	pthread_cleanup_pop(1); // CONDATTR_CANCEL_IO_OPERATION
+	pthread_cleanup_pop(1); // MUTEX_CANCEL_IO_OPERATION
 	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // SEM_SHORT_TERM_SCHEDULER
+	pthread_cleanup_pop(1); // COND_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // BINARY_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // COND_IS_TCB_IN_CPU
 	pthread_cleanup_pop(1); // CONDATTR_IS_TCB_IN_CPU
@@ -357,15 +393,12 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // ARRAY_READY_RWLOCK
 	pthread_cleanup_pop(1); // LIST_NEW
 	pthread_cleanup_pop(1); // MUTEX_NEW
-	pthread_cleanup_pop(1); // SCHEDULING_RWLOCK
+	pthread_cleanup_pop(1); // RWLOCK_SCHEDULING
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_SOCKET_LOGGER
-	pthread_cleanup_pop(1); // MODULE_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MODULE_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
-	pthread_cleanup_pop(1); // MUTEX_MINIMAL_LOGGER
+	pthread_cleanup_pop(1); // MODULE_LOGGER
+	pthread_cleanup_pop(1); // MUTEX_LOGGERS
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
 
@@ -379,8 +412,8 @@ int read_module_config(t_config *module_config) {
         return -1;
     }
 
-	CONNECTION_CPU_DISPATCH = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH"), .thread_connection = {.running = false}};
-	CONNECTION_CPU_INTERRUPT = (t_Connection) {.fd_connection = -1, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT"), .thread_connection = {.running = false}};
+	CONNECTION_CPU_DISPATCH = (t_Connection) {.socket_connection.fd = -1, .socket_connection.bool_thread.running = false, .client_type = KERNEL_CPU_DISPATCH_PORT_TYPE, .server_type = CPU_DISPATCH_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_DISPATCH")};
+	CONNECTION_CPU_INTERRUPT = (t_Connection) {.socket_connection.fd = -1, .socket_connection.bool_thread.running = false, .client_type = KERNEL_CPU_INTERRUPT_PORT_TYPE, .server_type = CPU_INTERRUPT_PORT_TYPE, .ip = config_get_string_value(module_config, "IP_CPU"), .port = config_get_string_value(module_config, "PUERTO_CPU_INTERRUPT")};
 
 	char *string = config_get_string_value(module_config, "ALGORITMO_PLANIFICACION");
 	if(find_scheduling_algorithm(string, &SCHEDULING_ALGORITHM)) {
@@ -423,7 +456,7 @@ t_PCB *pcb_create(size_t size) {
 
 	t_PCB *pcb = malloc(sizeof(t_PCB));
 	if(pcb == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_PCB));
+		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el PCB", sizeof(t_PCB));
 		retval = -1;
 		goto ret;
 	}
@@ -438,7 +471,7 @@ t_PCB *pcb_create(size_t size) {
 	pthread_cleanup_push((void (*)(void *)) tid_manager_destroy, &(pcb->thread_manager));
 
 	if((status = pthread_rwlock_init(&(pcb->rwlock_resources), NULL))) {
-		log_error_pthread_rwlock_init(status);
+		report_error_pthread_rwlock_init(status);
 		retval = -1;
 		goto cleanup_tid_manager;
 	}
@@ -463,7 +496,7 @@ t_PCB *pcb_create(size_t size) {
 	pthread_cleanup_pop(0);
 	if(retval) {
 		if((status = pthread_rwlock_destroy(&(pcb->rwlock_resources)))) {
-			log_error_pthread_rwlock_destroy(status);
+			report_error_pthread_rwlock_destroy(status);
 		}
 	}
 
@@ -490,7 +523,7 @@ int pcb_destroy(t_PCB *pcb) {
 	dictionary_destroy(pcb->dictionary_resources);
 
 	if((status = pthread_rwlock_destroy(&(pcb->rwlock_resources)))) {
-		log_error_pthread_rwlock_destroy(status);
+		report_error_pthread_rwlock_destroy(status);
 		retval = -1;
 	}
 
@@ -508,7 +541,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 
 	t_TCB *tcb = malloc(sizeof(t_TCB));
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
+		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el TCB", sizeof(t_TCB));
 		retval = -1;
 		goto ret;
 	}
@@ -527,7 +560,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 	payload_init(&(tcb->syscall_instruction));
 
 	if((status = pthread_mutex_init(&(tcb->shared_list_blocked_thread_join.mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto cleanup_tcb;
 	}
@@ -547,6 +580,8 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 	}
 	pthread_cleanup_push((void (*)(void *)) dictionary_destroy, tcb->dictionary_assigned_resources);
 
+	tcb->exit_reason = UNEXPECTED_ERROR_EXIT_REASON;
+
 	if(tid_assign(&(pcb->thread_manager), tcb, &(tcb->TID))) {
 		retval = -1;
 		goto cleanup_dictionary_assigned_resources;
@@ -562,7 +597,7 @@ t_TCB *tcb_create(t_PCB *pcb, char *pseudocode_filename, t_Priority priority) {
 	pthread_cleanup_pop(0);
 	if(retval) {
 		if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
-			log_error_pthread_mutex_destroy(status);
+			report_error_pthread_mutex_destroy(status);
 		}
 	}
 
@@ -585,10 +620,10 @@ int tcb_destroy(t_TCB *tcb) {
 
 	dictionary_destroy(tcb->dictionary_assigned_resources);
 
-	list_destroy_and_destroy_elements(tcb->shared_list_blocked_thread_join.list, (void (*)(void *)) tcb_destroy);
+	list_destroy(tcb->shared_list_blocked_thread_join.list);
 
 	if((status = pthread_mutex_destroy(&(tcb->shared_list_blocked_thread_join.mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		retval = -1;
 	}
 
@@ -605,13 +640,13 @@ int pid_manager_init(t_PID_Manager *id_manager) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
+		log_error_r(&MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if((status = pthread_mutex_init(&(id_manager->mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto ret;
 	}
@@ -629,13 +664,13 @@ int tid_manager_init(t_TID_Manager *id_manager) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
+		log_error_r(&MODULE_LOGGER, "id_manager_init: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if((status = pthread_mutex_init(&(id_manager->mutex), NULL))) {
-		log_error_pthread_mutex_init(status);
+		report_error_pthread_mutex_init(status);
 		retval = -1;
 		goto ret;
 	}
@@ -654,7 +689,7 @@ int pid_manager_destroy(t_PID_Manager *id_manager) {
 
 	free(id_manager->array);
 	if((status = pthread_mutex_destroy(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		retval = -1;
 		goto ret;
 	}
@@ -668,7 +703,7 @@ int tid_manager_destroy(t_TID_Manager *id_manager) {
 
 	free(id_manager->array);
 	if((status = pthread_mutex_destroy(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_destroy(status);
+		report_error_pthread_mutex_destroy(status);
 		retval = -1;
 		goto ret;
 	}
@@ -681,19 +716,19 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
+		log_error_r(&MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if(id_manager->size == PID_MAX) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
+		log_error_r(&MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
 	}
 
 	if((status = pthread_mutex_lock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		retval = -1;
 		goto ret;
 	}
@@ -701,7 +736,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 
 		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
+			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
@@ -713,7 +748,7 @@ int pid_assign(t_PID_Manager *id_manager, t_PCB *data, t_PID *result) {
 
 	pthread_cleanup_pop(0);
 	if((status = pthread_mutex_unlock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		retval = -1;
 	}
 
@@ -733,19 +768,19 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 	int retval = 0, status;
 
 	if(id_manager == NULL) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
+		log_error_r(&MODULE_LOGGER, "id_assign: %s", strerror(EINVAL));
 		retval = -1;
 		goto ret;
 	}
 
 	if(id_manager->size == TID_MAX) {
-		log_error(MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
+		log_error_r(&MODULE_LOGGER, "id_assign: %s", strerror(ERANGE));
 		retval = -1;
 		goto ret;
 	}
 
 	if((status = pthread_mutex_lock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		retval = -1;
 		goto ret;
 	}
@@ -753,7 +788,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 
 		void **new_array = realloc(id_manager->array, sizeof(void *) * (id_manager->size + 1));
 		if(new_array == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
+			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(void *) * id_manager->size, sizeof(void *) * (id_manager->size + 1));
 			retval = -1;
 		}
 		id_manager->array = new_array;
@@ -765,7 +800,7 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *data, t_TID *result) {
 
 	pthread_cleanup_pop(0);
 	if((status = pthread_mutex_unlock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		retval = -1;
 	}
 
@@ -785,12 +820,12 @@ int pid_release(t_PID_Manager *id_manager, t_PID id) {
 	int status;
 
 	if((status = pthread_mutex_lock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		return -1;
 	}
 		(id_manager->array)[id] = NULL;
 	if((status = pthread_mutex_unlock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		return -1;
 	}
 
@@ -803,12 +838,12 @@ int tid_release(t_TID_Manager *id_manager, t_TID id) {
 	int status;
 
 	if((status = pthread_mutex_lock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_lock(status);
+		report_error_pthread_mutex_lock(status);
 		return -1;
 	}
 		(id_manager->array)[id] = NULL;
 	if((status = pthread_mutex_unlock(&(id_manager->mutex)))) {
-		log_error_pthread_mutex_unlock(status);
+		report_error_pthread_mutex_unlock(status);
 		return -1;
 	}
 
@@ -830,7 +865,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 
 	t_PCB *pcb = pcb_create(size);
 	if(pcb == NULL) {
-		log_error(MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
+		log_error_r(&MODULE_LOGGER, "pcb_create: No se pudo crear el PCB");
 		retval = -1;
 		goto ret;
 	}
@@ -838,7 +873,7 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 
 	t_TCB *tcb = tcb_create(pcb, pseudocode_filename, priority);
 	if(tcb == NULL) {
-		log_error(MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
+		log_error_r(&MODULE_LOGGER, "tcb_create: No se pudo crear el TCB");
 		retval = -1;
 		goto cleanup_pcb;
 	}
@@ -857,32 +892,32 @@ int new_process(size_t size, char *pseudocode_filename, t_Priority priority) {
 	return retval;
 }
 
-int request_thread_create(t_PCB *pcb, t_TID tid) {
+int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 	int retval = 0;
 
 	t_Connection connection_memory = (t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")};
 
 	client_thread_connect_to_server(&connection_memory);
-	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.fd_connection));
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
-		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		if(send_thread_create(pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename, connection_memory.socket_connection.fd)) {
+			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se envia solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
+		log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de creación de hilo a [Servidor] %s [PID: %u - TID: %u - Archivo: %s]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, ((t_TCB **) (pcb->thread_manager.array))[tid]->pseudocode_filename);
 
-		if(receive_expected_header(THREAD_CREATE_HEADER, connection_memory.fd_connection)) {
-			log_error(MODULE_LOGGER, "[%d] Error al recibir confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		if(receive_result_with_expected_header(THREAD_CREATE_HEADER, result, connection_memory.socket_connection.fd)) {
+			log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace(MODULE_LOGGER, "[%d] Se recibe confirmacion de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.fd_connection, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, *result);
 
 	cleanup_connection:
 	pthread_cleanup_pop(0);
-	if(close(connection_memory.fd_connection)) {
-		log_error_close();
+	if(close(connection_memory.socket_connection.fd)) {
+		report_error_close();
 		return -1;
 	}
 
@@ -921,20 +956,20 @@ int array_list_ready_resize(t_Priority priority) {
 
 	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
 	if(priority >= PRIORITY_LIMIT) {
-		log_error(MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
+		log_error_r(&MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
 		errno = ERANGE;
 		return -1;
 	}
 
 	if((status = pthread_rwlock_wrlock(&ARRAY_READY_RWLOCK))) {
-		log_error_pthread_rwlock_wrlock(status);
+		report_error_pthread_rwlock_wrlock(status);
 		return -1;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
 
 		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
 		if(new_array_list_ready == NULL) {
-			log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
+			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
 			errno = ENOMEM;
 			return -1;
 		}
@@ -946,7 +981,7 @@ int array_list_ready_resize(t_Priority priority) {
 				// Si una de las inicializaciones falla, Se trunca el array para sólo incluir las listas de READY que se pudieron inicializar
 				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * i);
 				if(new_array_list_ready == NULL) {
-					log_error(MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
+					log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
 				}
 				else {
 					ARRAY_LIST_READY = new_array_list_ready;
@@ -961,7 +996,7 @@ int array_list_ready_resize(t_Priority priority) {
 	
 	pthread_cleanup_pop(0);
 	if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
-		log_error_pthread_rwlock_unlock(status);
+		report_error_pthread_rwlock_unlock(status);
 		return -1;
 	}
 
@@ -973,7 +1008,7 @@ int array_list_ready_destroy(void) {
 	int retval = 0, status;
 	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
 		if((status = pthread_mutex_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].mutex)))) {
-			log_error_pthread_mutex_destroy(status);
+			report_error_pthread_mutex_destroy(status);
 			retval = -1;
 		}
 		list_destroy_and_free_elements(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].list);
@@ -983,10 +1018,10 @@ int array_list_ready_destroy(void) {
 	return retval;
 }
 
-void log_state_list(t_log *logger, const char *state_name, t_list *pcb_list) {
+void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list) {
 	char *pid_string = string_new();
 	pcb_list_to_pid_string(pcb_list, &pid_string);
-	log_info(logger, "%s: [%s]", state_name, pid_string);
+	log_trace_r(&logger, "%s: [%s]", state_name, pid_string);
 	free(pid_string);
 }
 

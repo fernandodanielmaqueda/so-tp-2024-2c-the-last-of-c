@@ -27,7 +27,9 @@
 #include "kernel.h"
 #include "transitions.h"
 
-extern pthread_rwlock_t SCHEDULING_RWLOCK;
+#define CONNECTION_MEMORY_INITIALIZER ((t_Connection) {.client_type = KERNEL_PORT_TYPE, .server_type = MEMORY_PORT_TYPE, .ip = config_get_string_value(MODULE_CONFIG, "IP_MEMORIA"), .port = config_get_string_value(MODULE_CONFIG, "PUERTO_MEMORIA")})
+
+extern pthread_rwlock_t RWLOCK_SCHEDULING;
 
 extern t_Shared_List SHARED_LIST_NEW;
 
@@ -63,12 +65,14 @@ extern pthread_cond_t COND_IS_TCB_IN_CPU;
 extern t_Time QUANTUM;
 extern t_Bool_Thread THREAD_QUANTUM_INTERRUPTER;
 extern sem_t BINARY_QUANTUM_INTERRUPTER;
+extern pthread_cond_t COND_QUANTUM_INTERRUPTER;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 extern sem_t BINARY_SHORT_TERM_SCHEDULER;
 
 extern bool CANCEL_IO_OPERATION;
 extern pthread_mutex_t MUTEX_CANCEL_IO_OPERATION;
+extern pthread_condattr_t CONDATTR_CANCEL_IO_OPERATION;
 extern pthread_cond_t COND_CANCEL_IO_OPERATION;
 
 extern t_Bool_Thread THREAD_IO_DEVICE;
@@ -91,10 +95,9 @@ void *long_term_scheduler_exit(void);
 void *quantum_interrupter(void);
 void *short_term_scheduler(void);
 void *io_device(void);
-void *dump_memory_petitioner(void);
+void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition);
 
-int remove_dump_memory_thread(pthread_t *thread);
-bool dump_memory_petition_matches_pthread(t_Dump_Memory_Petition *dump_memory_petition, pthread_t *thread);
+int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition);
 bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petition, t_TCB *tcb);
 
 int wait_free_memory(void);

@@ -4,11 +4,13 @@
 *.log
 
 # Config files
-/src/*.config
-/configs/
+*.config
 
 # Data files
 *.dat
+
+# Dump files
+*.dmp
 
 # Eclipse files
 .settings/

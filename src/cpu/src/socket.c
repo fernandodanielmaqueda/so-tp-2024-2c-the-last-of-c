@@ -11,62 +11,55 @@ t_Client CLIENT_KERNEL_CPU_INTERRUPT;
 
 t_Connection CONNECTION_MEMORY;
 
-int initialize_sockets(void) {
-    pthread_t thread_cpu_connect_to_memory;
+void initialize_sockets(void) {
     int status;
 
     // [Server] CPU (Dispatch) <- [Cliente] Kernel
-    if((status = pthread_create(&(SERVER_CPU_DISPATCH.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_DISPATCH))) {
-        log_error_pthread_create(status);
-        // TODO
+    if((status = pthread_create(&(SERVER_CPU_DISPATCH.socket_listen.bool_thread.thread), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_DISPATCH))) {
+        report_error_pthread_create(status);
+        exit_sigint();
     }
+    SERVER_CPU_DISPATCH.socket_listen.bool_thread.running = true;
 
     // [Server] CPU (Interrupt) <- [Cliente] Kernel
-    if((status = pthread_create(&(SERVER_CPU_INTERRUPT.thread_server), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_INTERRUPT))) {
-        log_error_pthread_create(status);
-        // TODO
+    if((status = pthread_create(&(SERVER_CPU_INTERRUPT.socket_listen.bool_thread.thread), NULL, (void *(*)(void *)) server_thread_for_client, (void *) &CLIENT_KERNEL_CPU_INTERRUPT))) {
+        report_error_pthread_create(status);
+        exit_sigint();
     }
+    SERVER_CPU_INTERRUPT.socket_listen.bool_thread.running = true;
 
     // [Client] CPU -> [Server] Memoria
-    if((status = pthread_create(&thread_cpu_connect_to_memory, NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_MEMORY))) {
-        log_error_pthread_create(status);
-        // TODO
+    if((status = pthread_create(&(CONNECTION_MEMORY.socket_connection.bool_thread.thread), NULL, (void *(*)(void *)) client_thread_connect_to_server, (void *) &CONNECTION_MEMORY))) {
+        report_error_pthread_create(status);
+        exit_sigint();
     }
+    CONNECTION_MEMORY.socket_connection.bool_thread.running = true;
 
     // Se bloquea hasta que se realicen todas las conexiones
-    if((status = pthread_join(SERVER_CPU_DISPATCH.thread_server, NULL))) {
-        log_error_pthread_join(status);
-        // TODO
+    if((status = pthread_join(SERVER_CPU_DISPATCH.socket_listen.bool_thread.thread, NULL))) {
+        report_error_pthread_join(status);
+        exit_sigint();
     }
+    SERVER_CPU_DISPATCH.socket_listen.bool_thread.running = false;
 
-    if((status = pthread_join(SERVER_CPU_INTERRUPT.thread_server, NULL))) {
-        log_error_pthread_join(status);
-        // TODO
+    if((status = pthread_join(SERVER_CPU_INTERRUPT.socket_listen.bool_thread.thread, NULL))) {
+        report_error_pthread_join(status);
+        exit_sigint();
     }
+    SERVER_CPU_INTERRUPT.socket_listen.bool_thread.running = false;
 
-    if((status = pthread_join(thread_cpu_connect_to_memory, NULL))) {
-        log_error_pthread_join(status);
-        // TODO
+    if((status = pthread_join(CONNECTION_MEMORY.socket_connection.bool_thread.thread, NULL))) {
+        report_error_pthread_join(status);
+        exit_sigint();
     }
-
-    return 0;
+    CONNECTION_MEMORY.socket_connection.bool_thread.running = false;
 }
 
 int finish_sockets(void) {
-    int retval = 0;
+	t_Socket *sockets[] = { &(SERVER_CPU_DISPATCH.socket_listen), &(CLIENT_KERNEL_CPU_DISPATCH.socket_client), &(SERVER_CPU_INTERRUPT.socket_listen), &(CLIENT_KERNEL_CPU_INTERRUPT.socket_client), &(CONNECTION_MEMORY.socket_connection), NULL};
+	if(socket_array_finish(sockets)) {
+		return -1;
+	}
 
-    if(close(CLIENT_KERNEL_CPU_DISPATCH.fd_client)) {
-        log_error_close();
-        retval = -1;
-    }
-    if(close(CLIENT_KERNEL_CPU_INTERRUPT.fd_client)) {
-        log_error_close();
-        retval = -1;
-    }
-    if(close(CONNECTION_MEMORY.fd_connection)) {
-        log_error_close();
-        retval = -1;
-    }
-
-    return retval;
+    return 0;
 }

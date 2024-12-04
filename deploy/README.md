@@ -99,7 +99,7 @@ Por ejemplo: `Google Chrome`, etc.
 
 ## 4. (NO en el Deploy) Acceder a este repositorio grupal
 
-- https://github.com/sisoputnfrba/tp-2024-2c-os
+- https://github.com/sisoputnfrba/tp-2024-2c-so
 
 ## 5. (NO en el Deploy) Descargar, instalar y abrir el Git Bash *PORTABLE*
 
@@ -121,24 +121,36 @@ git config --global user.name 'Nombre y Apellido(s)'
 
 ## 7. (NO en el Deploy) Clonar este repositorio en Windows
 
-1. Desactivar la compresión
+1. Desactivar la conversión automática a CRLF al clonar el repositorio
+```bash
+git config --global core.autocrlf false
+```
+
+1. Asegurar que todos los archivos del repositorio utilicen LF
+```bash
+git config --global core.eol lf
+```
+
+2. Desactivar la compresión
 ```bash
 git config --global core.compression 0
 ```
 
-2. Incrementar el tamaño del buffer
+3. Incrementar el tamaño del buffer
+Se puede probar con distintos valores: 150MB (157286400), 500MB (524288000)
 ```bash
 git config --global http.postBuffer 524288000
+git config --global http.postBuffer 157286400
 ```
 
-3. Clonar
+4. Clonar (sin --recurse-submodules)
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 > Debería ser equivalente a:
 ```bash
-cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 ### En caso de que aparezca este error:
@@ -150,18 +162,19 @@ Seleccionar `No`: Como no tenemos permisos de administrador en las máquinas de 
 (**Git Credential Manager Core**)
 
 Las alternativas son:
-1. Si para acceder a tu cuenta de Git usás PAT (Personal Access Token):
-	- Usá el Administrador de Credenciales de Windows (**wincred**)
+
+A) Si para acceder a tu cuenta de Git usás PAT (Personal Access Token):
+- Usá el Administrador de Credenciales de Windows (**wincred**)
 ```bash
 git config --unset-all credential.helper && git config credential.helper wincred
 ```
 - Cuando eventualmente se te solicite tu nombre de usuario, ingresalo.
 - Cuando eventualmente te solicite tu contraseña, ingresá tu PAT (Personal Access Token) que generaste.
 
-2. Si para acceder a tu cuenta de Git usás clave SSH:
-	- Cambiar a SSH:
+B) Si para acceder a tu cuenta de Git usás clave SSH:
+- Cambiar a SSH:
 ```bash
-git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-os.git
+git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-so.git
 ```
 
 - Eventualmente deberás ingresar tu clave pública SSH generada.
@@ -170,7 +183,7 @@ git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-os.git
 
 ## 8. (NO en el Deploy) Clonarse los submódulos del repositorio en Windows
 ```bash
-cd tp-2024-2c-os ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive --depth 1
 ```
 
 -----------------------------
@@ -830,20 +843,45 @@ Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not pro
 
 -----------------------------
 
-## 27. Clonar este repositorio
+## 27. Clonar este repositorio (sin --recurse-submodules)
+
+1. Convertir CRLF a LF
 ```bash
-cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+git config --global core.autocrlf input
 ```
-Debería ser equivalente a:
+
+1. Asegurar que todos los archivos del repositorio utilicen LF
 ```bash
-cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags --recurse-submodules https://github.com/sisoputnfrba/tp-2024-2c-os
+git config --global core.eol lf
+```
+
+2. Desactivar la compresión
+```bash
+git config --global core.compression 0
+```
+
+3. Incrementar el tamaño del buffer
+Se puede probar con distintos valores: 150MB (157286400), 500MB (524288000)
+```bash
+git config --global http.postBuffer 524288000
+git config --global http.postBuffer 157286400
+```
+
+4. Clonar (sin --recurse-submodules)
+```bash
+cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
+```
+
+> Debería ser equivalente a:
+```bash
+cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 -----------------------------
 
 ## 28. Clonarse los submódulos del repositorio
 ```bash
-cd tp-2024-2c-os ; git submodule update --init --recursive
+cd tp-2024-2c-so ; git submodule update --init --recursive --depth 1
 ```
 
 -----------------------------
@@ -859,11 +897,11 @@ corriendo los módulos
 
 -----------------------------
 
-## 31. Crear un acceso directo (soft link) a los archivos de test
+## 31. Crear un acceso directo (soft link / symlink) a los archivos de test
 
 Deben quedar en: `/home/utnso/scripts-pruebas`/...
 ```bash
-ln -s /home/utnso/tp-2024-2c-os/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
+ln -s /home/utnso/tp-2024-2c-so/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
 ```
 
 -----------------------------
@@ -878,7 +916,7 @@ mkdir -p /home/utnso/dialfs
 ## 33. Instalar la SO Commons Library
 
 ```bash
-cd /home/utnso/tp-2024-2c-os/thirdparty/so-commons-library
+cd /home/utnso/tp-2024-2c-so/thirdparty/so-commons-library
 make debug
 sudo make install
 ```
@@ -894,7 +932,7 @@ sudo cp src/commons /usr/include
 ## 34. (NO en el Deploy) Instalar CSpec
 
 ```bash
-cd /home/utnso/tp-2024-2c-os/thirdparty/cspec
+cd /home/utnso/tp-2024-2c-so/thirdparty/cspec
 make debug
 sudo make install
 ```
@@ -973,13 +1011,13 @@ Suele ser por el peso y el poco ancho de banda disponible en el momento (por est
 
 - Alternativa 1: Resumir el clonado fallido
 ```bash
-cd tp-2024-2c-os
+cd tp-2024-2c-so
 git fetch --all
 ```
 
 - Alternativa 2: Clonar utilizando SSH en lugar de HTTPS:
 ```bash
-git clone git@github.com:sisoputnfrba/tp-2024-2c-os.git
+git clone git@github.com:sisoputnfrba/tp-2024-2c-so.git
 ```
 
 - Alternativa 3: Descargar el repositorio:
@@ -993,8 +1031,8 @@ curl -L \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer TU_TOKEN_DE_GITHUB" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-os/zipball/main \
-  -o 'tp-2024-2c-os-main.zip'
+  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-so/zipball/main \
+  -o 'tp-2024-2c-so-main.zip'
 ```
 
 - CLI de GitHub
@@ -1002,7 +1040,7 @@ curl -L \
 gh api \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/sisoputnfrba/tp-2024-2c-os/zipball/main
+  /repos/sisoputnfrba/tp-2024-2c-so/zipball/main
 ```
 
 ### Descargar un repositorio como un archivo TAR
@@ -1012,8 +1050,8 @@ curl -L \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer TU_TOKEN_DE_GITHUB" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-os/tarball/main \
-  -o 'tp-2024-2c-os-main.tar.gz'
+  https://api.github.com/repos/sisoputnfrba/tp-2024-2c-so/tarball/main \
+  -o 'tp-2024-2c-so-main.tar.gz'
 ```
 
 - CLI de GitHub
@@ -1021,7 +1059,7 @@ curl -L \
 gh api \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/sisoputnfrba/tp-2024-2c-os/tarball/main
+  /repos/sisoputnfrba/tp-2024-2c-so/tarball/main
 ```
 
 -----------------------------
@@ -1060,12 +1098,17 @@ set -x
 
 - Desactivar impresión de comandos ejecutados
 ```bash
-set +x
+{ set +x ; } 2>/dev/null
 ```
 
 - Cambiar a root
 ```bash
 sudo -s
+```
+
+> Alternativa:
+```bash
+sudo su
 ```
 
 - Salir de root
@@ -1153,6 +1196,23 @@ find .
 find . -type f \( -name '*.log' \) -print
 ```
 
+- Listar CRLF o LF por cada archivo
+```bash
+find . -type f -exec bash -c 'file="{}"; if file "$file" | grep -q "CRLF"; then echo "$file CRLF"; else echo "$file LF"; fi' \;
+```
+
+- Cambiar de CRLF a LF en todos los archivos \*.sh y \*.config (excluyendo los de .git)
+```bash
+sudo apt install -y dos2unix
+find . -type f \( -name "*.sh" -o -name "*.config" \) ! -path "./.git/*" -exec dos2unix {} +
+```
+
+- Cambiar de LF a CRLF en todos los archivos \*.sh y \*.config (excluyendo los de .git)
+```bash
+sudo apt install -y unix2dos
+unix2dos <archivo>
+```
+
 - Crear directorio vacío
 ```bash
 mkdir <directorio>
@@ -1173,7 +1233,7 @@ cp <origen> <destino>
 mv <origen> <destino>
 ```
 
-> Using mv command to move all files including the hidden files
+> Mover todos los archivos (incluidos los ocultos)
 ```bash
 mv -f /path/subdirectory/{.,}* /path/
 ```
@@ -1182,7 +1242,7 @@ mv -f /path/subdirectory/{.,}* /path/
 ```bash
 mv /path/subdirectory/* /path/subdirectory/.* /path/
 ```
-> Here, the asterisk (*) symbol represents all files in the subdirectory folder, and the dot-asterisk (.*) symbol represents all hidden files in the subdirectory folder. Both types of files will be moved to the path directory.
+> El asterisco (*) representa todos los archivos en la carpeta subdirectorio, y el punto asterisco (.*) representa a todos los archivos ocultos en la carpeta subdirectorio. Ambos tipos de archivos serán movidos al directorio destino.
 
 - Eliminar archivo(s) y/o directorio(s) recursivamente y forzosamente
 ```bash
@@ -1211,18 +1271,28 @@ less +F <archivo>
 
 - Imprimir el contenido de un archivo en hexadecimal
 ```bash
-hexdump -C <archivo>
+hexdump -C bloques.dat
 ```
 
-- Crear un hexdump de un archivo dado
+- Imprimir el contenido de un archivo en hexadecimal
 ```bash
-xxd
+xxd bloques.dat
+```
+
+- Imprimir el contenido de un archivo en binario
+```bash
+xxd -b bitmap.dat
 ```
 
 - Editar un archivo de texto
 	- Con `vi`
 ```bash
 vi <archivo>
+```
+
+	- Con `vim`
+```bash
+vim <archivo>
 ```
 
 	- Con `nano`
@@ -1256,6 +1326,11 @@ lsof
 lsof -i :8080
 ```
 
+- Terminar un proceso forzosamente
+```bash
+kill -s SIGKILL <PID>
+```
+
 - Listar todas las variables de entorno:
 ```bash
 env
@@ -1266,7 +1341,7 @@ env
 env | grep NOMBRE_VARIABLE
 ```
 
-> Imprimir valor variable
+> Imprimir valor de variable
 ```bash
 echo $NOMBRE_VARIABLE
 ```
@@ -1423,9 +1498,15 @@ clear ; make valgrind-none-filesystem 'filesystem_ARGS='
 git checkout -q <commit-hash>
 ```
 
+- Reclonar un repositorio
+```bash
+git rm --cached -r .
+git reset --hard
+```
+
 - Clonar un repositorio con todos sus submódulos
 ```bash
-git clone
+git clone --recurse-submodules
 ```
 
 - Clonar todos los submódulos de un repositorio ya clonado
@@ -1469,20 +1550,34 @@ git submodule deinit <submodule>
 git rm <submodule>
 ```
 
-```text
-hint: You have divergent branches and need to specify how to reconcile them.
-hint: You can do so by running one of the following commands sometime before
-hint: your next pull:
-hint: 
-hint:   git config pull.rebase false  # merge
-hint:   git config pull.rebase true   # rebase
-hint:   git config pull.ff only       # fast-forward only
-hint: 
-hint: You can replace "git config" with "git config --global" to set a default
-hint: preference for all repositories. You can also pass --rebase, --no-rebase,
-hint: or --ff-only on the command line to override the configured default per
-hint: invocation.
-fatal: Need to specify how to reconcile divergent branches.
+- Merge por defecto al pullear
+```bash
+git config --global pull.rebase false
+```
+
+- Rebase por defecto al pullear
+```bash
+git config --global pull.rebase true
+```
+
+- Fast-forward (ff) por defecto al pullear
+```bash
+git config --global pull.ff only
+```
+
+- Merge override de la configuración por defecto en un pull en específico
+```bash
+git pull --no-rebase
+```
+
+- Rebase override de la configuración por defecto en un pull en específico
+```bash
+git pull --rebase
+```
+
+- Fast-forward (ff) override de la configuración por defecto en un pull en específico
+```bash
+git pull --ff-only
 ```
 
 -----------------------------
@@ -1632,12 +1727,12 @@ if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyCon
 
 2. Clonar el repositorio original completo
 ```bash
-git clone --mirror https://github.com/sisoputnfrba/tp-2024-2c-os
+git clone --mirror https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
 3.
 ```bash
-cd tp-2024-2c-os.git/
+cd tp-2024-2c-so.git/
 ```
 
 4. Configurar la URL del repositorio remoto del repositorio local original como el del copia

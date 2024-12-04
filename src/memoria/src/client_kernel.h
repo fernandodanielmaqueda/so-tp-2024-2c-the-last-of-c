@@ -11,6 +11,7 @@
 #include <time.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <commons/temporal.h>
 #include "commons/log.h"
 #include "commons/config.h"
 #include "commons/string.h"
@@ -44,9 +45,9 @@ void attend_process_destroy(int fd_client, t_Payload *payload);
 
 void attend_thread_create(int fd_client, t_Payload *payload);
 
-int attend_thread_destroy(int fd_client, t_Payload *payload);
+void attend_thread_destroy(int fd_client, t_Payload *payload);
 
-int attend_memory_dump(int fd_client, t_Payload *payload);
+void attend_memory_dump(int fd_client, t_Payload *payload);
 
 void allocate_partition(t_Partition **partition, size_t required_size);
 
@@ -61,9 +62,7 @@ int verify_and_join_splited_partitions(t_Partition *partition);
  * @param path Path donde se encuentra el archivo.
  * @param list_instruction Lista a llenarse con las instrucciones del archivo.
  */
-int parse_pseudocode_file(char *path, char ***array_instruction, t_PC *count);
-
-int process_destroy(t_Memory_Process *process);
+int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread);
 
 
 #endif // MEMORY_CLIENT_KERNEL_H

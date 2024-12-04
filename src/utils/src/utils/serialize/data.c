@@ -45,7 +45,7 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
 
     *data = malloc((size_t) size_serialized);
     if(*data == NULL) {
-      log_warning(SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar los datos", (size_t) size_serialized);
+      log_warning_r(&SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para deserializar los datos", (size_t) size_serialized);
       errno = ENOMEM;
       return -1;
     }
@@ -66,7 +66,7 @@ int data_deserialize(t_Payload *payload, void **data, size_t *size) {
 int data_log(e_Serialization serialization, void *data, size_t size) {
   char *dump_string = mem_hexstring(data, size);
 
-  log_info(SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] data:\n"
     "* size: %zu\n"
     "* stream: %p\n"

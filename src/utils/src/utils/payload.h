@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include "commons/log.h"
+#include "utils/module.h"
 
 typedef uint32_t t_Size;
 
@@ -27,7 +28,7 @@ typedef enum e_Serialization {
 
 extern const char *SERIALIZATION_NAMES[];
 
-extern t_log *SERIALIZE_LOGGER;
+extern t_Logger SERIALIZE_LOGGER;
 
 /**
  * Inicializa el payload.

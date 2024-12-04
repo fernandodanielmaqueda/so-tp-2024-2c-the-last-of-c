@@ -33,7 +33,7 @@ extern t_Client CLIENT_KERNEL_CPU_INTERRUPT;
 
 extern t_Connection CONNECTION_MEMORY;
 
-int initialize_sockets(void);
+void initialize_sockets(void);
 int finish_sockets(void);
 //void *cpu_start_server_for_kernel(t_Client *new_client);
 

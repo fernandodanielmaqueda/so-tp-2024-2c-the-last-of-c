@@ -42,7 +42,7 @@ int receive_port_type(e_Port_Type *port_type, int fd_socket) {
     goto cleanup;
   }
   if(package->header != PORT_TYPE_HEADER) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -91,7 +91,7 @@ int receive_expected_header(e_Header expected_header, int fd_socket) {
     goto cleanup;
   }
   if(package->header != expected_header) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -138,7 +138,7 @@ int receive_data_with_expected_header(e_Header expected_header, void **data, siz
     goto cleanup;
   }
   if(package->header != expected_header) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -189,7 +189,7 @@ int receive_text_with_expected_header(e_Header expected_header, char **text, int
     goto cleanup;
   }
   if(package->header != expected_header) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -240,7 +240,7 @@ int receive_result_with_expected_header(e_Header expected_header, int *result, i
     goto cleanup;
   }
   if(package->header != expected_header) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -295,7 +295,7 @@ int receive_pid_and_tid_with_expected_header(e_Header expected_header, t_PID *pi
     goto cleanup;
   }
   if(package->header != expected_header) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -466,7 +466,7 @@ int receive_thread_eviction(e_Eviction_Reason *eviction_reason, t_Payload *sysca
     goto cleanup;
   }
   if(package->header != THREAD_EVICTION_HEADER) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -529,7 +529,7 @@ int receive_kernel_interrupt(e_Kernel_Interrupt *kernel_interrupt, t_PID *pid, t
     goto cleanup;
   }
   if(package->header != KERNEL_INTERRUPT_HEADER) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -590,7 +590,7 @@ int receive_exec_context(t_Exec_Context *exec_context, int fd_socket) {
     goto cleanup;
   }
   if(package->header != EXEC_CONTEXT_REQUEST_HEADER) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -780,7 +780,7 @@ int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_sock
     goto cleanup;
   }
   if(package->header != MEMORY_DUMP_HEADER) {
-    log_error(SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
+    log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;
   }
@@ -788,7 +788,7 @@ int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_sock
     retval = -1;
     goto cleanup;
   }
-  if(data_deserialize(&(package->payload), *dump, bytes)) {
+  if(data_deserialize(&(package->payload), dump, bytes)) {
     retval = -1;
     goto cleanup;
   }

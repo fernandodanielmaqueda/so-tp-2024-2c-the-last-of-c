@@ -21,27 +21,29 @@
 #define RETRY_CONNECTION_IN_SECONDS 10
 #define MAX_CONNECTION_ATTEMPS 10
 
+typedef struct t_Socket {
+    int fd;
+    t_Bool_Thread bool_thread;
+} t_Socket;
+
 typedef struct t_Connection {
-    int fd_connection;
+    t_Socket socket_connection;
     enum e_Port_Type client_type;
     enum e_Port_Type server_type;
     char *ip;
     char *port;
-    t_Bool_Thread thread_connection;
 } t_Connection;
 
 typedef struct t_Server {
-    int fd_listen;
+    t_Socket socket_listen;
     enum e_Port_Type server_type;
     enum e_Port_Type clients_type;
     char *port;
-    pthread_t thread_server;
 } t_Server;
 
 typedef struct t_Client {
-    int fd_client;
+    t_Socket socket_client;
     enum e_Port_Type client_type;
-    t_Bool_Thread thread_client_handler;
     t_Server *server;
 } t_Client;
 
@@ -64,5 +66,9 @@ void *client_thread_connect_to_server(t_Connection *connection);
 int client_start_try(char *ip, char *port);
 
 int wrapper_close(int *fd);
+
+// Array de sockets
+
+int socket_array_finish(t_Socket *sockets[]);
 
 #endif // UTILS_SOCKET_H
