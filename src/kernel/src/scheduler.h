@@ -65,6 +65,7 @@ extern pthread_cond_t COND_IS_TCB_IN_CPU;
 extern t_Time QUANTUM;
 extern t_Bool_Thread THREAD_QUANTUM_INTERRUPTER;
 extern sem_t BINARY_QUANTUM_INTERRUPTER;
+extern pthread_cond_t COND_QUANTUM_INTERRUPTER;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 extern sem_t BINARY_SHORT_TERM_SCHEDULER;

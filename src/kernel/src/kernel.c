@@ -258,6 +258,12 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_QUANTUM_INTERRUPTER);
 
+	if((status = pthread_cond_init(&COND_QUANTUM_INTERRUPTER, NULL))) {
+		report_error_pthread_cond_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_QUANTUM_INTERRUPTER);
+
 	if(sem_init(&SEM_SHORT_TERM_SCHEDULER, 0, 0)) {
 		report_error_sem_init();
 		exit_sigint();
@@ -331,6 +337,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_FREE_MEMORY
 	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // SEM_SHORT_TERM_SCHEDULER
+	pthread_cleanup_pop(1); // COND_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // BINARY_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // COND_IS_TCB_IN_CPU
 	pthread_cleanup_pop(1); // CONDATTR_IS_TCB_IN_CPU
@@ -869,7 +876,7 @@ int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 			retval = -1;
 			goto cleanup_connection;
 		}
-		log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid);
+		log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creación de hilo de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, tid, *result);
 
 	cleanup_connection:
 	pthread_cleanup_pop(0);

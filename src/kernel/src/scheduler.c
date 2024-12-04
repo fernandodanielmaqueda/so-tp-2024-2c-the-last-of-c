@@ -39,6 +39,7 @@ pthread_cond_t COND_IS_TCB_IN_CPU;
 t_Time QUANTUM;
 t_Bool_Thread THREAD_QUANTUM_INTERRUPTER = { .running = false };
 sem_t BINARY_QUANTUM_INTERRUPTER;
+pthread_cond_t COND_QUANTUM_INTERRUPTER;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
 sem_t BINARY_SHORT_TERM_SCHEDULER;
@@ -385,7 +386,7 @@ void *quantum_interrupter(void) {
 	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
 
 	struct timespec ts_now, ts_quantum, ts_abstime;
-	int retval = 0, status;
+	int interrupt, status;
 
 	while(1) {
 		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
@@ -407,16 +408,19 @@ void *quantum_interrupter(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 
-			while(!IS_TCB_IN_CPU && status == 0) {
+			while((IS_TCB_IN_CPU) && (status == 0)) {
 				status = pthread_cond_timedwait(&COND_IS_TCB_IN_CPU, &MUTEX_IS_TCB_IN_CPU, &ts_abstime);
 			}
+
 			switch(status) {
 				case 0:
 					// El hilo fue desalojado antes de que se agote el quantum
-					retval = -1;
+					interrupt = 0;
 					break;
 				case ETIMEDOUT:
 					// Se agotó el quantum
+					// QUANTUM_EXPIRED = 1;
+					interrupt = 1;
 					break;
 				default:
 					report_error_pthread_cond_timedwait(status);
@@ -429,19 +433,22 @@ void *quantum_interrupter(void) {
 			exit_sigint();
 		}
 
-		if(retval) {
+		if(!interrupt) {
 			goto post_binary_short_term_scheduler;
 		}
 
-		// Envio la interrupción solo si hay más procesos en la cola de READY
+		// Envio la interrupción solo si hay más hilos en la cola de READY
+		// pthread_cond_wait(COND_QUANTUM_INTERRUPTER, &MUTEX_??);
+		/*
 		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
 			report_error_sem_wait();
 			exit_sigint();
-		}
+		}|
 		if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
 			report_error_sem_post();
 			exit_sigint();
 		}
+		*/
 
 		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
 			report_error_pthread_mutex_lock(status);
@@ -449,7 +456,7 @@ void *quantum_interrupter(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 			if(!IS_TCB_IN_CPU) {
-				retval = -1;
+				interrupt = 0;
 			}
 		pthread_cleanup_pop(0);
 		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
@@ -457,16 +464,16 @@ void *quantum_interrupter(void) {
 			exit_sigint();
 		}
 
-		if(retval) {
+		if(!interrupt) {
 			goto post_binary_short_term_scheduler;
 		}
 
 		if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-			log_error_r(&SOCKET_LOGGER, "[%d] Error al enviar interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 			exit_sigint();
 		}
-		log_trace_r(&SOCKET_LOGGER, "[%d] Se envía interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
-	
+		log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
 		post_binary_short_term_scheduler:
 		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
 			report_error_sem_post();
@@ -589,17 +596,12 @@ void *short_term_scheduler(void) {
 						exit_sigint();
 					}
 
-					if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-						report_error_sem_post();
+					if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
+						report_error_pthread_cond_signal(status);
 						exit_sigint();
 					}
-					pthread_cleanup_push((void (*)(void *)) sem_wait, &SEM_SHORT_TERM_SCHEDULER);
-						if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
-							report_error_sem_wait();
-							exit_sigint();
-						}
-					pthread_cleanup_pop(0);
-					if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
+
+					if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
 						report_error_sem_wait();
 						exit_sigint();
 					}
