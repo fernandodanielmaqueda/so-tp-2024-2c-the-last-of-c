@@ -325,6 +325,8 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
+		log_info_r(&MINIMAL_LOGGER, "## (%u:%u) Finaliza el hilo", tcb->pcb->PID, tcb->TID);
+
 		pcb = tcb->pcb;
 
 		resources_unassign(tcb);
@@ -338,6 +340,7 @@ void *long_term_scheduler_exit(void) {
 		}
 
 		if((pcb->thread_manager.counter) == 0) {
+
 			client_thread_connect_to_server(&connection_memory);
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
@@ -358,6 +361,8 @@ void *long_term_scheduler_exit(void) {
 				report_error_close();
 				exit_sigint();
 			}
+
+			log_info_r(&MINIMAL_LOGGER, "## Finaliza el proceso %u", pcb->PID);
 
 			if(pcb_destroy(pcb)) {
 				exit_sigint();

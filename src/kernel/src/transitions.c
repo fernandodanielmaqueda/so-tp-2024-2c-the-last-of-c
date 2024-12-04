@@ -774,7 +774,7 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 		}
 
 	pthread_cleanup_pop(0); // dump_memory_petition
-	log_traces_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
 	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", pid, tid);
 
 	return 0;
