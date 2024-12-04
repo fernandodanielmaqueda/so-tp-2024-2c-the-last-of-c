@@ -1196,6 +1196,11 @@ find .
 find . -type f \( -name '*.log' \) -print
 ```
 
+- Listar CRLF o LF por cada archivo
+```bash
+find . -type f -exec bash -c 'file="{}"; if file "$file" | grep -q "CRLF"; then echo "$file CRLF"; else echo "$file LF"; fi' \;
+```
+
 - Cambiar de CRLF a LF en todos los archivos \*.sh y \*.config (excluyendo los de .git)
 ```bash
 sudo apt install -y dos2unix
