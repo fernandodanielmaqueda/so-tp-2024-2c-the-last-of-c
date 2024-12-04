@@ -1021,7 +1021,7 @@ int array_list_ready_destroy(void) {
 void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list) {
 	char *pid_string = string_new();
 	pcb_list_to_pid_string(pcb_list, &pid_string);
-	log_info_r(&logger, "%s: [%s]", state_name, pid_string);
+	log_trace_r(&logger, "%s: [%s]", state_name, pid_string);
 	free(pid_string);
 }
 

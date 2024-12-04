@@ -77,7 +77,7 @@ int list_log(e_Serialization serialization, t_list list) {
     element = element->next;
   }
 
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] t_list:\n"
     "* elements_count: %d\n"
     "* head: %p\n"

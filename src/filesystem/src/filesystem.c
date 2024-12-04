@@ -255,7 +255,7 @@ int bloques_init(void) {
     char *data_string = mem_hexstring(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE);
     log_trace_r(&MODULE_LOGGER, "## DATA STRING BLOQUES.dat:\n%s", data_string);
 
-    log_info_r(&MODULE_LOGGER, "Bloques.dat mapeado correctamente.");
+    log_trace_r(&MODULE_LOGGER, "Bloques.dat mapeado correctamente.");
 
 
     return 0;
@@ -371,7 +371,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     print_size_t_array(array, array_size);
     // Log de acceso a bloque.
-    log_info_r(&MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <INDICE> - Bloque File System  <%u>", filename, array[0]);
+    log_info_r(&MINIMAL_LOGGER, "## Acceso Bloque - Archivo: %s - Tipo Bloque: ÍNDICE - Bloque File System %u", filename, array[0]);
     
     usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
 
@@ -406,7 +406,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
        // log_warning_r(&MODULE_LOGGER, "##### Tamanio de la particion de memoria: %zu", memory_partition_size);
 
         write_block_dat(bloques_data_pos_init, ptro_memory_dump_block, memory_partition_size);
-        log_info_r(&MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <DATOS> - Bloque File System  <%u>", filename, array[array_pos]);
+        log_info_r(&MINIMAL_LOGGER, "## Acceso Bloque - Archivo: %s - Tipo Bloque: DATOS - Bloque File System %u", filename, array[array_pos]);
 
         usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
        
@@ -415,7 +415,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
     // Log de fin de petición
-    log_info_r(&MODULE_LOGGER, "## Fin de solicitud - Archivo: <%s>", filename);
+    log_info_r(&MINIMAL_LOGGER, "## Fin de solicitud - Archivo: %s", filename);
     return;
 }
 
@@ -465,7 +465,7 @@ void create_metadata_file(const char *filename, size_t size, t_Block_Pointer ind
     free(metadata_path);
 
     // path completo (metadata_path) o solo filename??
-    log_info_r(&MODULE_LOGGER, "## Archivo Creado: <%s> - Tamaño: <%zu>", filename, size);
+    log_info_r(&MINIMAL_LOGGER, "## Archivo Creado: %s - Tamaño: %zu", filename, size);
 }
 
 void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary, char* filename) { // 3 bloques: 2 de datos y 1 de índice
@@ -490,7 +490,7 @@ void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_ne
             bit_map->blocks_free--;
 
             // Log de asignación de bloque
-            log_info_r(&MODULE_LOGGER, "## Bloque asignado: <%zu> - Archivo: <%s> - Bloques Libres: <%zu>", block_index, filename, bit_map->blocks_free);
+            log_info_r(&MINIMAL_LOGGER, "## Bloque asignado: %zu - Archivo: %s - Bloques Libres: %zu", block_index, filename, bit_map->blocks_free);
         }
     }
 

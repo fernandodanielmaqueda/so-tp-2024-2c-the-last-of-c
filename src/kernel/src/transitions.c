@@ -606,7 +606,7 @@ int insert_state_ready(t_TCB *tcb) {
 				break;
 		}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	if(previous_state == NEW_STATE) {
 		log_info_r(&MINIMAL_LOGGER, "## (%u:%u) Se crea el Hilo - Estado: READY", tcb->pcb->PID, tcb->TID);
@@ -649,7 +649,7 @@ int insert_state_exec(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	return 0;
 }
@@ -673,7 +673,7 @@ int insert_state_blocked_join(t_TCB *tcb, t_TCB *target) {
 		return -1;
 	}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_JOIN", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_JOIN", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: THREAD_JOIN", tcb->pcb->PID, tcb->TID);
 
 	return 0;
@@ -687,7 +687,7 @@ int insert_state_blocked_mutex(t_TCB *tcb, t_Resource *resource) {
 	list_add(resource->list_blocked, tcb);
 	tcb->location = resource;
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_MUTEX", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_MUTEX", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: MUTEX", tcb->pcb->PID, tcb->TID);
 
 	return 0;
@@ -774,7 +774,7 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 		}
 
 	pthread_cleanup_pop(0); // dump_memory_petition
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
+	log_traces_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_DUMP", pid, tid, STATE_NAMES[previous_state]);
 	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: DUMP_MEMORY", pid, tid);
 
 	return 0;
@@ -799,7 +799,7 @@ int insert_state_blocked_io_ready(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_READY", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Bloqueado por: IO", tcb->pcb->PID, tcb->TID);
 
 	if(sem_post(&SEM_IO_DEVICE)) {
@@ -829,7 +829,7 @@ int insert_state_blocked_io_exec(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: BLOCKED_IO_EXEC", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	return 0;
 }
@@ -853,7 +853,7 @@ int insert_state_exit(t_TCB *tcb) {
 		return -1;
 	}
 
-	log_info_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXIT", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXIT", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
 	if(sem_post(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
 		report_error_sem_post();

@@ -302,7 +302,7 @@ void *long_term_scheduler_exit(void) {
 			continue;
 		}
 
-		log_info_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
+		log_trace_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
 
 		client_thread_connect_to_server(&connection_memory);
 		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));

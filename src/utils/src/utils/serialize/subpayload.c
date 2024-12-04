@@ -33,7 +33,7 @@ int subpayload_deserialize(t_Payload *payload, t_Payload *destination) {
 int subpayload_log(e_Serialization serialization, t_Payload source) {
   char *dump_string = mem_hexstring(source.stream, source.size);
 
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] t_Payload:\n"
     "* size: %zd\n"
     "* stream: %p\n"
