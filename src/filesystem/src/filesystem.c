@@ -356,40 +356,62 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
 
     // ESCRIBIR EN BLOQUES.DAT BLOQUE A BLOQUE (se armaron su lista/array dinámico auxiliar)
+    //write_Complete_data(array, blocks_necessary);
+    
 
     // Primero escribo en memoria (RAM) el bloque de índice
     size_t array_size = blocks_necessary * sizeof(t_Block_Pointer);
-    write_block(array[0], array, array_size, 1); //array 0 porque el primero es el indice
+    t_Block_Pointer bloques_index_pos = array[0];
+     
+    write_block_index(bloques_index_pos, array, array_size); //array 0 porque el primero es el indice
+
+
+
+
+
     print_size_t_array(array, array_size);
     // Log de acceso a bloque.
     log_info_r(&MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <INDICE> - Bloque File System  <%u>", filename, array[0]);
     
     usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
 
-    block_msync(array[0]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
+    block_msync(bloques_index_pos); // msync() SÓLO CORRESPONDIENTE AL BLOQUE DE ÍNDICE EN SÍ
 
 
     // En el medio escribo en memoria (RAM) los bloques de datos
     // blocks_necessary es igual al tamaño del array
-    for(size_t i = 1; i < blocks_necessary; i++) {
+
+    uint32_t dump_pos = 0;
+    //  array_pos = 1 porque desde la posicion en adelante el array tiene value los punteros a los bloques de datos. La posicion tiene como value el puntero el bloque de indice.
+
+        for(size_t array_pos = 1; array_pos < blocks_necessary; array_pos++) {
+
         // ptro al inicio de cada bloque dentro de los datos del memory dump (NO INDEXADO).
-        char *ptro_memory_dump_block = get_pointer_to_block(memory_dump, BLOCK_SIZE, i - 1);
+        // ptro al inicio de cada particion (block size) del memory dump
+        
+        char *ptro_memory_dump_block = get_pointer_to_memory(memory_dump, BLOCK_SIZE, dump_pos);
+        dump_pos++;
        
 
-        // array[i]: NRO DE INDICE de cada bloque
-        write_block(array[i], ptro_memory_dump_block, BLOCK_SIZE,0);
+        // array[array_pos]: NRO DE INDICE de cada bloque
+        t_Block_Pointer bloques_data_pos_init = array[array_pos];
 
-        // Log de acceso a bloque.
-        log_info_r(&MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <DATOS> - Bloque File System  <%u>", filename, array[i]);
+        size_t memory_partition_size = BLOCK_SIZE;
+          
+        //Entra en el caso del ultimo bloque del datos dump
+        if( memory_partition_size == (blocks_necessary-1)){
+            memory_partition_size = dump_size - (BLOCK_SIZE * (blocks_necessary-1)) ; // 250 - ( 64 * (4-1)) =   250 - 192 = 58
+        }
+
+       // log_warning_r(&MODULE_LOGGER, "##### Tamanio de la particion de memoria: %zu", memory_partition_size);
+
+        write_block_dat(bloques_data_pos_init, ptro_memory_dump_block, memory_partition_size);
+        log_info_r(&MODULE_LOGGER, "## Acceso Bloque - Archivo: <%s> - Tipo Bloque: <DATOS> - Bloque File System  <%u>", filename, array[array_pos]);
 
         usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
-
        
-        block_msync(array[i]); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
+        block_msync(bloques_data_pos_init); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
     }
-
-
-
 
     send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
     // Log de fin de petición
@@ -398,6 +420,16 @@ void filesystem_client_handler_for_memory(int fd_client) {
 }
 
 
+void write_complete_index() {
+
+}
+
+
+void write_Complete_data () {
+
+
+
+}
 
 
 
@@ -475,13 +507,34 @@ size_t necessary_bits(size_t bytes_size) {
 	return (size_t) ceil((double) bytes_size / 8);
 }
 
-// cada block es de BLOCK_SIZE
+// cada block es de BLOCK_SIZE, es la particion de bloques.dat
+// BLOCK_SIZE a su vez lo particionas para los punteros de los indices (4bytes)
 //////////////////////////////////////////  TODO ///////////////////////////////
 
-void *get_pointer_to_block(void *file_ptr, size_t file_block_size, t_Block_Pointer file_block_pos) {
-    // Calcular la dirección del bloque deseado
-    void *block_ptr = (void *) (((uint8_t *) file_ptr) + (file_block_size * file_block_pos));
-    return block_ptr;
+
+/* 
+    void *file_ptr: puntero al archivo?
+    size_t file_block_size: unidad de particion del archivo
+    t_Block_Pointer file_block_pos: apuntas a una particion del archivo
+
+
+    void* dump_bytes --> 
+        bytes del dump : (*)12345
+        BLOCK_SIZE=2: [12] [34] [5@] 
+        error: lectura: podemos leer algo demas @
+        No error: escritura: escribimos menor o igual a lo que necesitamos de bloques
+
+    void* bloques.dat -->
+        bytes del bloques.dat : (*)12axbnjk
+        BLOCK_SIZE=2:           [12] [as] [bn] [jk]  
+        error: escritura: escribir en espacio de memoria no reservados
+
+*/
+// Calcular la dirección de memoria de una particion (ya sea para el archivo q envia memoria o el bloques .dat )
+void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) {
+
+    log_error_r(&MODULE_LOGGER, "## GET POINTER TO MEMORY - Posicion: <%u> - Tamaño de Particion: <%zu> Bytes", memory_partition_pos, memory_partition_size);
+    return (void *) (((uint32_t *) memory_ptr) + (memory_partition_size * memory_partition_pos)); //uint32 porque por enunciado nos dice 4bytes d etamaño puntero
 }
 
 void *get_pointer_index_bloquesdat(t_Block_Pointer file_block_pos) { //el indice es un bloque
@@ -491,7 +544,7 @@ void *get_pointer_index_bloquesdat(t_Block_Pointer file_block_pos) { //el indice
         return NULL;
     }
 
-    return get_pointer_to_block(PTRO_BLOCKS, BLOCK_SIZE, file_block_pos);
+    return get_pointer_to_memory(PTRO_BLOCKS, BLOCK_SIZE, file_block_pos);
 }
 
 // array[0]=2 (t_Block_Pointer), arry[1]=0, array[2]=null : bytes: INDICE t_Block_Pointer(4bytes),t_Block_Pointer 
@@ -527,58 +580,57 @@ void copy_in_block(void* ptro_bloque_indice, void* ptro_datos, size_t desplazami
     memcpy(ptro_bloque_indice, ptro_datos, desplazamiento);
 }
 
-
-
 /*
-
 memory RAM:  datos del memory dump:  |(ptro 1) bloque_size |(ptro 2) bloque_size | ... 
-
-  
-
 memory RAM:  bloques.dat: |(index 0 --> ptro x1) bloque_size |(index 1 --> ptro x2) bloque_size | ... 
-
-
-
-
 */
-void write_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento, int indice) {
+void write_block_dat(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento) {
 
     //log_error_r(&MODULE_LOGGER, "## WRITE BLOCK - Nro Bloque: <%u> - Bloques * (4 bytes): <%lu> Bytes", nro_bloque, desplazamiento);
-  
-    // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
+     
+      // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
         
         // apuntar a la posicion del index del bloques.dat donde vamos a copiar
         void* ptro_bloque_indice = get_pointer_index_bloquesdat(nro_bloque);
-
-         
-         
-    //  2) copiar los datos al bloque respectivo
+             
+    // 2) copiar los datos al bloque respectivo
         
-        // ptro donde vas a copiar, puntero donde esta los bytes a copiar, cantidad de bytes a copiar  
+        //aptro donde vas a copiar, puntero donde esta los bytes a copiar, cants a copiar  
         copy_in_block(ptro_bloque_indice, ptro_datos, desplazamiento);
 
-         if(indice){ // nro bloque indice 0:true 1:false
+            // nro bloque indice 0:true 1:false
             print_memory_as_ints(ptro_bloque_indice);
-        }  
+        
 }
-    
-
 
 // void write_indice(void) {
 //     /*
 //     t_Block_Pointer nro_bloque = array[0];
 //     char *ptro_datos = array;
 //     size_t  cantidad_bloques = array->size;
-//     size_t desplazamiento = cantidad_bloques * size(t_Block_Pointer);
 
-//     write_block(nro_bloque, ptro_datos, desplazamiento);
-//     */
-// } 
 
+void write_block_index(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento) {
+
+    //log_error_r(&MODULE_LOGGER, "## WRITE BLOCK - Nro Bloque: <%u> - Bloques * (4 bytes): <%lu> Bytes", nro_bloque, desplazamiento);
+     
+      // 1) calcular donde inicia el ptro al bloque donde vamos a copiar los datos
+        
+        // apuntar a la posicion del index del bloques.dat donde vamos a copiar
+        void* ptro_bloque_indice = get_pointer_index_bloquesdat(nro_bloque);
+             
+    //  2) copiar los datos al bloque respectivo
+        
+        // ptro donde vas a copiar, puntero donde esta los bytes a copiar, cantidad de bytes a copiar  
+        copy_in_block(ptro_bloque_indice, ptro_datos, desplazamiento);
+
+        print_memory_as_ints(ptro_bloque_indice);
+
+} 
+
+       
+/* void write_data(void *memory_dump) {
     
-   
-void write_data(void *memory_dump) {
-    /*
     size_t  cantidad_bloques = array->size;
 
     for(size_t pos_index=1; cantidad_bloques <= pos_index; pos_index++) {
@@ -586,12 +638,12 @@ void write_data(void *memory_dump) {
             t_Block_Pointer nro_bloque = array[pos_index];
 
             // apuntar a la posicion de los datos del memory dump desde donde vamos a copiar
-            char* ptro_memory_dump_block = get_pointer_to_block(memory_dump, BLOCK_SIZE, nro_bloque);
+            char* ptro_memory_dump_block = get_pointer_to_memory(memory_dump, BLOCK_SIZE, nro_bloque);
 
             write_block(nro_bloque, ptro_memory_dump_block, BLOCK_SIZE);
-    }
-    */
-}
+    }  
+}*/
+
 
 void create_directory(const char *path) {
     // Crear el directorio con permisos de lectura, escritura y ejecución para el propietario
