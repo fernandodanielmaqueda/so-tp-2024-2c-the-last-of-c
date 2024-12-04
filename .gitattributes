@@ -2,14 +2,14 @@
 #* text=auto
 
 # Normalized and converts to native line endings on checkout.
-*.md text
-*.json text
-GNUmakefile text
-makefile text
-Makefile text
-*.mk text
-*.c text
-*.h text
+#*.md text
+#*.json text
+#GNUmakefile text
+#makefile text
+#Makefile text
+#*.mk text
+#*.c text
+#*.h text
 
 # Convert to CRLF line endings on checkout.
 *.ps1 text eol=crlf
