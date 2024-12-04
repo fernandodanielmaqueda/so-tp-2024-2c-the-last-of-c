@@ -19,6 +19,7 @@ int kill_process(t_PCB *pcb, e_Exit_Reason exit_reason) {
 }
 
 int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
+	int status;
 
     switch(tcb->current_state) {
 
@@ -48,14 +49,31 @@ int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
 
         case EXEC_STATE:
         {
+			bool interrupt;
+
 			KILL_EXIT_REASON = exit_reason;
             KILL_EXEC_TCB = 1;
 
-            if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-                log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupción de kill a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-                return -1;
-            }
-            log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupción de kill a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+
+			if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
+				report_error_pthread_mutex_lock(status);
+				return -1;
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
+				interrupt = IS_TCB_IN_CPU;
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
+				report_error_pthread_mutex_unlock(status);
+				return -1;
+			}
+
+			if(interrupt) {
+				if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupción de kill a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+					return -1;
+				}
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupción de kill a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+			}
 
 			return 0;
         }

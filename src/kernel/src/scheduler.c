@@ -333,11 +333,6 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
-		/*
-		if(tid_release(&(tcb->pcb->thread_manager), tcb->TID)) {
-			exit_sigint();
-		}
-		*/
 		if(tcb_destroy(tcb)) {
 			exit_sigint();
 		}
@@ -364,20 +359,20 @@ void *long_term_scheduler_exit(void) {
 				exit_sigint();
 			}
 
-			if(pid_release(&PID_MANAGER, pcb->PID)) {
-				exit_sigint();
-			}
 			if(pcb_destroy(pcb)) {
 				exit_sigint();
 			}
+			
+			if((PID_MANAGER.counter) == 0) {
+				log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
+			}
+
+			if(signal_free_memory()) {
+				exit_sigint();
+			}
+
 		}
 	}
-
-	/*
-		if(signal_free_memory()) {
-			exit_sigint();
-		}
-	*/
 
 	return NULL;
 }
