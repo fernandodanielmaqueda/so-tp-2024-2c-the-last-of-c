@@ -99,7 +99,7 @@ void *server_thread_coordinator(t_Server *server, void (*client_handler)(t_Clien
 void server_start(t_Server *server) {
 
   while(1) {
-    log_info_r(&SOCKET_LOGGER, "Intentando iniciar [Servidor] %s en Puerto: %s...", PORT_NAMES[server->server_type], server->port);
+    log_trace_r(&SOCKET_LOGGER, "Intentando iniciar [Servidor] %s en Puerto: %s...", PORT_NAMES[server->server_type], server->port);
     server->socket_listen.fd = server_start_try(server->port);
 
     if((server->socket_listen.fd) != -1)
@@ -224,7 +224,7 @@ void *client_thread_connect_to_server(t_Connection *connection) {
 
   while(1) {
     while(1) {
-      log_info_r(&SOCKET_LOGGER, "Intentando conectar con [Servidor] %s en IP: %s - Puerto: %s...", PORT_NAMES[connection->server_type], connection->ip, connection->port);
+      log_trace_r(&SOCKET_LOGGER, "Intentando conectar con [Servidor] %s en IP: %s - Puerto: %s...", PORT_NAMES[connection->server_type], connection->ip, connection->port);
       connection->socket_connection.fd = client_start_try(connection->ip, connection->port);
 
       if((connection->socket_connection.fd) != -1)

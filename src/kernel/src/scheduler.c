@@ -46,6 +46,7 @@ sem_t BINARY_SHORT_TERM_SCHEDULER;
 
 bool CANCEL_IO_OPERATION = false;
 pthread_mutex_t MUTEX_CANCEL_IO_OPERATION;
+pthread_condattr_t CONDATTR_CANCEL_IO_OPERATION;
 pthread_cond_t COND_CANCEL_IO_OPERATION;
 
 t_Bool_Thread THREAD_IO_DEVICE = { .running = false };
@@ -301,7 +302,7 @@ void *long_term_scheduler_exit(void) {
 			continue;
 		}
 
-		log_info_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
+		log_trace_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
 
 		client_thread_connect_to_server(&connection_memory);
 		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
@@ -324,6 +325,8 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
+		log_info_r(&MINIMAL_LOGGER, "## (%u:%u) Finaliza el hilo", tcb->pcb->PID, tcb->TID);
+
 		pcb = tcb->pcb;
 
 		resources_unassign(tcb);
@@ -332,16 +335,12 @@ void *long_term_scheduler_exit(void) {
 			exit_sigint();
 		}
 
-		/*
-		if(tid_release(&(tcb->pcb->thread_manager), tcb->TID)) {
-			exit_sigint();
-		}
-		*/
 		if(tcb_destroy(tcb)) {
 			exit_sigint();
 		}
 
 		if((pcb->thread_manager.counter) == 0) {
+
 			client_thread_connect_to_server(&connection_memory);
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
@@ -363,20 +362,22 @@ void *long_term_scheduler_exit(void) {
 				exit_sigint();
 			}
 
-			if(pid_release(&PID_MANAGER, pcb->PID)) {
-				exit_sigint();
-			}
+			log_info_r(&MINIMAL_LOGGER, "## Finaliza el proceso %u", pcb->PID);
+
 			if(pcb_destroy(pcb)) {
 				exit_sigint();
 			}
+			
+			if((PID_MANAGER.counter) == 0) {
+				log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
+			}
+
+			if(signal_free_memory()) {
+				exit_sigint();
+			}
+
 		}
 	}
-
-	/*
-		if(signal_free_memory()) {
-			exit_sigint();
-		}
-	*/
 
 	return NULL;
 }
@@ -490,7 +491,6 @@ void *short_term_scheduler(void) {
 
 	t_TCB *tcb;
 	e_Eviction_Reason eviction_reason;
-	t_Payload syscall_instruction;
 	int status;
 
 	while(1) {
@@ -566,10 +566,7 @@ void *short_term_scheduler(void) {
 
 			}
 
-			payload_init(&syscall_instruction);
-			pthread_cleanup_push((void (*)(void *)) payload_destroy, &syscall_instruction);
-
-			if(receive_thread_eviction(&eviction_reason, &syscall_instruction, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
+			if(receive_thread_eviction(&eviction_reason, &(TCB_EXEC->syscall_instruction), CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
 				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir desalojo de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 				exit_sigint();
 			}
@@ -640,7 +637,7 @@ void *short_term_scheduler(void) {
 					break;
 
 				case EXIT_EVICTION_REASON:
-					if(syscall_execute(&syscall_instruction)) {
+					if(syscall_execute(&(TCB_EXEC->syscall_instruction))) {
 						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
 						if(get_state_exec(&TCB_EXEC)) {
 							exit_sigint();
@@ -680,7 +677,7 @@ void *short_term_scheduler(void) {
 						break;
 					}
 
-					if(syscall_execute(&syscall_instruction)) {
+					if(syscall_execute(&(TCB_EXEC->syscall_instruction))) {
 						// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC)
 						if(get_state_exec(&TCB_EXEC)) {
 							exit_sigint();
@@ -734,7 +731,6 @@ void *short_term_scheduler(void) {
 				exit_sigint();
 			}
 
-			pthread_cleanup_pop(1); // syscall_instruction
 		} while(SHOULD_REDISPATCH);
 	}
 
@@ -804,7 +800,7 @@ void *io_device(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CANCEL_IO_OPERATION);
 
-			while(!CANCEL_IO_OPERATION && status == 0) {
+			while((!CANCEL_IO_OPERATION) && (status == 0)) {
 				status = pthread_cond_timedwait(&COND_CANCEL_IO_OPERATION, &MUTEX_CANCEL_IO_OPERATION, &ts_abstime);
 			}
 			switch(status) {

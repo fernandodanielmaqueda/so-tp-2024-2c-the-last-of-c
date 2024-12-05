@@ -63,7 +63,7 @@ int text_deserialize(t_Payload *payload, char **destination) {
 
 int text_log(e_Serialization serialization, char *text) {
 
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] text: %s"
     , SERIALIZATION_NAMES[serialization]
     , (text != NULL) ? text : "(nil)"

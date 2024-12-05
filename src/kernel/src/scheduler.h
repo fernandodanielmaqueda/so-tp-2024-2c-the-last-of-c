@@ -72,6 +72,7 @@ extern sem_t BINARY_SHORT_TERM_SCHEDULER;
 
 extern bool CANCEL_IO_OPERATION;
 extern pthread_mutex_t MUTEX_CANCEL_IO_OPERATION;
+extern pthread_condattr_t CONDATTR_CANCEL_IO_OPERATION;
 extern pthread_cond_t COND_CANCEL_IO_OPERATION;
 
 extern t_Bool_Thread THREAD_IO_DEVICE;

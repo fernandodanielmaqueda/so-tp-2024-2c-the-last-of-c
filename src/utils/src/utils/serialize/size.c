@@ -103,7 +103,7 @@ int size_deserialize(t_Payload *payload, size_t *destination) {
 }
 
 int size_log(e_Serialization serialization, size_t source) {
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] size_t: %zu"
     , SERIALIZATION_NAMES[serialization]
     , source

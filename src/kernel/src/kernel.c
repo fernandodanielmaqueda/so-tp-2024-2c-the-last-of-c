@@ -276,6 +276,38 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_SHORT_TERM_SCHEDULER);
 
+
+	if((status = pthread_mutex_init(&MUTEX_CANCEL_IO_OPERATION, NULL))) {
+		report_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_CANCEL_IO_OPERATION);
+
+	if((status = pthread_condattr_init(&CONDATTR_CANCEL_IO_OPERATION))) {
+		report_error_pthread_condattr_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_CANCEL_IO_OPERATION);
+
+	if((status = pthread_condattr_setclock(&CONDATTR_CANCEL_IO_OPERATION, CLOCK_MONOTONIC))) {
+		report_error_pthread_condattr_setclock(status);
+		exit_sigint();
+	}
+
+	if((status = pthread_cond_init(&COND_CANCEL_IO_OPERATION, &CONDATTR_CANCEL_IO_OPERATION))) {
+		report_error_pthread_cond_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CANCEL_IO_OPERATION);
+
+
+	if(sem_init(&SEM_IO_DEVICE, 0, 0)) {
+		report_error_sem_init();
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_IO_DEVICE);
+
+
 	if((status = pthread_mutex_init(&MUTEX_FREE_MEMORY, NULL))) {
 		report_error_pthread_mutex_init(status);
 		exit_sigint();
@@ -335,6 +367,10 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // Sockets
 	pthread_cleanup_pop(1); // COND_FREE_MEMORY
 	pthread_cleanup_pop(1); // MUTEX_FREE_MEMORY
+	pthread_cleanup_pop(1); // SEM_IO_DEVICE
+	pthread_cleanup_pop(1); // COND_CANCEL_IO_OPERATION
+	pthread_cleanup_pop(1); // CONDATTR_CANCEL_IO_OPERATION
+	pthread_cleanup_pop(1); // MUTEX_CANCEL_IO_OPERATION
 	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // SEM_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // COND_QUANTUM_INTERRUPTER
@@ -985,7 +1021,7 @@ int array_list_ready_destroy(void) {
 void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list) {
 	char *pid_string = string_new();
 	pcb_list_to_pid_string(pcb_list, &pid_string);
-	log_info_r(&logger, "%s: [%s]", state_name, pid_string);
+	log_trace_r(&logger, "%s: [%s]", state_name, pid_string);
 	free(pid_string);
 }
 

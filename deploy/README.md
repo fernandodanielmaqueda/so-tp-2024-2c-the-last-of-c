@@ -121,17 +121,29 @@ git config --global user.name 'Nombre y Apellido(s)'
 
 ## 7. (NO en el Deploy) Clonar este repositorio en Windows
 
-1. Desactivar la compresión
+1. Desactivar la conversión automática a CRLF al clonar el repositorio
+```bash
+git config --global core.autocrlf false
+```
+
+1. Asegurar que todos los archivos del repositorio utilicen LF
+```bash
+git config --global core.eol lf
+```
+
+2. Desactivar la compresión
 ```bash
 git config --global core.compression 0
 ```
 
-2. Incrementar el tamaño del buffer
+3. Incrementar el tamaño del buffer
+Se puede probar con distintos valores: 150MB (157286400), 500MB (524288000)
 ```bash
 git config --global http.postBuffer 524288000
+git config --global http.postBuffer 157286400
 ```
 
-3. Clonar (sin --recurse-submodules)
+4. Clonar (sin --recurse-submodules)
 ```bash
 cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
@@ -150,16 +162,17 @@ Seleccionar `No`: Como no tenemos permisos de administrador en las máquinas de 
 (**Git Credential Manager Core**)
 
 Las alternativas son:
-1. Si para acceder a tu cuenta de Git usás PAT (Personal Access Token):
-	- Usá el Administrador de Credenciales de Windows (**wincred**)
+
+A) Si para acceder a tu cuenta de Git usás PAT (Personal Access Token):
+- Usá el Administrador de Credenciales de Windows (**wincred**)
 ```bash
 git config --unset-all credential.helper && git config credential.helper wincred
 ```
 - Cuando eventualmente se te solicite tu nombre de usuario, ingresalo.
 - Cuando eventualmente te solicite tu contraseña, ingresá tu PAT (Personal Access Token) que generaste.
 
-2. Si para acceder a tu cuenta de Git usás clave SSH:
-	- Cambiar a SSH:
+B) Si para acceder a tu cuenta de Git usás clave SSH:
+- Cambiar a SSH:
 ```bash
 git remote set-url origin git@github.com:sisoputnfrba/tp-2024-2c-so.git
 ```
@@ -831,10 +844,35 @@ Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not pro
 -----------------------------
 
 ## 27. Clonar este repositorio (sin --recurse-submodules)
+
+1. Convertir CRLF a LF
+```bash
+git config --global core.autocrlf input
+```
+
+1. Asegurar que todos los archivos del repositorio utilicen LF
+```bash
+git config --global core.eol lf
+```
+
+2. Desactivar la compresión
+```bash
+git config --global core.compression 0
+```
+
+3. Incrementar el tamaño del buffer
+Se puede probar con distintos valores: 150MB (157286400), 500MB (524288000)
+```bash
+git config --global http.postBuffer 524288000
+git config --global http.postBuffer 157286400
+```
+
+4. Clonar (sin --recurse-submodules)
 ```bash
 cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
-Debería ser equivalente a:
+
+> Debería ser equivalente a:
 ```bash
 cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
@@ -1060,7 +1098,7 @@ set -x
 
 - Desactivar impresión de comandos ejecutados
 ```bash
-set +x
+{ set +x ; } 2>/dev/null
 ```
 
 - Cambiar a root
@@ -1158,6 +1196,23 @@ find .
 find . -type f \( -name '*.log' \) -print
 ```
 
+- Listar CRLF o LF por cada archivo
+```bash
+find . -type f -exec bash -c 'file="{}"; if file "$file" | grep -q "CRLF"; then echo "$file CRLF"; else echo "$file LF"; fi' \;
+```
+
+- Cambiar de CRLF a LF en todos los archivos \*.sh y \*.config (excluyendo los de .git)
+```bash
+sudo apt install -y dos2unix
+find . -type f \( -name "*.sh" -o -name "*.config" \) ! -path "./.git/*" -exec dos2unix {} +
+```
+
+- Cambiar de LF a CRLF en todos los archivos \*.sh y \*.config (excluyendo los de .git)
+```bash
+sudo apt install -y unix2dos
+unix2dos <archivo>
+```
+
 - Crear directorio vacío
 ```bash
 mkdir <directorio>
@@ -1216,12 +1271,17 @@ less +F <archivo>
 
 - Imprimir el contenido de un archivo en hexadecimal
 ```bash
-hexdump -C <archivo>
+hexdump -C bloques.dat
 ```
 
-- Crear un hexdump de un archivo dado
+- Imprimir el contenido de un archivo en hexadecimal
 ```bash
-xxd
+xxd bloques.dat
+```
+
+- Imprimir el contenido de un archivo en binario
+```bash
+xxd -b bitmap.dat
 ```
 
 - Editar un archivo de texto
@@ -1433,14 +1493,42 @@ clear ; make valgrind-none-filesystem 'filesystem_ARGS='
 
 ## Anexo 8: Comandos de Git
 
+- Variables interesantes
+```bash
+core.autocrlf
+core.eol
+core.safecrlf
+```
+
+- Settear una variable
+```bash
+git config --global <VARIABLE> <VALOR>
+```
+
+- Unsettear una variable
+```bash
+git config --global --unset <VARIABLE>
+```
+
+- Obtener el valor de una variable
+```bash
+git config --global --get <VARIABLE>
+```
+
 - Moverse a un commit específico de un repositorio
 ```bash
 git checkout -q <commit-hash>
 ```
 
+- Reclonar un repositorio
+```bash
+git rm --cached -r .
+git reset --hard
+```
+
 - Clonar un repositorio con todos sus submódulos
 ```bash
-git clone
+git clone --recurse-submodules
 ```
 
 - Clonar todos los submódulos de un repositorio ya clonado
@@ -1484,20 +1572,34 @@ git submodule deinit <submodule>
 git rm <submodule>
 ```
 
-```text
-hint: You have divergent branches and need to specify how to reconcile them.
-hint: You can do so by running one of the following commands sometime before
-hint: your next pull:
-hint: 
-hint:   git config pull.rebase false  # merge
-hint:   git config pull.rebase true   # rebase
-hint:   git config pull.ff only       # fast-forward only
-hint: 
-hint: You can replace "git config" with "git config --global" to set a default
-hint: preference for all repositories. You can also pass --rebase, --no-rebase,
-hint: or --ff-only on the command line to override the configured default per
-hint: invocation.
-fatal: Need to specify how to reconcile divergent branches.
+- Merge por defecto al pullear
+```bash
+git config --global pull.rebase false
+```
+
+- Rebase por defecto al pullear
+```bash
+git config --global pull.rebase true
+```
+
+- Fast-forward (ff) por defecto al pullear
+```bash
+git config --global pull.ff only
+```
+
+- Merge override de la configuración por defecto en un pull en específico
+```bash
+git pull --no-rebase
+```
+
+- Rebase override de la configuración por defecto en un pull en específico
+```bash
+git pull --rebase
+```
+
+- Fast-forward (ff) override de la configuración por defecto en un pull en específico
+```bash
+git pull --ff-only
 ```
 
 -----------------------------

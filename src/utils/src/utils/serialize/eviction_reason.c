@@ -46,7 +46,7 @@ int eviction_reason_deserialize(t_Payload *payload, e_Eviction_Reason *destinati
 }
 
 int eviction_reason_log(e_Serialization serialization, e_Eviction_Reason eviction_reason) {
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] e_Eviction_Reason: %s"
     , SERIALIZATION_NAMES[serialization]
     , EVICTION_REASON_NAMES[eviction_reason]

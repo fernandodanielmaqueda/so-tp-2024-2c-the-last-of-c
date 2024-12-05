@@ -89,9 +89,8 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
         exit_sigint();
     }
 
-    // El hilo actual ya se envió a EXIT, por lo que ya no se hace nada
-    SHOULD_REDISPATCH = 0;
-    return 0;
+    TCB_EXEC->exit_reason = PROCESS_EXIT_EXIT_REASON;
+    return -1;
 }
 
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {

@@ -39,7 +39,7 @@ int result_deserialize(t_Payload *payload, int *destination) {
 }
 
 int result_log(e_Serialization serialization, t_Result source) {
-  log_info_r(&SERIALIZE_LOGGER,
+  log_trace_r(&SERIALIZE_LOGGER,
     "[%s] t_Result: %d"
     , SERIALIZATION_NAMES[serialization]
     , source
