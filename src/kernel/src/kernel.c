@@ -345,12 +345,12 @@ int module(int argc, char *argv[]) {
 	// Initial process
 	char *pseudocode_filename = strdup(argv[1]);
 	if(pseudocode_filename == NULL) {
-		log_error_r(&MODULE_LOGGER, "strdup: No se pudo duplicar el nombre del archivo de pseudocodigo");
+		report_error_strdup();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) free, pseudocode_filename);
 		if(new_process(process_size, pseudocode_filename, 0)) {
-			log_error_r(&MODULE_LOGGER, "No se pudo crear el proceso");
+			log_error_r(&MODULE_LOGGER, "No se pudo crear el proceso inicial");
 			exit_sigint();
 		}
 	pthread_cleanup_pop(0); // pseudocode_filename

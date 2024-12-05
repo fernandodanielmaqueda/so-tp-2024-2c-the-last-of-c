@@ -46,7 +46,7 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 		fprintf(stderr, "\nSignal recibida: %s [%d]\n", strsignal(signo), signo);
 
         if(signo == SIGINT) {
-            fprintf(stderr, "SIGINT recibida\n");
+            fprintf(stderr, "SIGINT: Terminando programa\n");
             break;
         }		
 	}

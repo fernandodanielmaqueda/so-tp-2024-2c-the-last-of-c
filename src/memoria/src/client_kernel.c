@@ -657,7 +657,7 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
 
                 (new_thread->array_instructions)[new_thread->instructions_count] = strdup(subline);
                 if((new_thread->array_instructions)[new_thread->instructions_count] == NULL) {
-                    log_error_r(&MODULE_LOGGER, "strdup: No se pudo duplicar la cadena \"%s\"", subline);
+                    report_error_strdup();
                     retval = -1;
                     goto cleanup_line;
                 }
