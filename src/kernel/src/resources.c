@@ -45,18 +45,19 @@ t_Resource *resource_create(int instances) {
 		return resource;
 }
 
-void resource_destroy(t_Resource *resource) {
-	/*
-	int status;
+int resource_destroy(t_Resource *resource) {
+	int retval = 0, status;
 
-	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
-	if((status = pthread_mutex_destroy(&(resource->shared_list_blocked.mutex)))) {
+	list_destroy(resource->list_blocked);
+
+	if((status = pthread_mutex_destroy(&(resource->mutex_resource)))) {
 		report_error_pthread_mutex_destroy(status);
-		// TODO
+		retval = -1;
 	}
 
 	free(resource);
-	*/
+
+	return retval;
 }
 
 void resources_unassign(t_TCB *tcb) {
