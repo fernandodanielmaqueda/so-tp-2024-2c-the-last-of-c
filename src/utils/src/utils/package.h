@@ -35,7 +35,7 @@ typedef enum e_Header {
     READ_REQUEST_HEADER,
     WRITE_REQUEST_HEADER,
     // Memoria <==> Filesystem
-    MEMORY_DUMP_HEADER
+    DUMP_MEMORY_HEADER
 } e_Header;
 
 typedef struct t_Package {

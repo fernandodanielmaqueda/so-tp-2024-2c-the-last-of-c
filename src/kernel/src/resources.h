@@ -34,7 +34,7 @@ typedef struct t_Resource {
 #include "kernel.h"
 
 t_Resource *resource_create(int instances);
-void resource_destroy(t_Resource *resource);
+int resource_destroy(t_Resource *resource);
 void resources_unassign(t_TCB *tcb);
 
 #endif // KERNEL_RESOURCES_H

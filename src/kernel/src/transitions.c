@@ -105,12 +105,12 @@ int locate_and_remove_state(t_TCB *tcb) {
 			t_Shared_List *shared_list_state = (t_Shared_List *) tcb->location;
 
 			/*
-			if((status = pthread_rwlock_rdlock(&ARRAY_READY_RWLOCK))) {
+			if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
 				report_error_pthread_rwlock_rdlock(status);
 				retval = -1;
 				goto ret;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
+			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
 
 				if((status = pthread_mutex_lock(&(shared_list_state->mutex)))) {
 					report_error_pthread_mutex_lock(status);
@@ -131,7 +131,7 @@ int locate_and_remove_state(t_TCB *tcb) {
 
 			cleanup_ready_rwlock:
 			pthread_cleanup_pop(0);
-			if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
+			if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
 				report_error_pthread_rwlock_unlock(status);
 				retval = -1;
 				goto ret;
@@ -240,15 +240,15 @@ int locate_and_remove_state(t_TCB *tcb) {
 		case BLOCKED_DUMP_STATE:
 		{
 			/*
-			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 				report_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto ret;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex));
 			*/
 
-				t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), (bool (*)(void *, void *)) dump_memory_petition_matches_tcb, tcb);
+				t_Dump_Memory_Petition *dump_memory_petition = list_find_by_condition_with_comparation((SHARED_LIST_BLOCKED_DUMP_MEMORY.list), (bool (*)(void *, void *)) dump_memory_petition_matches_tcb, tcb);
 				dump_memory_petition->tcb = NULL;
 
 				tcb->location = NULL;
@@ -258,14 +258,14 @@ int locate_and_remove_state(t_TCB *tcb) {
 					if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
 						report_error_pthread_cancel(status);
 						retval = -1;
-						//goto cleanup_blocked_memory_dump_mutex;
+						//goto cleanup_blocked_dump_memory_mutex;
 					}
 				}
 
 			/*
-			cleanup_blocked_memory_dump_mutex:
+			cleanup_blocked_dump_memory_mutex:
 			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 				report_error_pthread_mutex_unlock(status);
 				retval = -1;
 				goto ret;
@@ -562,11 +562,11 @@ int insert_state_ready(t_TCB *tcb) {
 	e_Process_State previous_state = tcb->current_state;
 	tcb->current_state = READY_STATE;
 
-	if((status = pthread_rwlock_rdlock(&ARRAY_READY_RWLOCK))) {
+	if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
 		report_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
-	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &ARRAY_READY_RWLOCK);
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
 
 		switch(SCHEDULING_ALGORITHM) {
 
@@ -620,7 +620,7 @@ int insert_state_ready(t_TCB *tcb) {
 
 	cleanup_ready_rwlock:
 	pthread_cleanup_pop(0);
-	if((status = pthread_rwlock_unlock(&ARRAY_READY_RWLOCK))) {
+	if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
 		report_error_pthread_rwlock_unlock(status);
 		retval = -1;
 		goto ret;
@@ -719,17 +719,17 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
         pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
 
 
-			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 				report_error_pthread_mutex_lock(status);
 				retval = -1;
 				goto cleanup_join;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex));
 
 				if((status = pthread_create(&(dump_memory_petition->bool_thread.thread), NULL, (void *(*)(void *)) dump_memory_petitioner, dump_memory_petition))) {
 					report_error_pthread_create(status);
 					retval = -1;
-					goto cleanup_mutex_blocked_memory_dump;
+					goto cleanup_MUTEX_BLOCKED_DUMP_MEMORY;
 				}
 				pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(dump_memory_petition->bool_thread.thread));
 
@@ -750,17 +750,17 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 						join = false;
 						report_error_pthread_cancel(status);
 					}
-					goto cleanup_mutex_blocked_memory_dump;
+					goto cleanup_MUTEX_BLOCKED_DUMP_MEMORY;
 				}
 
 				dump_memory_petition->bool_thread.running = true;
 
-				list_add((SHARED_LIST_BLOCKED_MEMORY_DUMP.list), dump_memory_petition);
-				dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_MEMORY_DUMP;
+				list_add((SHARED_LIST_BLOCKED_DUMP_MEMORY.list), dump_memory_petition);
+				dump_memory_petition->tcb->location = &SHARED_LIST_BLOCKED_DUMP_MEMORY;
 
-			cleanup_mutex_blocked_memory_dump:
+			cleanup_MUTEX_BLOCKED_DUMP_MEMORY:
 			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+			if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 				join = false;
 				report_error_pthread_mutex_unlock(status);
 				retval = -1;

@@ -22,7 +22,7 @@ const char *HEADER_NAMES[] = {
     [READ_REQUEST_HEADER] = "READ_REQUEST",
     [WRITE_REQUEST_HEADER] = "WRITE_REQUEST",
     //Memoria <==> Filesystem
-    [MEMORY_DUMP_HEADER] = "MEMORY_DUMP_HEADER"
+    [DUMP_MEMORY_HEADER] = "DUMP_MEMORY_HEADER"
 };
 
 t_Package *package_create(void) {

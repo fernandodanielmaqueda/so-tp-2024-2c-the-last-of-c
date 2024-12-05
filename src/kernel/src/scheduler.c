@@ -7,7 +7,7 @@ pthread_rwlock_t RWLOCK_SCHEDULING;
 
 t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
-pthread_rwlock_t ARRAY_READY_RWLOCK;
+pthread_rwlock_t RWLOCK_ARRAY_READY;
 
 t_Shared_List *ARRAY_LIST_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
@@ -15,8 +15,8 @@ t_Priority PRIORITY_COUNT = 0;
 t_TCB *TCB_EXEC = NULL;
 pthread_mutex_t MUTEX_EXEC;
 
-t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP = { .list = NULL };
-pthread_cond_t COND_BLOCKED_MEMORY_DUMP;
+t_Shared_List SHARED_LIST_BLOCKED_DUMP_MEMORY = { .list = NULL };
+pthread_cond_t COND_BLOCKED_DUMP_MEMORY;
 
 t_Shared_List SHARED_LIST_BLOCKED_IO_READY = { .list = NULL };
 
@@ -891,13 +891,13 @@ void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 	client_thread_connect_to_server(&connection_memory);
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
-		if(send_pid_and_tid_with_header(MEMORY_DUMP_HEADER, dump_memory_petition->pid, dump_memory_petition->tid, connection_memory.socket_connection.fd)) {
+		if(send_pid_and_tid_with_header(DUMP_MEMORY_HEADER, dump_memory_petition->pid, dump_memory_petition->tid, connection_memory.socket_connection.fd)) {
 			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
 		log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de volcado de memoria a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 
-		if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_memory.socket_connection.fd)) {
+		if(receive_result_with_expected_header(DUMP_MEMORY_HEADER, &result, connection_memory.socket_connection.fd)) {
 			log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], dump_memory_petition->pid, dump_memory_petition->tid);
 			exit_sigint();
 		}
@@ -931,24 +931,24 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
-				if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 					report_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_rwlock_rdlock_scheduling;
 				}
-				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex));
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex));
 
-					list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+					list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_DUMP_MEMORY.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
 
-					if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
-						if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
+					if((SHARED_LIST_BLOCKED_DUMP_MEMORY.list->head) == NULL) {
+						if((status = pthread_cond_signal(&COND_BLOCKED_DUMP_MEMORY))) {
 							report_error_pthread_cond_signal(status);
 							retval = -1;
 						}
 					}
 
-				pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex
-				if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_MEMORY_DUMP.mutex)))) {
+				pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex
+				if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
 					report_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_rwlock_rdlock_scheduling;
@@ -994,10 +994,10 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 					}
 				}
 
-				list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_MEMORY_DUMP.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
+				list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_DUMP_MEMORY.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
 
-				if((SHARED_LIST_BLOCKED_MEMORY_DUMP.list->head) == NULL) {
-					if((status = pthread_cond_signal(&COND_BLOCKED_MEMORY_DUMP))) {
+				if((SHARED_LIST_BLOCKED_DUMP_MEMORY.list->head) == NULL) {
+					if((status = pthread_cond_signal(&COND_BLOCKED_DUMP_MEMORY))) {
 						report_error_pthread_cond_signal(status);
 						retval = -1;
 					}
