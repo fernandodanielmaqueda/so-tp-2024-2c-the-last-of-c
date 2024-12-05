@@ -3,7 +3,7 @@
 
 #include "resources.h"
 
-t_Resource *resource_create(void) {
+t_Resource *resource_create(int instances) {
 	int retval = 0, status;
 
 	t_Resource *resource = malloc(sizeof(t_Resource));
@@ -13,6 +13,8 @@ t_Resource *resource_create(void) {
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) free, resource);
+
+	resource->instances = instances;
 
 	if((status = pthread_mutex_init(&(resource->mutex_resource), NULL))) {
 		report_error_pthread_mutex_init(status);
@@ -62,7 +64,7 @@ void resources_unassign(t_TCB *tcb) {
 
 	char *resource_name;
 	t_Resource *resource;
-	t_TCB *tcb_unblock;
+	t_TCB *tcb_unblock = NULL;
 
 	for(int table_index = 0; table_index < tcb->dictionary_assigned_resources->table_max_size; table_index++) {
 		t_hash_element *element = tcb->dictionary_assigned_resources->elements[table_index];
