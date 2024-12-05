@@ -1106,41 +1106,58 @@ void dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destina
 int wait_dump_memory_threads(void) {
 	
     int retval = 0, status;
-/*
 
-    if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
-        report_error_pthread_mutex_lock(status);
-        return -1;
-    }
-    pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+	if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
+		report_error_pthread_rwlock_rdlock(status);
+		retval = -1;
+		goto ret;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
-        t_link_element *current = SHARED_LIST_CLIENTS.list->head;
-        while(current != NULL) {
-            t_Client *client = current->data;
-            if((status = pthread_cancel(client->socket_client.bool_thread.thread))) {
-                report_error_pthread_cancel(status);
-                retval = -1;
-                goto cleanup_mutex_clients;
-            }
-            current = current->next;
-        }
+		if((status = pthread_mutex_lock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
+			report_error_pthread_mutex_lock(status);
+			retval = -1;
+			goto cleanup_rwlock_scheduling;
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex));
 
-        //log_trace_r(&MODULE_LOGGER, "Esperando a que finalicen los hilos de [Cliente] %s", PORT_NAMES[MEMORY_PORT_TYPE]);
-        
-        while(SHARED_LIST_CLIENTS.list->head != NULL) {
-            if((status = pthread_cond_wait(&COND_CLIENTS, &(SHARED_LIST_CLIENTS.mutex)))) {
-                report_error_pthread_cond_wait(status);
-                retval = -1;
-                break;
-            }
-        }
+			t_link_element *current = SHARED_LIST_BLOCKED_DUMP_MEMORY.list->head;
+			while(current != NULL) {
+				t_Dump_Memory_Petition *dump_memory_petition = current->data;
+				if((status = pthread_cancel(dump_memory_petition->bool_thread.thread))) {
+					report_error_pthread_cancel(status);
+					retval = -1;
+					goto cleanup_mutex_clients;
+				}
+				current = current->next;
+			}
 
-    cleanup_mutex_clients:
-    pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
-    if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
-        report_error_pthread_mutex_unlock(status);
-        return -1;
-    }
-*/
+			//log_trace_r(&MODULE_LOGGER, "Esperando a que finalicen los hilos de petición de volcado de memoria");
+			
+			while(SHARED_LIST_BLOCKED_DUMP_MEMORY.list->head != NULL) {
+				if((status = pthread_cond_wait(&COND_BLOCKED_DUMP_MEMORY, &(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
+					report_error_pthread_cond_wait(status);
+					retval = -1;
+					break;
+				}
+			}
+
+		cleanup_mutex_clients:
+		pthread_cleanup_pop(0); // SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex
+		if((status = pthread_mutex_unlock(&(SHARED_LIST_BLOCKED_DUMP_MEMORY.mutex)))) {
+			report_error_pthread_mutex_unlock(status);
+			retval = -1;
+			goto cleanup_rwlock_scheduling;
+		}
+
+	cleanup_rwlock_scheduling:
+	pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
+	if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
+		report_error_pthread_rwlock_unlock(status);
+		retval = -1;
+		goto ret;
+	}
+
+	ret:
     return retval;
 }
