@@ -21,55 +21,38 @@ t_Logger SERIALIZE_LOGGER;
 void *signal_manager(pthread_t *thread_to_cancel) {
 	int status;
 
-	sigset_t set_SIGINT, set_rest;
+	sigset_t set_all;
 
-	if(sigemptyset(&set_SIGINT)) {
-		report_error_sigemptyset();
-		goto cancel;
-	}
-
-	if(sigaddset(&set_SIGINT, SIGINT)) {
-		report_error_sigaddset();
+	if(sigfillset(&set_all)) {
+		report_error_sigfillset();
 		goto cancel;
 	}
 
 	/*
-	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+	if((status = pthread_sigmask(SIG_UNBLOCK, &set_all, NULL))) {
 		report_error_pthread_sigmask(status);
 		goto cancel;
 	}
 	*/
 
-	if(sigfillset(&set_rest)) {
-		report_error_sigfillset();
-		goto cancel;
-	}
-
-	if(sigdelset(&set_rest, SIGINT)) {
-		report_error_sigdelset();
-		goto cancel;
-	}
-
-	if((status = pthread_sigmask(SIG_UNBLOCK, &set_rest, NULL))) {
-		report_error_pthread_sigmask(status);
-		goto cancel;
-	}
-
 	siginfo_t info;
 	int signo;
-	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
-		report_error_sigwaitinfo();
-		//goto cancel;
-	}
-
-	fprintf(stderr, "\nSIGINT recibida\n");
-
-	cancel:
-		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
-			report_error_pthread_sigmask(status);
+	while(1) {
+		if((signo = sigwaitinfo(&set_all, &info)) == -1) {
+			report_error_sigwaitinfo();
+			goto cancel;
 		}
 
-		if((status = pthread_sigmask(SIG_BLOCK, &set_rest, NULL))) {
+		fprintf(stderr, "\nSignal recibida: %s [%d]\n", strsignal(signo), signo);
+
+        if(signo == SIGINT) {
+            fprintf(stderr, "SIGINT recibida\n");
+            break;
+        }		
+	}
+
+	cancel:
+		if((status = pthread_sigmask(SIG_BLOCK, &set_all, NULL))) {
 			report_error_pthread_sigmask(status);
 		}
 
@@ -129,6 +112,10 @@ int logger_destroy(t_Logger *logger) {
 	log_destroy(logger->log);
 
 	return retval;
+}
+
+void report_error_strdup(void) {
+	fprintf(stderr, "strdup: %s\n", strerror(errno));
 }
 
 void report_error_close(void) {

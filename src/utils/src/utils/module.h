@@ -137,6 +137,8 @@ int logger_destroy(t_Logger *logger);
         } \
     } while (0)
 
+void report_error_strdup(void);
+
 void report_error_close(void);
 
 void report_error_fclose(void);
