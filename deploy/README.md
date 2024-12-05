@@ -1493,6 +1493,28 @@ clear ; make valgrind-none-filesystem 'filesystem_ARGS='
 
 ## Anexo 8: Comandos de Git
 
+- Variables interesantes
+```bash
+core.autocrlf
+core.eol
+core.safecrlf
+```
+
+- Settear una variable
+```bash
+git config --global <VARIABLE> <VALOR>
+```
+
+- Unsettear una variable
+```bash
+git config --global --unset <VARIABLE>
+```
+
+- Obtener el valor de una variable
+```bash
+git config --global --get <VARIABLE>
+```
+
 - Moverse a un commit específico de un repositorio
 ```bash
 git checkout -q <commit-hash>
