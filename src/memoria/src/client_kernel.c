@@ -68,6 +68,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     // TODO: ¿Y si el proceso ya existe? ¿Lo piso? ¿Lo ignoro? ¿Termino el programa?
 
     t_Partition *partition = NULL;
+    size_t index_partition;
 
     t_Memory_Process *new_process = memory_process_create(pid, size);
     if(new_process == NULL) {
@@ -82,7 +83,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
     // Asignar partición
-    allocate_partition(&partition, new_process->size);
+    allocate_partition(&partition, &index_partition, new_process->size);
 
     if(partition == NULL) {
         log_warning_r(&MODULE_LOGGER, "[%d] No hay particiones disponibles para la solicitud de creación de proceso %u", fd_client, new_process->pid);
@@ -90,7 +91,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
         goto cleanup_rwlock_proceses_and_partitions;
     }
 
-    log_debug_r(&MODULE_LOGGER, "[%d] Particion asignada para el pedido del proceso %u", fd_client, new_process->pid);
+    log_debug_r(&MODULE_LOGGER, "[%d] Particion asignada para el pedido del proceso %u: [Indice: %zd - Tamaño: %zd]", fd_client, new_process->pid, index_partition, new_process->size);
     partition->occupied = true;
     partition->pid = pid;
     new_process->partition = partition;
@@ -388,13 +389,12 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 }
 
-void allocate_partition(t_Partition **partition, size_t required_size) {
+void allocate_partition(t_Partition **partition, size_t *index_partition, size_t required_size) {
     if(partition == NULL) {
         exit_sigint();
     }
 
     *partition = NULL;
-    size_t index_partition;
     t_Partition *aux_partition;
 
     switch(MEMORY_ALLOCATION_ALGORITHM) {
@@ -404,7 +404,7 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
                 aux_partition = list_get(PARTITION_TABLE, i);
                 if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
                     *partition = aux_partition;
-                    index_partition = i;
+                    *index_partition = i;
                     break;
                 }
             }
@@ -419,12 +419,12 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
                 if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
                     if((*partition) == NULL) {
                         *partition = aux_partition;
-                        index_partition = i;
+                        *index_partition = i;
                     }
                     else {
                         if((aux_partition->size) < ((*partition)->size)) {
                             *partition = aux_partition;
-                            index_partition = i;
+                            *index_partition = i;
                         }
                     }
                 }
@@ -440,12 +440,12 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
                 if((!(aux_partition->occupied)) && ((aux_partition->size) >= required_size)) {
                     if((*partition) == NULL) {
                         *partition = aux_partition;
-                        index_partition = i;
+                        *index_partition = i;
                     }
                     else {
                         if((aux_partition->size) > ((*partition)->size)) {
                             *partition = aux_partition;
-                            index_partition = i;
+                            *index_partition = i;
                         }
                     }
                 }
@@ -455,24 +455,29 @@ void allocate_partition(t_Partition **partition, size_t required_size) {
         }
     }
 
-    if((*partition) != NULL) {
-        // Realiza el fraccionamiento de la particion (si es requerido)
-        switch(MEMORY_MANAGEMENT_SCHEME) {
+    if((*partition) == NULL) {
+        return;
+    }
+    
+    // Realiza el fraccionamiento de la particion (si es requerido)
+    switch(MEMORY_MANAGEMENT_SCHEME) {
 
-            case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-                break;
+        case FIXED_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+            log_trace_r(&MODULE_LOGGER, "Particion asignada para el proceso de tamaño %zu: [Indice: %zd - Tamaño: %zd]", required_size, *index_partition, (*partition)->size);
+            break;
+        }
+
+        case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
+
+            if(split_partition(*index_partition, required_size)) {
+                exit_sigint();
             }
+            log_trace_r(&MODULE_LOGGER, "Particion asignada para el proceso de tamaño %zu: [Indice: %zd - Tamaño: %zd]", required_size, *index_partition, required_size);
 
-            case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
-
-                if(split_partition(index_partition, required_size)) {
-                    exit_sigint();
-                }
-
-                break;
-            }
+            break;
         }
     }
+
 }
 
 int split_partition(size_t index_partition, size_t required_size) {
@@ -483,6 +488,8 @@ int split_partition(size_t index_partition, size_t required_size) {
     if(old_partition->size == required_size) {
         return 0;
     }
+
+    log_trace_r(&MODULE_LOGGER, "Se fracciona la partición de tamaño %zd en dos particiones de tamaños %zd y %zd", old_partition->size, required_size, old_partition->size - required_size);
 
     t_Partition *new_partition = partition_create(old_partition->size - required_size, old_partition->base + required_size);
     if(new_partition == NULL) {
@@ -535,11 +542,13 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
         if(!(aux_partition_right->occupied)) {
             partition->size += aux_partition_right->size;
             list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), (void (*)(void *)) partition_destroy);
+            log_trace_r(&MODULE_LOGGER, "Se consolidan las particiones %zd y %zd", i, (i + 1));
         }
 
         if(!(aux_partition_left->occupied)) {
             aux_partition_left->size += partition->size;
             list_remove_and_destroy_element(PARTITION_TABLE, i, (void (*)(void *)) partition_destroy);
+            log_trace_r(&MODULE_LOGGER, "Se consolidan las particiones %zd y %zd", (i - 1), i);
         }
 
         return 0;
@@ -554,6 +563,7 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
         if(!(aux_partition_right->occupied)) {
             partition->size += aux_partition_right->size;
             list_remove_and_destroy_element(PARTITION_TABLE, (i + 1), (void (*)(void *)) partition_destroy);
+            log_trace_r(&MODULE_LOGGER, "Se consolidan las particiones %zd y %zd", i, (i + 1));
         }
 
         return 0;
@@ -568,6 +578,7 @@ int verify_and_join_splited_partitions(t_Partition *partition) {
         if(!(aux_partition_left->occupied)) {
             aux_partition_left->size += partition->size;
             list_remove_and_destroy_element(PARTITION_TABLE, i, (void (*)(void *)) partition_destroy);
+            log_trace_r(&MODULE_LOGGER, "Se consolidan las particiones %zd y %zd", (i - 1), i);
         }
 
         return 0;
