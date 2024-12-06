@@ -83,7 +83,7 @@ void seek_cpu_context(t_Payload *payload) {
     t_Exec_Context context;
     context.cpu_registers = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers;
     context.base = ARRAY_PROCESS_MEMORY[pid]->partition->base;
-    context.limit = ARRAY_PROCESS_MEMORY[pid]->size;
+    context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
 
     if(send_exec_context(context, CLIENT_CPU->socket_client.fd)) {
         log_error_r(&MODULE_LOGGER,
