@@ -96,7 +96,9 @@ int module(int argc, char *argv[]) {
     
     
     create_directory(MOUNT_DIR);
-    create_directory(string_from_format("%s/files", MOUNT_DIR));
+    char* path_files = string_from_format("%s/files", MOUNT_DIR);
+    create_directory(path_files);
+    free(path_files);
 	bitmap_init(); //bitmap.dat
     bloques_init(); //bloques.dat
 
@@ -177,6 +179,7 @@ int bitmap_init() {
 
     char *data_string = mem_hexstring(PTRO_BITMAP, BITMAP_FILE_SIZE);
     log_trace_r(&MODULE_LOGGER, "## DATA STRING BITMAP.dat:\n%s", data_string);
+    free(data_string);
 
     //puntero a la estructura del bitarray (commons)
     t_bitarray *bit_array = bitarray_create_with_mode((char *) PTRO_BITMAP, BITMAP_FILE_SIZE, LSB_FIRST);
@@ -297,6 +300,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
     int status;
 
     receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
+    
   //  dump_size = 257;
   //  memory_dump = malloc(dump_size);
     
@@ -429,6 +433,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
     send_result_with_header(DUMP_MEMORY_HEADER, 0, fd_client);
     // Log de fin de petición
     log_info_r(&MINIMAL_LOGGER, "## Fin de solicitud - Archivo: %s", filename);
+    free(filename);
     return;
 }
 
@@ -453,9 +458,19 @@ void create_metadata_file(const char *filename, size_t size, t_Block_Pointer ind
         return;
     }
 
+    /*create_directory(MOUNT_DIR);
+    char* path_files = string_from_format("%s/files", MOUNT_DIR);
+    create_directory(path_files); 
+    */
+
     // Agregar las claves y valores al archivo de configuración
-    config_set_value(metadata_config, "SIZE", string_from_format("%zu", size));
-    config_set_value(metadata_config, "INDEX_BLOCK", string_from_format("%u", index_block));
+    char *size_ptr = string_from_format("%zu", size);
+    config_set_value(metadata_config, "SIZE",size_ptr);
+    free(size_ptr);
+
+    char *index_block_ptr = string_from_format("%u", index_block);
+    config_set_value(metadata_config, "INDEX_BLOCK", index_block_ptr);
+    free(index_block_ptr);
 
     // Guardar y destruir el archivo de configuración
     config_save(metadata_config);
