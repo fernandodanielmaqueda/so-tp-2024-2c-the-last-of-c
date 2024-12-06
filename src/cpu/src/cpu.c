@@ -172,6 +172,7 @@ int read_module_config(t_config *MODULE_CONFIG) {
 
 void instruction_cycle(void)
 {
+    int result;
 
     char *ir = NULL;
     e_CPU_OpCode cpu_opcode;
@@ -221,6 +222,16 @@ void instruction_cycle(void)
                 }
                 log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
 
+                if(receive_result_with_expected_header(EXEC_CONTEXT_REQUEST_HEADER, &result, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de solicitud de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                    exit_sigint();
+                }
+                log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de solicitud de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, result);
+
+                if(result) {
+                    goto cleanup_mutex_exec_context;
+                }
+
                 // Recibo la respuesta de memoria con el contexto de ejecución
                 if(receive_exec_context(&EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
                     log_error_r(&MODULE_LOGGER, "[%d] Error al recibir contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
@@ -253,10 +264,15 @@ void instruction_cycle(void)
                 , EXEC_CONTEXT.limit
                 );
 
+            cleanup_mutex_exec_context:
             pthread_cleanup_pop(0); // MUTEX_EXEC_CONTEXT
             if((status = pthread_mutex_unlock(&MUTEX_EXEC_CONTEXT))) {
                 report_error_pthread_mutex_unlock(status);
                 exit_sigint();
+            }
+
+            if(result) {
+                goto cleanup_syscall_instruction;
             }
 
             if((status = pthread_mutex_lock(&MUTEX_EXECUTING))) {
@@ -461,11 +477,12 @@ void instruction_cycle(void)
                   , EXEC_CONTEXT.limit
                 );
 
-                if(receive_expected_header(EXEC_CONTEXT_UPDATE_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
-                    log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                int result;
+                if(receive_result_with_expected_header(EXEC_CONTEXT_UPDATE_HEADER, &result, CONNECTION_MEMORY.socket_connection.fd)) {
+                    log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
                     exit_sigint();
                 }
-                log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID);
+                log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de actualización de contexto de ejecución de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, result);
 
                 if(send_thread_eviction(EVICTION_REASON, SYSCALL_INSTRUCTION, CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd)) {
                     log_error_r(&MODULE_LOGGER, "[%d] Error al enviar desalojo de hilo a [Cliente] %s [PID: %u - TID: %u - Motivo: :%s]", CLIENT_KERNEL_CPU_DISPATCH.socket_client.fd, PORT_NAMES[CLIENT_KERNEL_CPU_DISPATCH.client_type], PID, TID, EVICTION_REASON_NAMES[EVICTION_REASON]);
@@ -479,6 +496,7 @@ void instruction_cycle(void)
                 exit_sigint();
             }
 
+        cleanup_syscall_instruction:
         pthread_cleanup_pop(1); // SYSCALL_INSTRUCTION
     }
 
@@ -608,7 +626,7 @@ int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     return 0;
 }
 
-void request_memory_write(size_t physical_address, void *source, size_t bytes) {
+void request_memory_write(size_t physical_address, void *source, size_t bytes, int *result) {
     if(source == NULL) {
         log_error_r(&MODULE_LOGGER, "request_memory_write: %s", strerror(EINVAL));
         exit_sigint();
@@ -635,14 +653,14 @@ void request_memory_write(size_t physical_address, void *source, size_t bytes) {
 
     pthread_cleanup_pop(1); // data_string
 
-    if(receive_expected_header(WRITE_REQUEST_HEADER, CONNECTION_MEMORY.socket_connection.fd)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+    if(receive_result_with_expected_header(WRITE_REQUEST_HEADER, result, CONNECTION_MEMORY.socket_connection.fd)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
         exit_sigint();
     }
-    log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+    log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de escritura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu - Resultado: %d]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes, *result);
 }
 
-void request_memory_read(size_t physical_address, void *destination, size_t bytes) {
+void request_memory_read(size_t physical_address, void *destination, size_t bytes, int *result) {
     if(destination == NULL) {
         log_error_r(&MODULE_LOGGER, "request_memory_read: %s", strerror(EINVAL));
         exit_sigint();
@@ -656,12 +674,13 @@ void request_memory_read(size_t physical_address, void *destination, size_t byte
 
     void *buffer = NULL;
     size_t bufferSize = 0;
+
+    if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.socket_connection.fd)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de lectura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
+        exit_sigint();
+    }
     pthread_cleanup_push((void (*)(void *)) free, buffer);
 
-        if(receive_data_with_expected_header(READ_REQUEST_HEADER, &buffer, &bufferSize, CONNECTION_MEMORY.socket_connection.fd)) {
-            log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de lectura en espacio de usuario de [Servidor] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID, physical_address, bytes);
-            exit_sigint();
-        }
         char *data_string = mem_hexstring(buffer, bufferSize);
         pthread_cleanup_push((void (*)(void *)) free, data_string);
             log_trace_r(&MODULE_LOGGER,
@@ -672,16 +691,16 @@ void request_memory_read(size_t physical_address, void *destination, size_t byte
             );
         pthread_cleanup_pop(1); // data_string
 
-        /*
         if(bufferSize != bytes) {
-            log_error_r(&MODULE_LOGGER, "request_memory_read: No coinciden los bytes leidos (%zd) con los que se esperaban leer (%zd)", bufferSize, bytes);
-            errno = EIO;
-            free(buffer);
-            return -1;
+            log_warning_r(&MODULE_LOGGER, "No coinciden los bytes leidos (%zu) con los que se esperaban leer (%zu) en espacio de usuario", bufferSize, bytes);
+            *result = -1;
+            goto cleanup_buffer;
         }
-        */
 
         memcpy(destination, buffer, bytes);
+
+        *result = 0;
     
+    cleanup_buffer:
     pthread_cleanup_pop(1); // buffer
 }

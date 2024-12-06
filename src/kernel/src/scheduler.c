@@ -315,11 +315,12 @@ void *long_term_scheduler_exit(void) {
 			}
 			log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 
-			if(receive_expected_header(THREAD_DESTROY_HEADER, connection_memory.socket_connection.fd)) {
-				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			int result;
+			if(receive_result_with_expected_header(THREAD_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
+				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
 				exit_sigint();
 			}
-			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID, result);
 
 		pthread_cleanup_pop(0);
 		if(close(connection_memory.socket_connection.fd)) {
@@ -352,11 +353,12 @@ void *long_term_scheduler_exit(void) {
 				}
 				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 
-				if(receive_expected_header(PROCESS_DESTROY_HEADER, connection_memory.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				int result;
+				if(receive_result_with_expected_header(PROCESS_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {

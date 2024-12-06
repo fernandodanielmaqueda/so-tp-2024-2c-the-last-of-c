@@ -91,7 +91,7 @@ int package_send(t_Package *package, int fd_socket) {
       return -1;
   }
   if(bytes != bufferSize) {
-      log_warning_r(&SERIALIZE_LOGGER, "[%d] send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zd)\n", fd_socket, bufferSize, bytes);
+      log_warning_r(&SERIALIZE_LOGGER, "[%d] send: No coinciden los bytes enviados (%zd) con los que se esperaban enviar (%zu)\n", fd_socket, bytes, bufferSize);
       return -1;
   }
 
@@ -162,7 +162,7 @@ int receive(int fd_socket, void *destination, size_t expected_bytes) {
       return -1;
   }
   if(bytes != expected_bytes) {
-      log_warning_r(&SERIALIZE_LOGGER, "[%d] recv: No coinciden los bytes recibidos (%zu) con los que se esperaban recibir (%zd)\n", fd_socket, expected_bytes, bytes);
+      log_warning_r(&SERIALIZE_LOGGER, "[%d] recv: No coinciden los bytes recibidos (%zd) con los que se esperaban recibir (%zu)\n", fd_socket, bytes, expected_bytes);
       return -1;
   }
 

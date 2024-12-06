@@ -243,9 +243,6 @@ t_Memory_Process *memory_process_create(t_PID pid, size_t size) {
         retval = -1;
         goto cleanup_new_process;
     }
-    //pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, &(new_process->rwlock_array_memory_threads));
-
-    //pthread_cleanup_pop(retval); // rwlock_array_memory_threads
 
     cleanup_new_process:
     pthread_cleanup_pop(retval); // new_process

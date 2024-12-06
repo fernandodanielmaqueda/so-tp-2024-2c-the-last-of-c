@@ -52,7 +52,7 @@ void listen_cpu(void) {
 }
 
 void seek_cpu_context(t_Payload *payload) {
-    int result = 0;
+    int result = 0, status;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -67,23 +67,76 @@ void seek_cpu_context(t_Payload *payload) {
     }
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
-
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
+    log_info_r(&MINIMAL_LOGGER, "## Contexto Solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
     t_Exec_Context context;
-    context.cpu_registers = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers;
-    context.base = ARRAY_PROCESS_MEMORY[pid]->partition->base;
-    context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
+
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_rdlock(status);
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
+            result = -1;
+            goto cleanup_rwlock_proceses_and_partitions;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                result = -1;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+            context.cpu_registers = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers;
+
+        cleanup_rwlock_array_memory_threads:
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+        if(result) {
+            goto cleanup_rwlock_proceses_and_partitions;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
+            context.base = ARRAY_PROCESS_MEMORY[pid]->partition->base;
+            context.limit = ARRAY_PROCESS_MEMORY[pid]->partition->size;
+        pthread_cleanup_pop(0); // rwlock_partition
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+    cleanup_rwlock_proceses_and_partitions:
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_unlock(status);
+        exit_sigint();
+    }
+
+    if(send_result_with_header(EXEC_CONTEXT_REQUEST_HEADER, result, CLIENT_CPU->socket_client.fd)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de solicitud de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]" , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, result);
+        exit_sigint();
+    }
+    log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de solicitud de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, result);
+
+    if(result) {
+        return;
+    }
 
     if(send_exec_context(context, CLIENT_CPU->socket_client.fd)) {
         log_error_r(&MODULE_LOGGER,
@@ -140,12 +193,10 @@ void seek_cpu_context(t_Payload *payload) {
       , context.base
       , context.limit
     );
-    
-    log_info_r(&MINIMAL_LOGGER, "## Contexto Solicitado - (PID:TID) - (%u:%u)", pid, tid);
 }
 
 void update_cpu_context(t_Payload *payload) {
-    int result = 0;
+    int result = 0, status;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -190,31 +241,56 @@ void update_cpu_context(t_Payload *payload) {
       , context.limit
     );
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers = context.cpu_registers;
-
-    if(send_header(EXEC_CONTEXT_UPDATE_HEADER, CLIENT_CPU->socket_client.fd)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar confirmación de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
-    log_trace_r(&MODULE_LOGGER, "[%d] Se envía confirmación de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid);
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                result = -1;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+            ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->registers = context.cpu_registers;
+
+        cleanup_rwlock_array_memory_threads:
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+    cleanup_rwlock_partitions_and_processes:
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_unlock(status);
+        exit_sigint();
+    }
+
+    if(send_result_with_header(EXEC_CONTEXT_UPDATE_HEADER, result, CLIENT_CPU->socket_client.fd)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, result);
+        exit_sigint();
+    }
+    log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de actualización de contexto de ejecución a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, result);
 
     log_info_r(&MINIMAL_LOGGER, "## Contexto Actualizado - (PID:TID) - (%u:%u)", pid, tid);
 }
 
 void seek_instruccion(t_Payload *payload) {
-    int result = 0;
+    int status;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -234,25 +310,53 @@ void seek_instruccion(t_Payload *payload) {
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de instrucción de [Cliente] %s [PID: %u - TID: %u - PC: %u]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc);
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
+    char *instruction = NULL;
 
-    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_rdlock(status);
+        exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
-    if(pc >= (ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count)) {
-        log_warning_r(&MODULE_LOGGER, "[ERROR] El ProgramCounter supera la cantidad de instrucciones para el hilo (PID:TID): (%u:%u)", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
+            instruction = NULL;
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                instruction = NULL;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+            if(pc >= (ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->instructions_count)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe la instrucción %u del hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pc, pid, tid);
+                instruction = NULL;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+            instruction = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
+
+        cleanup_rwlock_array_memory_threads:
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+    cleanup_rwlock_partitions_and_processes:
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_unlock(status);
+        exit_sigint();
     }
-
-    char *instruction = ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]->array_instructions[pc];
 
     if(send_text_with_header(INSTRUCTION_REQUEST_HEADER, instruction, CLIENT_CPU->socket_client.fd)) {
         log_error_r(&MODULE_LOGGER, "[%d] Error al enviar instrucción a [Cliente] %s [PID: %u - TID: %u - PC: %u - Instrucción: %s]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, pc, instruction);
@@ -264,7 +368,7 @@ void seek_instruccion(t_Payload *payload) {
 }
 
 void read_memory(t_Payload *payload) {
-    int result = 0;
+    int result = 0, status;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -288,44 +392,104 @@ void read_memory(t_Payload *payload) {
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de lectura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        result = -1;
-        // TODO: Responder a CPU: goto
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_rdlock(status);
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
+            result = -1;
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                result = -1;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+        cleanup_rwlock_array_memory_threads:
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+        if(result) {
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
+
+            char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
+            pthread_cleanup_push((void (*)(void *)) free, data_string);
+
+                if(send_data_with_header(READ_REQUEST_HEADER, (void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes, CLIENT_CPU->socket_client.fd)) {
+                    log_error_r(&MODULE_LOGGER,
+                    "[%d] Error al enviar resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+                    "%s"
+                    , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+                    , data_string
+                    );
+                    exit_sigint();
+                }
+                log_trace_r(&MODULE_LOGGER,
+                "[%d] Se envía resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+                "%s"
+                , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+                , data_string
+                );
+
+            pthread_cleanup_pop(1); // data_string
+
+            log_info_r(&MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
+
+        pthread_cleanup_pop(0); // rwlock_partition
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+    cleanup_rwlock_partitions_and_processes:
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_unlock(status);
+        exit_sigint();
     }
 
-    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
-    pthread_cleanup_push((void (*)(void *)) free, data_string);
-
-        if(send_data_with_header(READ_REQUEST_HEADER, (void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes, CLIENT_CPU->socket_client.fd)) {
+    if(result) {
+        if(send_data_with_header(READ_REQUEST_HEADER, NULL, 0, CLIENT_CPU->socket_client.fd)) {
             log_error_r(&MODULE_LOGGER,
-            "[%d] Error al enviar resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
-            "%s"
-            , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
-            , data_string
+              "[%d] Error al enviar resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+              "(nil)"
+              , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, (size_t) 0
             );
             exit_sigint();
         }
         log_trace_r(&MODULE_LOGGER,
-        "[%d] Se envía resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
-        "%s"
-        , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
-        , data_string
+          "[%d] Se envía resultado de lectura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]\n"
+          "(nil)",
+          CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, (size_t) 0
         );
+    }
 
-    pthread_cleanup_pop(1); // data_string
-
-    log_info_r(&MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
+    log_info_r(&MINIMAL_LOGGER, "## Lectura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, (size_t) 0);
 }
 
 void write_memory(t_Payload *payload) {
-    int result = 0;
+    int result = 0, status;
 
     usleep(RESPONSE_DELAY * 1000);
 
@@ -358,25 +522,65 @@ void write_memory(t_Payload *payload) {
         );
     pthread_cleanup_pop(1); // data_string
 
-    if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el proceso %u", pid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-        log_warning_r(&MODULE_LOGGER, "No se pudo encontrar el hilo %u:%u", pid, tid);
-        result = -1;
-        // TODO: Responder a CPU: goto
-    }
-
-    memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
-
-    if(send_header(WRITE_REQUEST_HEADER, CLIENT_CPU->socket_client.fd)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar confirmación de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
     }
-    log_trace_r(&MODULE_LOGGER, "[%d] Se envía confirmación de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
+
+        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
+            result = -1;
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_rdlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                result = -1;
+                goto cleanup_rwlock_array_memory_threads;
+            }
+
+        cleanup_rwlock_array_memory_threads:
+        pthread_cleanup_pop(0); // rwlock_array_memory_threads
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+        if(result) {
+            goto cleanup_rwlock_partitions_and_processes;
+        }
+
+        if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_wrlock(status);
+            exit_sigint();
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
+            memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
+        pthread_cleanup_pop(0); // rwlock_partition
+        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+            report_error_pthread_rwlock_unlock(status);
+            exit_sigint();
+        }
+
+    cleanup_rwlock_partitions_and_processes:
+    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
+        report_error_pthread_rwlock_unlock(status);
+        exit_sigint();
+    }
+
+    if(send_result_with_header(WRITE_REQUEST_HEADER, result, CLIENT_CPU->socket_client.fd)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
+        exit_sigint();
+    }
+    log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
     log_info_r(&MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu> - Tamaño: %zu", pid, tid, physical_address, bytes);
 }

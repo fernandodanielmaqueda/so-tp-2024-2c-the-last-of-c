@@ -111,20 +111,13 @@ int read_mem_cpu_operation(int argc, char **argv) {
     log_info_r(&MINIMAL_LOGGER, "## TID: %u - Acción: LEER - Dirección Física: %zu", TID, physical_address);
 
     void *destination = get_register_pointer(&EXEC_CONTEXT, register_data);
-    request_memory_read(physical_address, destination, bytes);
-    /*
-    void *source = malloc((size_t) bytes);
-    if(source == NULL) {
-        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para request_memory_read", (size_t) bytes);
+
+    int result;
+    request_memory_read(physical_address, destination, bytes, &result);
+    if(result) {
         EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
-        // free_list_physical_addresses(list_physical_addresses);
         return -1;
     }
-
-    request_memory_read(physical_address, source, bytes);
-    memcpy(destination, source, bytes);
-    free(source);
-    */
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
@@ -175,7 +168,12 @@ int write_mem_cpu_operation(int argc, char **argv) {
 
     log_info_r(&MINIMAL_LOGGER, "## TID: %u - Acción: ESCRIBIR - Dirección Física: %zu", TID, physical_address);
 
-    request_memory_write(physical_address, source, bytes);
+    int result;
+    request_memory_write(physical_address, source, bytes, &result);
+    if(result) {
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
