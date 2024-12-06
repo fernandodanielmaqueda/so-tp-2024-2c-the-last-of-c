@@ -138,7 +138,7 @@ int bitmap_init() {
 	BITMAP_FILE_SIZE = necessary_bits(BLOCK_COUNT);
 
     //QUIERO IMPRIMIR EL TAMANIO BITMAP_FILE_SIZE
-    log_warning_r(&MODULE_LOGGER, "############### TAMANIO DE BITMAP_FILE_SIZE: %zu", BITMAP_FILE_SIZE);
+    log_trace_r(&MODULE_LOGGER, "######## TAMANIO DE BITMAP_FILE_SIZE: %zu", BITMAP_FILE_SIZE);
 
 	// ruta al archivo
 	char* path_file_bitmap = string_new();
@@ -193,12 +193,12 @@ int bitmap_init() {
 	// Instanciar el bitmap
 	//t_Bitmap* bit_map = malloc(sizeof(t_Bitmap));
    	BITMAP.bits_blocks = bit_array;
-    log_warning_r(&MODULE_LOGGER, "##### Tamanio bits_blocks: %zu", bitarray_get_max_bit(BITMAP.bits_blocks));
+   // log_trace_r(&MODULE_LOGGER, "##### Tamanio bits_blocks: %zu", bitarray_get_max_bit(BITMAP.bits_blocks));
     
    
 	//BITMAP.blocks_free = BLOCK_COUNT; // Inicialmente todos los bloques estan disponibles
     set_bitmap_bits_free(&BITMAP);
-    log_warning_r(&MODULE_LOGGER, "### Tamanio de los blocks_free: %zu", BITMAP.blocks_free);
+    //log_trace_r(&MODULE_LOGGER, "### Tamanio de los blocks_free: %zu", BITMAP.blocks_free);
 
 	// Forzamos que los cambios en momoria ppal se reflejen en el archivo.
 	// vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
@@ -273,7 +273,7 @@ bool is_address_in_mapped_area(void *addr) {
 void print_memory_as_ints(void *ptro_memory_dump_block) {
     int *int_ptr = (int *)ptro_memory_dump_block;
     for (int i = 0; i < 8; i++) {
-        log_warning_r(&MODULE_LOGGER, "Valor %d: %d", i, int_ptr[i]);
+        log_trace_r(&MODULE_LOGGER, "Valor %d: %d", i, int_ptr[i]);
     }
 }
 
@@ -297,17 +297,17 @@ void filesystem_client_handler_for_memory(int fd_client) {
     int status;
 
     receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
-   // dump_size = 64;
-    //memory_dump = malloc(dump_size);
+  //  dump_size = 257;
+  //  memory_dump = malloc(dump_size);
     
 
     // agregamos un log para ver los datos recibidos
-    log_warning_r(&MODULE_LOGGER, "##### Recibi la solicitud - Archivo: <%s> - Dump Size: <%zu> Bytes - BLOCKS_TOTAL_SIZE: <%zu> Bytes  #####", filename, dump_size, BLOCKS_TOTAL_SIZE);
+    log_trace_r(&MODULE_LOGGER, "##### Recibi la solicitud - Archivo: <%s> - Dump Size: <%zu> Bytes - BLOCKS_TOTAL_SIZE: <%zu> Bytes  #####", filename, dump_size, BLOCKS_TOTAL_SIZE);
 
     // suponiendo que dump_size esta en bytes, BLOCK_SIZE  (blocks necesary es del dump)
     blocks_necessary = (size_t) ceil((double) dump_size / BLOCK_SIZE) + 1 ; // datos: 2 indice: 1 = 3 bloques 
 
-    log_warning_r(&MODULE_LOGGER, "##### Calculo bloques q necesita el mem dump: <%lu> Bytes - BITMAP blocks_free: <%zu> Bytes #####", blocks_necessary, BITMAP.blocks_free);
+    log_trace_r(&MODULE_LOGGER, "##### Calculo bloques q necesita el mem dump: <%lu> Bytes - BITMAP blocks_free: <%zu> Bytes #####", blocks_necessary, BITMAP.blocks_free);
 
     t_Block_Pointer array[blocks_necessary]; // array[3]: 0,1,2
  	//Inicio bloqueo zona critica 
@@ -315,8 +315,26 @@ void filesystem_client_handler_for_memory(int fd_client) {
         report_error_pthread_mutex_lock(status);
         // TODO
     }
+
+        // Verificar que no excedas la cantidad de punteros que un indice puede almacenar
+        size_t bytes_ptro = 4;
+        size_t nro_max_ptros =  (size_t) ceil((double)  BLOCK_SIZE / bytes_ptro) ;
+        size_t nro_bloques_datos = (blocks_necessary-1) ;
+
+        //log_trace_r(&MODULE_LOGGER, "Numero maximo de punteros <%zu> para almacenar los punteros a los bloques de datos <%zu>", nro_max_ptros, nro_bloques_datos);
+
+        if(nro_bloques_datos > nro_max_ptros) {
+            if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
+                report_error_pthread_mutex_unlock(status);
+                // TODO
+            }
+            send_result_with_header(DUMP_MEMORY_HEADER, 1, fd_client);
+			log_warning_r(&MODULE_LOGGER, "Excede el maximo numero de punteros <%zu> para almacenar los punteros a los bloques de datos <%zu>", nro_max_ptros, nro_bloques_datos);
+            return;
+        }
+
         // Verificar si hay suficientes bloques libres para almacenar el archivo
-		if(BITMAP.blocks_free < blocks_necessary) {
+		if(BITMAP.blocks_free < blocks_necessary ) {
 			if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
                 report_error_pthread_mutex_unlock(status);
                 // TODO
@@ -457,7 +475,7 @@ void set_bitmap_bits_free(t_Bitmap * bit_map){
     bit_map->blocks_free = 0;
     size_t bit_map_size =  bitarray_get_max_bit(bit_map->bits_blocks);
     //haceme un log donde me diga bitarray_get_max_bit
-    log_warning_r(&MODULE_LOGGER, "##### Tamanio de bit_map_size: %zu", bit_map_size);
+    log_trace_r(&MODULE_LOGGER, "##### Tamanio de bit_map_size: %zu", bit_map_size);
     
 
     for (size_t nro_bloque = 0; nro_bloque < bit_map_size; nro_bloque++) {
@@ -470,7 +488,7 @@ void set_bitmap_bits_free(t_Bitmap * bit_map){
         }
     }
     //haceme un log para imprimir el bit_map->blocks_free
-    log_warning_r(&MODULE_LOGGER, "##### Tamanio de bit_map->blocks_free: %zu", bit_map->blocks_free);
+    log_trace_r(&MODULE_LOGGER, "##### Tamanio de bit_map->blocks_free: %zu", bit_map->blocks_free);
 }
 
 void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary, char* filename) { // 3 bloques: 2 de datos y 1 de índice
@@ -580,13 +598,14 @@ void create_directory(const char *path) {
     // Crear el directorio con permisos de lectura, escritura y ejecución para el propietario
     if (mkdir(path, 0755) == -1) {
         if (errno == EEXIST) {
-            printf("El directorio %s ya existe.\n", path);
+            log_info_r(&MODULE_LOGGER, "Directorio %s ya existe.", path);
         } else {
  
-           perror("Error al crear el directorio");
+           log_error_r(&MODULE_LOGGER, "Error al crear el directorio %s: %s", path, strerror(errno));
         }
     } else {
-        printf("Directorio mount_dir %s creado exitosamente.\n", path);
+       
+    log_debug_r(&MODULE_LOGGER, "Directorio %s creado exitosamente.", path);
     }
 }
 
