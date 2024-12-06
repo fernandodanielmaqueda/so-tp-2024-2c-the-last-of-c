@@ -297,8 +297,8 @@ void filesystem_client_handler_for_memory(int fd_client) {
     int status;
 
     receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
-    dump_size = 64;
-    memory_dump = malloc(dump_size);
+   // dump_size = 64;
+    //memory_dump = malloc(dump_size);
     
 
     // agregamos un log para ver los datos recibidos
