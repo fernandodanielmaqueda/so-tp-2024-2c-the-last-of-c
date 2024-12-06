@@ -43,22 +43,7 @@ typedef struct t_Bitmap {
     size_t blocks_free; // contar los bits libres (0)
 } t_Bitmap;
 
-/*
-    t_Bitmap* create_t_bitmap(): 
-            crear esta estructura y arrancar en cero, free_bits =  cantida de bloques
 
-    bool exist_free_bits(count_block):  
-            si tiene disponible la cantida de bloques (count_block + 1)  
-
-    void  set_bits(): 
-            
-        recorrer el bitarray seteando los indices (cero a uno)
-        guardar sus posiciones (nro indice) en lista. 
-        Sincroniza el archivo.
-        ejecutar write_block(datos*, list_index):  hacer en mas un hilo?? Escribir el archivo de Block.dat
-        liberar mutex  
-        
-*/
 
 extern t_Server SERVER_FILESYSTEM;
 
@@ -94,9 +79,6 @@ extern size_t BLOCKS_TOTAL_SIZE;
 
 int module(int, char*[]);
 
-int initialize_global_variables(void);
-int finish_global_variables(void);
-
 int read_module_config(t_config *module_config);
 
 int bitmap_init();
@@ -111,19 +93,20 @@ size_t necessary_bits(size_t bytes_size);
 
 void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) ;
 //void* get_pointer_to_block_from_file(t_Block_Pointer file_block_pos);
-void block_msync(t_Block_Pointer block_number);
-void write_block_dat(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
-void write_block_index(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento) ;
+void block_msync(void* get_pointer_to_memory) ;
+void write_block(void* pointer_to_block, void* ptro_datos, size_t desplazamiento) ;
 void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 
 void write_complete_index();
 void write_Complete_data () ;
-//void read_block(t_Block_Pointer nro_bloque, void* ptro_datos, size_t desplazamiento);
 
 bool is_address_in_mapped_area(void *addr) ;	
 void print_memory_as_ints(void *ptro_memory_dump_block) ;
 bool is_address_in_mapped_area(void *addr) ;
 void create_directory(const char *path);
 void print_size_t_array(void *array, size_t total_size) ;
+
+void *get_pointer_to_memory_dump(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) ;
+void set_bitmap_bits_free(t_Bitmap * bit_map);
 
 #endif // FILESYSTEM_H
