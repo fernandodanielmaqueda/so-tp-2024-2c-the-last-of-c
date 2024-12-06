@@ -363,7 +363,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
     void *pointer_to_block_index = get_pointer_to_memory(PTRO_BLOCKS, BLOCK_SIZE, bloques_index_pos);
 
     // Copiamos todo el array en el bloque de indice 
-    write_block(pointer_to_block_index, array, array_size); //array 0 porque el primero es el indice
+    memcpy(pointer_to_block_index, array, array_size); //array 0 porque el primero es el indice
     log_info_r(&MODULE_LOGGER, "##  Archivo: <%s> - Bloque Index - Nro Bloque <%u>", filename, bloques_index_pos);
     
     // printear los punteros (4 bytes) del bloque indice
@@ -400,8 +400,8 @@ void filesystem_client_handler_for_memory(int fd_client) {
         // ptro al espacio de memoria de bloques.dat donde inicia el bloque de la posicion [pos]
         void *pointer_to_block_data = get_pointer_to_memory(PTRO_BLOCKS, BLOCK_SIZE, bloques_data_pos_init);
 
-        // Copiamos  particiones del dump en los bloques         
-        write_block(pointer_to_block_data, ptro_memory_dump_block, memory_partition_size);
+        // Copiamos  particiones del dump en los bloques        -- ex write block  
+        memcpy(pointer_to_block_data, ptro_memory_dump_block, memory_partition_size);   
 
         usleep(BLOCK_ACCESS_DELAY * 1000);//Tiempo en milisegundos que se deberá esperar luego de cada acceso a bloques (de datos o punteros)
        
@@ -547,16 +547,15 @@ size_t necessary_bits(size_t bytes_size) {
 
 // Calcular la dirección de memoria de una particion (ya sea para el archivo q envia memoria o el bloques .dat )
 void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) {
-
     
     log_trace_r(&MODULE_LOGGER, "## GET POINTER TO MEMORY BLOQUE.dat - Particion: <%u> - Tamaño de Particion: <%zu> Bytes", memory_partition_pos, memory_partition_size);
-    return (void *) (((uint32_t *) memory_ptr) + (memory_partition_size * memory_partition_pos)); //uint32 porque por enunciado nos dice 4bytes d etamaño puntero
+    return (void *) (((uint8_t *) memory_ptr) + (memory_partition_size * memory_partition_pos)); //uint32 porque por enunciado nos dice 4bytes d etamaño puntero
 }
 
 void *get_pointer_to_memory_dump(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) {
 
     log_trace_r(&MODULE_LOGGER, "## GET POINTER TO MEMORY DUMP - Particion: <%u> - Tamaño de Particion: <%zu> Bytes", memory_partition_pos, memory_partition_size);
-    return (void *) (((uint32_t *) memory_ptr) + (memory_partition_size * memory_partition_pos)); //uint32 porque por enunciado nos dice 4bytes d etamaño puntero
+    return (void *) (((uint8_t *) memory_ptr) + (memory_partition_size * memory_partition_pos)); //uint32 porque por enunciado nos dice 4bytes d etamaño puntero
 }
 
 // array[0]=2 (t_Block_Pointer), arry[1]=0, array[2]=null : bytes: INDICE t_Block_Pointer(4bytes),t_Block_Pointer 
@@ -575,10 +574,6 @@ void block_msync(void* get_pointer_to_memory) { // 2
 memory RAM:  datos del memory dump:  |(ptro 1) bloque_size |(ptro 2) bloque_size | ... 
 memory RAM:  bloques.dat: |(index 0 --> ptro x1) bloque_size |(index 1 --> ptro x2) bloq_datosue_size | ... 
 */
-void write_block(void* pointer_to_block, void* ptro_datos, size_t desplazamiento) {
-    // copiamos en un bloque los datos que nos pasan por parametro
-    memcpy(pointer_to_block, ptro_datos, desplazamiento);   
-}
 
 
 void create_directory(const char *path) {
