@@ -135,9 +135,11 @@ void *long_term_scheduler_new(void) {
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_PCB *pcb;
 	int status, result;
-	bool process_created = false;
+	bool process_created;
 
 	while(1) {
+
+		process_created = false;
 
 		if(wait_free_memory()) {
 			exit_sigint();
@@ -367,10 +369,21 @@ void *long_term_scheduler_exit(void) {
 			if(pcb_destroy(pcb)) {
 				exit_sigint();
 			}
-			
-			if((PID_MANAGER.counter) == 0) {
-				log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
+
+			if((status = pthread_mutex_lock(&(PID_MANAGER.mutex)))) {
+				report_error_pthread_mutex_lock(status);
+				exit_sigint();
 			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(PID_MANAGER.mutex));
+				if((PID_MANAGER.counter) == 0) {
+					log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
+				}
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&(PID_MANAGER.mutex)))) {
+				report_error_pthread_mutex_unlock(status);
+				exit_sigint();
+			}
+			
 
 			if(signal_free_memory()) {
 				exit_sigint();
