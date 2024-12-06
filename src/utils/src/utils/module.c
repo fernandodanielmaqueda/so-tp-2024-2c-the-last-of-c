@@ -58,8 +58,10 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 	siginfo_t info;
 	int signo;
 	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
-		report_error_sigwaitinfo();
-		//goto cancel;
+		if(errno != EINTR) {
+			report_error_sigwaitinfo();
+			//goto cancel;
+		}
 	}
 
 	fprintf(stderr, "\nSIGINT recibida\n");
