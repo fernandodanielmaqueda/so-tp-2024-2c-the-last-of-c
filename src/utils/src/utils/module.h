@@ -137,6 +137,8 @@ int logger_destroy(t_Logger *logger);
         } \
     } while (0)
 
+void report_error_strdup(void);
+
 void report_error_close(void);
 
 void report_error_fclose(void);
@@ -161,6 +163,7 @@ void report_error_pthread_create(int status);
 void report_error_pthread_detach(int status);
 void report_error_pthread_cancel(int status);
 void report_error_pthread_join(int status);
+void report_error_pthread_kill(int status);
 
 void report_error_pthread_condattr_init(int status);
 void report_error_pthread_condattr_destroy(int status);

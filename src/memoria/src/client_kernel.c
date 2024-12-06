@@ -36,8 +36,8 @@ void listen_kernel(int fd_client) {
             attend_thread_destroy(fd_client, &(package->payload));
             break;
             
-        case MEMORY_DUMP_HEADER:
-            attend_memory_dump(fd_client, &(package->payload));
+        case DUMP_MEMORY_HEADER:
+            attend_dump_memory(fd_client, &(package->payload));
             break;
 
         default:
@@ -305,7 +305,7 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía confirmación de finalización de hilo a [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
 }
 
-void attend_memory_dump(int fd_client, t_Payload *payload) {
+void attend_dump_memory(int fd_client, t_Payload *payload) {
     int result = 0;
 
     t_PID pid;
@@ -347,7 +347,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
             char *dump_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size);
             pthread_cleanup_push((void (*)(void *)) free, dump_string);
 
-                if(send_memory_dump(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.socket_connection.fd)) {
+                if(send_dump_memory(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.socket_connection.fd)) {
                     log_error_r(&MODULE_LOGGER,
                       "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
                       "%s"
@@ -367,7 +367,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
 
             log_info_r(&MINIMAL_LOGGER, "## Memory Dump solicitado - (PID:TID) - (%u:%u)", pid, tid);
 
-            if(receive_result_with_expected_header(MEMORY_DUMP_HEADER, &result, connection_filesystem.socket_connection.fd)) {
+            if(receive_result_with_expected_header(DUMP_MEMORY_HEADER, &result, connection_filesystem.socket_connection.fd)) {
                 log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
                 exit_sigint();
             }
@@ -381,7 +381,7 @@ void attend_memory_dump(int fd_client, t_Payload *payload) {
 
     pthread_cleanup_pop(1); // filename
 
-    if(send_result_with_header(MEMORY_DUMP_HEADER, result, fd_client)) {
+    if(send_result_with_header(DUMP_MEMORY_HEADER, result, fd_client)) {
         log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
         exit_sigint();
     }
@@ -657,7 +657,7 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
 
                 (new_thread->array_instructions)[new_thread->instructions_count] = strdup(subline);
                 if((new_thread->array_instructions)[new_thread->instructions_count] == NULL) {
-                    log_error_r(&MODULE_LOGGER, "strdup: No se pudo duplicar la cadena \"%s\"", subline);
+                    report_error_strdup();
                     retval = -1;
                     goto cleanup_line;
                 }

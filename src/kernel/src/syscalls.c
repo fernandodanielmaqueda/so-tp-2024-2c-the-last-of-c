@@ -286,7 +286,7 @@ int mutex_create_kernel_syscall(t_Payload *syscall_arguments) {
             goto cleanup_rwlock_resources;
         }
 
-        t_Resource *resource = resource_create();
+        t_Resource *resource = resource_create(1);
         if(resource == NULL) {
             log_error_r(&MODULE_LOGGER, "resource_create: No se pudo crear el recurso");
             exit_sigint();

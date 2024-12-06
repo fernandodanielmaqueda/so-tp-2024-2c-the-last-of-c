@@ -80,6 +80,75 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 		pthread_exit(NULL);
 }
 
+/*
+void *signal_manager(pthread_t *thread_to_cancel) {
+	int status;
+
+	sigset_t set_wait;
+
+	if(sigfillset(&set_wait)) {
+		report_error_sigfillset();
+		goto cancel;
+	}
+	
+	if((status = pthread_sigmask(SIG_BLOCK, &set_wait, NULL))) {
+		report_error_pthread_sigmask(status);
+		goto cancel;
+	}
+
+	siginfo_t info;
+	int signo;
+	while(1) {
+		if((signo = sigwaitinfo(&set_wait, &info)) == -1) {
+			report_error_sigwaitinfo();
+			goto cancel;
+		}
+
+		fprintf(stderr, "\nSignal recibida: %s [%d]\n", strsignal(signo), signo);
+
+        if(signo == SIGINT) {
+            fprintf(stderr, "SIGINT: Terminando programa\n");
+            break;
+        } else {
+			sigset_t set_signal;
+
+			if(sigemptyset(&set_signal)) {
+				report_error_sigemptyset();
+				goto cancel;
+			}
+
+			if(sigaddset(&set_signal, signo)) {
+				report_error_sigaddset();
+				goto cancel;
+			}
+
+			if((status = pthread_sigmask(SIG_UNBLOCK, &set_signal, NULL))) {
+				report_error_pthread_sigmask(status);
+				goto cancel;
+			}
+
+			if((status = pthread_kill(pthread_self(), signo))) {
+				report_error_pthread_kill(status);
+				goto cancel;
+			}
+
+			if((status = pthread_sigmask(SIG_BLOCK, &set_signal, NULL))) {
+				report_error_pthread_sigmask(status);
+				goto cancel;
+			}
+
+		}
+	}
+
+	cancel:
+		if((status = pthread_cancel(*thread_to_cancel))) {
+			report_error_pthread_cancel(status);
+		}
+
+		pthread_exit(NULL);
+}
+*/
+
 bool config_has_properties(t_config *config, ...) {
     va_list args;
     va_start(args, config);
@@ -129,6 +198,10 @@ int logger_destroy(t_Logger *logger) {
 	log_destroy(logger->log);
 
 	return retval;
+}
+
+void report_error_strdup(void) {
+	fprintf(stderr, "strdup: %s\n", strerror(errno));
 }
 
 void report_error_close(void) {
@@ -205,6 +278,10 @@ void report_error_pthread_cancel(int status) {
 
 void report_error_pthread_join(int status) {
 	fprintf(stderr, "pthread_join: %s\n", strerror(status));
+}
+
+void report_error_pthread_kill(int status) {
+	fprintf(stderr, "pthread_kill: %s\n", strerror(status));
 }
 
 void report_error_pthread_condattr_init(int status) {
@@ -447,6 +524,9 @@ int wrapper_pthread_join(pthread_t *thread) {
 }
 
 void exit_sigint(void) {
-	pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT); // Envia señal CTRL + C
+	int status;
+	if((status = pthread_kill(THREAD_SIGNAL_MANAGER, SIGINT))) { // Envia señal CTRL + C
+		report_error_pthread_kill(status);
+	}
 	pthread_exit(NULL);
 }

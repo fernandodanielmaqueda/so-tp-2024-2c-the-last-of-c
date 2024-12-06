@@ -169,7 +169,6 @@ int tid_assign(t_TID_Manager *id_manager, t_TCB *tcb, t_TID *result);
 int pid_release(t_PID_Manager *id_manager, t_PID pid);
 int tid_release(t_TID_Manager *id_manager, t_TID tid);
 
-
 bool pcb_matches_pid(t_PCB *pcb, t_PID *pid);
 bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 
@@ -184,6 +183,8 @@ int array_list_ready_destroy(void);
 void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list);
 void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
 void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination);
-void dump_memmory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);
+void dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);
+
+int wait_dump_memory_threads(void);
 
 #endif // KERNEL_H

@@ -296,7 +296,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
     size_t blocks_necessary;
     int status;
 
-    receive_memory_dump(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
+    receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
     dump_size = 64;
     memory_dump = malloc(dump_size);
     
@@ -321,7 +321,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
                 report_error_pthread_mutex_unlock(status);
                 // TODO
             }
-            send_result_with_header(MEMORY_DUMP_HEADER, 1, fd_client);
+            send_result_with_header(DUMP_MEMORY_HEADER, 1, fd_client);
 			log_warning_r(&MODULE_LOGGER, "No hay suficientes bloques libres para almacenar el archivo %s", filename);
             return;
         }
@@ -408,7 +408,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
         block_msync(pointer_to_block_data); // msync() SÓLO CORRESPONDIENTE AL BLOQUE EN SÍ
     }
 
-    send_result_with_header(MEMORY_DUMP_HEADER, 0, fd_client);
+    send_result_with_header(DUMP_MEMORY_HEADER, 0, fd_client);
     // Log de fin de petición
     log_info_r(&MINIMAL_LOGGER, "## Fin de solicitud - Archivo: %s", filename);
     return;

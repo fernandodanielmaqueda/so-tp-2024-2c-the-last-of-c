@@ -47,7 +47,7 @@ void attend_thread_create(int fd_client, t_Payload *payload);
 
 void attend_thread_destroy(int fd_client, t_Payload *payload);
 
-void attend_memory_dump(int fd_client, t_Payload *payload);
+void attend_dump_memory(int fd_client, t_Payload *payload);
 
 void allocate_partition(t_Partition **partition, size_t required_size);
 

@@ -33,7 +33,7 @@ extern pthread_rwlock_t RWLOCK_SCHEDULING;
 
 extern t_Shared_List SHARED_LIST_NEW;
 
-extern pthread_rwlock_t ARRAY_READY_RWLOCK;
+extern pthread_rwlock_t RWLOCK_ARRAY_READY;
 
 extern t_Shared_List *ARRAY_LIST_READY;
 extern t_Priority PRIORITY_COUNT;
@@ -41,8 +41,8 @@ extern t_Priority PRIORITY_COUNT;
 extern t_TCB *TCB_EXEC;
 extern pthread_mutex_t MUTEX_EXEC;
 
-extern t_Shared_List SHARED_LIST_BLOCKED_MEMORY_DUMP;
-extern pthread_cond_t COND_BLOCKED_MEMORY_DUMP;
+extern t_Shared_List SHARED_LIST_BLOCKED_DUMP_MEMORY;
+extern pthread_cond_t COND_BLOCKED_DUMP_MEMORY;
 
 extern t_Shared_List SHARED_LIST_BLOCKED_IO_READY;
 

@@ -738,10 +738,10 @@ int send_exec_context_update(t_PID pid, t_TID tid, t_Exec_Context exec_context, 
 
 // Memoria - Filesystem
 
-int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket) {
+int send_dump_memory(char *filename, void *dump, size_t bytes, int fd_socket) {
   int retval = 0;
 
-  t_Package *package = package_create_with_header(MEMORY_DUMP_HEADER);
+  t_Package *package = package_create_with_header(DUMP_MEMORY_HEADER);
   if(package == NULL) {
     return -1;
   }
@@ -766,7 +766,7 @@ int send_memory_dump(char *filename, void *dump, size_t bytes, int fd_socket) {
 }
 
 
-int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_socket) {
+int receive_dump_memory(char **filename, void **dump, size_t *bytes, int fd_socket) {
   int retval = 0;
 
   t_Package *package = package_create();
@@ -779,7 +779,7 @@ int receive_memory_dump(char **filename, void **dump, size_t *bytes, int fd_sock
     retval = -1;
     goto cleanup;
   }
-  if(package->header != MEMORY_DUMP_HEADER) {
+  if(package->header != DUMP_MEMORY_HEADER) {
     log_error_r(&SERIALIZE_LOGGER, "%s: Header invalido [%d]", HEADER_NAMES[package->header], package->header);
     retval = -1;
     goto cleanup;

@@ -3,7 +3,7 @@
 
 #include "resources.h"
 
-t_Resource *resource_create(void) {
+t_Resource *resource_create(int instances) {
 	int retval = 0, status;
 
 	t_Resource *resource = malloc(sizeof(t_Resource));
@@ -13,6 +13,8 @@ t_Resource *resource_create(void) {
 		goto ret;
 	}
 	pthread_cleanup_push((void (*)(void *)) free, resource);
+
+	resource->instances = instances;
 
 	if((status = pthread_mutex_init(&(resource->mutex_resource), NULL))) {
 		report_error_pthread_mutex_init(status);
@@ -43,18 +45,19 @@ t_Resource *resource_create(void) {
 		return resource;
 }
 
-void resource_destroy(t_Resource *resource) {
-	/*
-	int status;
+int resource_destroy(t_Resource *resource) {
+	int retval = 0, status;
 
-	list_destroy_and_destroy_elements(resource->shared_list_blocked.list, free);
-	if((status = pthread_mutex_destroy(&(resource->shared_list_blocked.mutex)))) {
+	list_destroy(resource->list_blocked);
+
+	if((status = pthread_mutex_destroy(&(resource->mutex_resource)))) {
 		report_error_pthread_mutex_destroy(status);
-		// TODO
+		retval = -1;
 	}
 
 	free(resource);
-	*/
+
+	return retval;
 }
 
 void resources_unassign(t_TCB *tcb) {
@@ -62,7 +65,7 @@ void resources_unassign(t_TCB *tcb) {
 
 	char *resource_name;
 	t_Resource *resource;
-	t_TCB *tcb_unblock;
+	t_TCB *tcb_unblock = NULL;
 
 	for(int table_index = 0; table_index < tcb->dictionary_assigned_resources->table_max_size; table_index++) {
 		t_hash_element *element = tcb->dictionary_assigned_resources->elements[table_index];
