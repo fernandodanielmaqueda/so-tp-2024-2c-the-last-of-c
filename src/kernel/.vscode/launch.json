@@ -61,7 +61,6 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make src/kernel/bin/kernel"
     },
     {
       "name": "(gdb) Launch src/kernel/bin/kernel MEM_FIJA_BASE 12 [Prueba Particiones Fijas]",
@@ -81,7 +80,6 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make src/kernel/bin/kernel"
     },
     {
       "name": "(gdb) Launch src/kernel/bin/kernel MEM_DINAMICA_BASE 128 [Prueba Particiones Dinámicas]",
@@ -101,14 +99,13 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make src/kernel/bin/kernel"
     },
     {
-      "name": "(gdb) Launch src/kernel/bin/kernel PRUEBA_FS 0 [Prueba FS - Fibonacci Sequence]",
+      "name": "(gdb) Launch src/kernel/bin/kernel PRUEBA_FS 8 [Prueba FS - Fibonacci Sequence]",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
-      "args": ["PRUEBA_FS", "0"],
+      "args": ["PRUEBA_FS", "8"],
       "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
       "environment": [],
@@ -121,7 +118,6 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make src/kernel/bin/kernel"
     },
     {
       "name": "(gdb) Launch src/kernel/bin/kernel THE_EMPTINESS_MACHINE 16 [Prueba de Stress]",
@@ -141,7 +137,6 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make src/kernel/bin/kernel"
     }
   ]
 }
