@@ -40,6 +40,11 @@ typedef struct t_TID_Manager {
     pthread_mutex_t mutex;
 } t_TID_Manager;
 
+typedef struct t_Ready {
+    t_Shared_List shared_list;
+    sem_t sem_ready;
+} t_Ready;
+
 typedef enum e_Process_State {
     NEW_STATE,
     READY_STATE,

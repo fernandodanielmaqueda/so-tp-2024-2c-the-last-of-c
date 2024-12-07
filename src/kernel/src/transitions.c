@@ -355,20 +355,25 @@ int get_state_ready(t_TCB **tcb) {
 
 		case FIFO_SCHEDULING_ALGORITHM:
 
-			if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
+			if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].shared_list.mutex)))) {
 				report_error_pthread_mutex_lock(status);
 				return -1;
 			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].mutex));
-				if((ARRAY_LIST_READY[0].list)->head == NULL) {
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].shared_list.mutex));
+				if((ARRAY_LIST_READY[0].shared_list.list)->head == NULL) {
 					*tcb = NULL;
 				}
 				else {
-					*tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[0].list), 0);
+					*tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[0].shared_list.list), 0);
 					(*tcb)->location = NULL;
+
+					if(sem_wait(&(ARRAY_LIST_READY[0].sem_ready))) {
+						report_error_sem_wait();
+						// TODO
+					}
 				}
 			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
+			if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].shared_list.mutex)))) {
 				report_error_pthread_mutex_unlock(status);
 				return -1;
 			}
@@ -379,20 +384,20 @@ int get_state_ready(t_TCB **tcb) {
 		case MLQ_SCHEDULING_ALGORITHM:
 			*tcb = NULL;
 			for(register t_Priority priority = 0; (((*tcb) == NULL) && (priority < PRIORITY_COUNT)); priority++) {
-				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority].mutex)))) {
+				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[priority].shared_list.mutex)))) {
 					report_error_pthread_mutex_lock(status);
 					return -1;
 				}
-				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[priority].mutex));
-					if((ARRAY_LIST_READY[priority].list)->head == NULL) {
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[priority].shared_list.mutex));
+					if((ARRAY_LIST_READY[priority].shared_list.list)->head == NULL) {
 						*tcb = NULL;
 					}
 					else {
-						*tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[priority].list), 0);
+						*tcb = (t_TCB *) list_remove((ARRAY_LIST_READY[priority].shared_list.list), 0);
 						(*tcb)->location = NULL;
 					}
 				pthread_cleanup_pop(0);
-				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].mutex)))) {
+				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[priority].shared_list.mutex)))) {
 					report_error_pthread_mutex_unlock(status);
 					return -1;
 				}
@@ -571,16 +576,16 @@ int insert_state_ready(t_TCB *tcb) {
 		switch(SCHEDULING_ALGORITHM) {
 
 			case FIFO_SCHEDULING_ALGORITHM:
-				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].mutex)))) {
+				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[0].shared_list.mutex)))) {
 					report_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
-				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].mutex));
-					list_add((ARRAY_LIST_READY[0].list), tcb);
-					tcb->location = &(ARRAY_LIST_READY[0]);
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[0].shared_list.mutex));
+					list_add((ARRAY_LIST_READY[0].shared_list.list), tcb);
+					tcb->location = &(ARRAY_LIST_READY[0].shared_list);
 				pthread_cleanup_pop(0);
-				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].mutex)))) {
+				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[0].shared_list.mutex)))) {
 					report_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
@@ -589,16 +594,16 @@ int insert_state_ready(t_TCB *tcb) {
 
 			case PRIORITIES_SCHEDULING_ALGORITHM:
 			case MLQ_SCHEDULING_ALGORITHM:
-				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
+				if((status = pthread_mutex_lock(&(ARRAY_LIST_READY[tcb->priority].shared_list.mutex)))) {
 					report_error_pthread_mutex_lock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
 				}
-				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[tcb->priority].mutex));
-					list_add((ARRAY_LIST_READY[tcb->priority].list), tcb);
-					tcb->location = &(ARRAY_LIST_READY[tcb->priority]);
+				pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(ARRAY_LIST_READY[tcb->priority].shared_list.mutex));
+					list_add((ARRAY_LIST_READY[tcb->priority].shared_list.list), tcb);
+					tcb->location = &(ARRAY_LIST_READY[tcb->priority].shared_list);
 				pthread_cleanup_pop(0);
-				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority].mutex)))) {
+				if((status = pthread_mutex_unlock(&(ARRAY_LIST_READY[tcb->priority].shared_list.mutex)))) {
 					report_error_pthread_mutex_unlock(status);
 					retval = -1;
 					goto cleanup_ready_rwlock;
@@ -613,6 +618,12 @@ int insert_state_ready(t_TCB *tcb) {
 	}
 
 	if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
+		report_error_sem_post();
+		retval = -1;
+		goto cleanup_ready_rwlock;
+	}
+
+	if(sem_post(&(ARRAY_LIST_READY[tcb->priority].sem_ready))) {
 		report_error_sem_post();
 		retval = -1;
 		goto cleanup_ready_rwlock;

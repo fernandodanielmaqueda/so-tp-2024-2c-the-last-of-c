@@ -9,7 +9,7 @@ t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
 pthread_rwlock_t RWLOCK_ARRAY_READY;
 
-t_Shared_List *ARRAY_LIST_READY = NULL;
+t_Ready *ARRAY_LIST_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
 
 t_TCB *TCB_EXEC = NULL;
@@ -40,6 +40,7 @@ t_Time QUANTUM;
 t_Bool_Thread THREAD_QUANTUM_INTERRUPTER = { .running = false };
 sem_t BINARY_QUANTUM_INTERRUPTER;
 pthread_cond_t COND_QUANTUM_INTERRUPTER;
+bool QUANTUM_EXPIRED = false;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
 sem_t BINARY_SHORT_TERM_SCHEDULER;
@@ -435,7 +436,7 @@ void *quantum_interrupter(void) {
 					break;
 				case ETIMEDOUT:
 					// Se agotó el quantum
-					// QUANTUM_EXPIRED = 1;
+					QUANTUM_EXPIRED = true;
 					interrupt = 1;
 					break;
 				default:
@@ -449,22 +450,32 @@ void *quantum_interrupter(void) {
 			exit_sigint();
 		}
 
+		if(TCB_EXEC->pcb->PID == 0 && TCB_EXEC->TID == 0) {
+			interrupt = 0;
+		}
+
 		if(!interrupt) {
 			goto post_binary_short_term_scheduler;
 		}
-
-		// Envio la interrupción solo si hay más hilos en la cola de READY
-		// pthread_cond_wait(COND_QUANTUM_INTERRUPTER, &MUTEX_??);
-		/*
-		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
-			report_error_sem_wait();
-			exit_sigint();
-		}|
-		if(sem_post(&SEM_SHORT_TERM_SCHEDULER)) {
-			report_error_sem_post();
-			exit_sigint();
+		
+		if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
+			report_error_pthread_rwlock_wrlock(status);
+			//return -1;
 		}
-		*/
+		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
+			if(sem_wait(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
+				report_error_sem_wait();
+				//return -1;
+			}
+			if(sem_post(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
+				report_error_sem_post();
+				//return -1;
+			}
+		pthread_cleanup_pop(0);
+		if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
+			report_error_pthread_rwlock_unlock(status);
+			//return -1;
+		}
 
 		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
 			report_error_pthread_mutex_lock(status);
@@ -560,6 +571,7 @@ void *short_term_scheduler(void) {
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 				IS_TCB_IN_CPU = true;
+				QUANTUM_EXPIRED = false;
 			pthread_cleanup_pop(0);
 			if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
 				report_error_pthread_mutex_unlock(status);
@@ -602,16 +614,27 @@ void *short_term_scheduler(void) {
 					pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
 						IS_TCB_IN_CPU = false;
 						pthread_cond_signal(&COND_IS_TCB_IN_CPU);
+						// QUANTUM_EXPIRED = false;
 					pthread_cleanup_pop(0);
 					if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
 						report_error_pthread_mutex_unlock(status);
 						exit_sigint();
 					}
-
-					if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
-						report_error_pthread_cond_signal(status);
-						exit_sigint();
-					}
+						
+						if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
+							report_error_pthread_rwlock_wrlock(status);
+							//return -1;
+						}
+						pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
+							if(sem_post(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
+								report_error_sem_post();
+								//return -1;
+							}
+						pthread_cleanup_pop(0);
+						if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
+							report_error_pthread_rwlock_unlock(status);
+							//return -1;
+						}
 
 					if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
 						report_error_sem_wait();

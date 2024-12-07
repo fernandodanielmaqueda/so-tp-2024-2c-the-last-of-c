@@ -985,21 +985,26 @@ int array_list_ready_resize(t_Priority priority) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
 
-		t_Shared_List *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * (priority + 1));
+		t_Ready *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Ready) * (priority + 1));
 		if(new_array_list_ready == NULL) {
-			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
+			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
 			errno = ENOMEM;
 			return -1;
 		}
 		ARRAY_LIST_READY = new_array_list_ready;
 
 		for(t_Priority i = PRIORITY_COUNT; i <= priority; i++) {
-			if(shared_list_init(&(ARRAY_LIST_READY[i]))) {
+			if(sem_init(&(ARRAY_LIST_READY[i].sem_ready), 0, 0)) {
+				report_error_sem_init();
+				return -1;
+			}
 
+			if(shared_list_init(&(ARRAY_LIST_READY[i].shared_list))) {
+				/*
 				// Si una de las inicializaciones falla, Se trunca el array para sólo incluir las listas de READY que se pudieron inicializar
-				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Shared_List) * i);
+				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Ready) * i);
 				if(new_array_list_ready == NULL) {
-					log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Shared_List) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
+					log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
 				}
 				else {
 					ARRAY_LIST_READY = new_array_list_ready;
@@ -1007,6 +1012,7 @@ int array_list_ready_resize(t_Priority priority) {
 				}
 
 				return -1;
+				*/
 			}
 		}
 
@@ -1025,11 +1031,16 @@ int array_list_ready_resize(t_Priority priority) {
 int array_list_ready_destroy(void) {
 	int retval = 0, status;
 	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
-		if((status = pthread_mutex_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].mutex)))) {
+		if(sem_destroy(&(ARRAY_LIST_READY[i].sem_ready))) {
+			report_error_sem_destroy();
+			retval = -1;
+		}
+
+		if((status = pthread_mutex_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].shared_list.mutex)))) {
 			report_error_pthread_mutex_destroy(status);
 			retval = -1;
 		}
-		list_destroy(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].list);
+		list_destroy(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].shared_list.list);
 	}
 	free(ARRAY_LIST_READY);
 	PRIORITY_COUNT = 0;
