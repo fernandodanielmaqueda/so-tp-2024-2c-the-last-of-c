@@ -62,20 +62,10 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_push((void (*)(void *)) cancel_and_join_pthread, (void *) &THREAD_SIGNAL_MANAGER);
 
 
-    // RWLOCK_PARTITIONS_AND_PROCESSES
-    if((status = pthread_rwlock_init(&RWLOCK_PARTITIONS_AND_PROCESSES, NULL))) {
-        report_error_pthread_rwlock_init(status);
-        exit_sigint();
-    }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_PARTITIONS_AND_PROCESSES);
-
-    // ARRAY_PROCESS_MEMORY
-    pthread_cleanup_push((void (*)(void *)) array_memory_processes_destroy, (void *) ARRAY_PROCESS_MEMORY);
-
     // PARTITION_TABLE
     PARTITION_TABLE = list_create();
     if(PARTITION_TABLE == NULL) {
-        log_error_r(&MODULE_LOGGER, "list_create: No se pudo crear la tabla de particiones");
+        fprintf(stderr, "list_create: No se pudo crear la tabla de particiones\n");
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) partition_table_destroy, NULL);
@@ -121,6 +111,17 @@ int module(int argc, char* argv[]) {
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) logger_destroy, (void *) &SERIALIZE_LOGGER);
+
+
+    // RWLOCK_PARTITIONS_AND_PROCESSES
+    if((status = pthread_rwlock_init(&RWLOCK_PARTITIONS_AND_PROCESSES, NULL))) {
+        report_error_pthread_rwlock_init(status);
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_PARTITIONS_AND_PROCESSES);
+
+    // ARRAY_PROCESS_MEMORY
+    pthread_cleanup_push((void (*)(void *)) array_memory_processes_destroy, (void *) ARRAY_PROCESS_MEMORY);
 
 
     // MAIN_MEMORY
@@ -178,6 +179,8 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_MEMORY_JOBS
 	pthread_cleanup_pop(1); // COND_CLIENTS
 	pthread_cleanup_pop(1); // MAIN_MEMORY
+	pthread_cleanup_pop(1); // ARRAY_PROCESS_MEMORY
+	pthread_cleanup_pop(1); // RWLOCK_PARTITIONS_AND_PROCESSES
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
@@ -185,8 +188,6 @@ int module(int argc, char* argv[]) {
 	pthread_cleanup_pop(1); // MUTEX_LOGGERS
 	pthread_cleanup_pop(1); // MODULE_CONFIG
 	pthread_cleanup_pop(1); // PARTITION_TABLE
-	pthread_cleanup_pop(1); // ARRAY_PROCESS_MEMORY
-	pthread_cleanup_pop(1); // RWLOCK_PARTITIONS_AND_PROCESSES
 	pthread_cleanup_pop(1); // THREAD_SIGNAL_MANAGER
 
     return EXIT_SUCCESS;
@@ -311,8 +312,6 @@ t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path) {
 }
 
 int memory_thread_destroy(t_Memory_Thread *thread) {
-    int retval = 0;
-
     if(thread == NULL) {
         return 0;
     }
@@ -324,7 +323,7 @@ int memory_thread_destroy(t_Memory_Thread *thread) {
 
     free(thread);
 
-    return retval;
+    return 0;
 }
 
 t_Partition *partition_create(size_t size, size_t base) {

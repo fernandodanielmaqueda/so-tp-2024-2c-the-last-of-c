@@ -746,13 +746,13 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
 
     char *line = NULL, *subline;
     size_t length;
-    ssize_t nread = 0;
+    ssize_t nread;
+
+    errno = 0;
+    nread = getline(&line, &length, file);
     pthread_cleanup_push((void (*)(void *)) free, line);
 
-        while(1) {
-            errno = 0;
-
-            nread = getline(&line, &length, file);
+        while(1) {      
             if(nread == -1) {
                 if(errno) {
                     log_warning_r(&MODULE_LOGGER, "getline: %s", strerror(errno));
@@ -783,6 +783,8 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
                 }
                 (new_thread->instructions_count)++;
             }
+
+            nread = getline(&line, &length, file);
         }
 
     cleanup_line:
