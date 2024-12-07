@@ -841,6 +841,11 @@ Si todo salió bien, deberíamos ver un mensaje de bienvenida de GitHub:
 Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not provide shell access.
 ```
 
+# Alternativa 3: Autenticarse cada vez que se pida
+Cada vez que clonemos por ejemplo el repositorio nos pedirá nuestras credenciales:
+`Username for '...':` Ingresar Nuestro nombre de usuario de GitHub (no nombre que se muestra).
+`Password for '...':` Ingresar la clave PAT (Personal Access Token) que generaste.
+
 -----------------------------
 
 ## 27. Clonar este repositorio (sin --recurse-submodules)
@@ -886,34 +891,7 @@ cd tp-2024-2c-so ; git submodule update --init --recursive --depth 1
 
 -----------------------------
 
-## 29. (NO en el Deploy) Ejecutar Scripts Automáticos
-
-TODO
-
-## 30. Poner las IPs (*los Puertos no*) en los archivos de config
-
-Completar con las IPs que te hayan pasado tus compañeros de equipo que correspondan a las máquinas
-corriendo los módulos
-
------------------------------
-
-## 31. Crear un acceso directo (soft link / symlink) a los archivos de test
-
-Deben quedar en: `/home/utnso/scripts-pruebas`/...
-```bash
-ln -s /home/utnso/tp-2024-2c-so/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
-```
-
------------------------------
-
-## 32. Crear el directorio para DialFS (Para el módulo de Entrada/Salida) 
-```bash
-mkdir -p /home/utnso/dialfs
-```
-
------------------------------
-
-## 33. Instalar la SO Commons Library
+## 29. Instalar la SO Commons Library
 
 ```bash
 cd /home/utnso/tp-2024-2c-so/thirdparty/so-commons-library
@@ -929,7 +907,7 @@ sudo cp src/commons /usr/include
 
 -----------------------------
 
-## 34. (NO en el Deploy) Instalar CSpec
+## 30. (NO en el Deploy) Instalar CSpec
 
 ```bash
 cd /home/utnso/tp-2024-2c-so/thirdparty/cspec
@@ -945,7 +923,7 @@ sudo cp src/cspecs /usr/include
 
 -----------------------------
 
-## 35. (NO en el Deploy) Instalar la versión más reciente de CMake
+## 31. (NO en el Deploy) Instalar la versión más reciente de CMake
 
 - https://cmake.org/download/
 	- https://github.com/Kitware/CMake/releases/download/v3.29.0/cmake-3.29.0-linux-x86_64.sh
@@ -954,6 +932,42 @@ sudo cp src/cspecs /usr/include
 wget https://github.com/Kitware/CMake/releases/download/v3.29.0/cmake-3.29.0-linux-x86_64.sh
 chmod +x cmake-3.29.0-linux-x86_64.sh
 sudo ./cmake-3.29.0-linux-x86_64.sh --prefix=/usr/local --skip-license
+```
+
+-----------------------------
+
+## 32. Crear un acceso directo (soft link / symlink) a los archivos de test
+
+Deben quedar en: `/home/utnso/scripts-pruebas`/...
+```bash
+ln -s /home/utnso/tp-2024-2c-so/thirdparty/the-last-of-c-pruebas /home/utnso/scripts-pruebas
+```
+
+-----------------------------
+
+## 33. Poner las IPs (*los Puertos no*) en los archivos de config
+
+Completar con las IPs que te hayan pasado tus compañeros de equipo que correspondan a las máquinas
+corriendo los módulos
+```bash
+bash scripts/ip.sh
+```
+
+-----------------------------
+
+## 34. Copiar las configs de una prueba
+
+Inicialmente pondremos la de la primera prueba
+```bash
+bash scripts/cp_configs.sh
+```
+
+-----------------------------
+
+## 35. (Entre prueba y prueba) Borrar los archivos de log y los creados por Filesystem
+
+```bash
+bash scripts/log_rm.sh ; bash scripts/fs_rm.sh
 ```
 
 -----------------------------
