@@ -94,18 +94,51 @@ int module(int argc, char *argv[]) {
 	log_debug_r(&MODULE_LOGGER, "Modulo %s inicializado correctamente\n", MODULE_NAME);
 
     
-    
     create_directory(MOUNT_DIR);
-    char* path_files = string_from_format("%s/files", MOUNT_DIR);
-    create_directory(path_files);
-    free(path_files);
+
+    char *path_files = string_from_format("%s/files", MOUNT_DIR);
+    pthread_cleanup_push((void (*)(void *)) free, path_files);
+        create_directory(path_files);
+    pthread_cleanup_pop(1); // path_files
+
+
 	bitmap_init(); //bitmap.dat
     bloques_init(); //bloques.dat
 
-	initialize_sockets();// bucle infinito
+
+	// COND_CLIENTS
+	if((status = pthread_cond_init(&COND_CLIENTS, NULL))) {
+		report_error_pthread_cond_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CLIENTS);
+
+    // LIST_FILESYSTEM_JOBS
+    if((status = pthread_mutex_init(&(SHARED_LIST_CLIENTS.mutex), NULL))) {
+        report_error_pthread_mutex_init(status);
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_CLIENTS.mutex));
+
+    // LIST_FILESYSTEM_JOBS
+    SHARED_LIST_CLIENTS.list = list_create();
+    if(SHARED_LIST_CLIENTS.list == NULL) {
+        log_error_r(&MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) list_destroy, SHARED_LIST_CLIENTS.list);
+
+
+	// [Servidor] Filesystem <- [Cliente(s)] Memoria
+    pthread_cleanup_push((void (*)(void *)) wait_client_threads, NULL);
+	server_thread_coordinator(&SERVER_FILESYSTEM, filesystem_client_handler);
 
     // Cleanup
 
+    pthread_cleanup_pop(1); // wait_client_threads
+	pthread_cleanup_pop(1); // LIST_FILESYSTEM_JOBS
+	pthread_cleanup_pop(1); // MUTEX_FILESYSTEM_JOBS
+	pthread_cleanup_pop(1); // COND_CLIENTS
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
@@ -301,9 +334,6 @@ void filesystem_client_handler_for_memory(int fd_client) {
 
     receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
     
-  //  dump_size = 257;
-  //  memory_dump = malloc(dump_size);
-    
 
     // agregamos un log para ver los datos recibidos
     log_trace_r(&MODULE_LOGGER, "##### Recibi la solicitud - Archivo: <%s> - Dump Size: <%zu> Bytes - BLOCKS_TOTAL_SIZE: <%zu> Bytes  #####", filename, dump_size, BLOCKS_TOTAL_SIZE);
@@ -347,16 +377,6 @@ void filesystem_client_handler_for_memory(int fd_client) {
 			log_warning_r(&MODULE_LOGGER, "No hay suficientes bloques libres para almacenar el archivo %s", filename);
             return;
         }
-
-        //BITMAP.blocks_free -= blocks_necessary;
-
-        /* a) directa:   bloques libres: 50, necesitamos: 5 bloques, queda: 45 bloques libres
-           b) paso a paso:  bloques libres: 50, necesitamos: 5 bloques
-                            --> asignas 1 bloque, queda: 49 bloques libres
-                            --> asignas 1 bloque, queda: 48 bloques libres 
-                            ...
-                            --> asignas 1 bloque, queda: 48 bloques libres 
-        */  
 
         // Setear los bits correspondientes en el bitmap, completar el array de posiciones del indice de bloques.dat.
 		set_bits_bitmap(&BITMAP, array, blocks_necessary, filename);
@@ -458,11 +478,6 @@ void create_metadata_file(const char *filename, size_t size, t_Block_Pointer ind
         return;
     }
 
-    /*create_directory(MOUNT_DIR);
-    char* path_files = string_from_format("%s/files", MOUNT_DIR);
-    create_directory(path_files); 
-    */
-
     // Agregar las claves y valores al archivo de configuración
     char *size_ptr = string_from_format("%zu", size);
     config_set_value(metadata_config, "SIZE",size_ptr);
@@ -545,39 +560,6 @@ size_t necessary_bits(size_t bytes_size) {
 	return (size_t) ceil((double) bytes_size / 8);
 }
 
-
-/* 
-    void *file_ptr: puntero al archivo?
-    size_t file_block_size: unidad de particion del archivo
-    t_Block_Pointer file_block_pos: apuntas a una particion del archivo
-
-
-    void* dump_bytes --> 
-        bytes del dump : (*)12345
-        BLOCK_SIZE=2: [12] [34] [5@] 
-        error: lectura: podemos leer algo demas @
-        No error: escritura: escribimos menor o igual a lo que necesitamos de bloques
-
-    void* bloques.dat -->
-        bytes del bloques.dat : (*)12axbnjk
-        BLOCK_SIZE=2:           [12] [as] [bn] [jk]  
-        error: escritura: escribir en espacio de memoria no reservados
-
-*/
-
-
-      //---IDEA FER PARA AHORRARNOS TANTO GET POINTER TO MEMORY LIO DE FUNCIONES---////
-        /* 
-        //size_t dump_remainder = dump_size;
-        size_t dump_current = 0;
-        unsigned int i = 0;
-
-        while(dump_current < dump_size) {
-            //size_t min_value = 
-            memcpy(array_aux[i], memory_dump + dump_current
-        }*/
-
-
 // Calcular la dirección de memoria de una particion (ya sea para el archivo q envia memoria o el bloques .dat )
 void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) {
     
@@ -603,60 +585,16 @@ void block_msync(void* get_pointer_to_memory) { // 2
     }
 }
 
-/*
-memory RAM:  datos del memory dump:  |(ptro 1) bloque_size |(ptro 2) bloque_size | ... 
-memory RAM:  bloques.dat: |(index 0 --> ptro x1) bloque_size |(index 1 --> ptro x2) bloq_datosue_size | ... 
-*/
-
-
 void create_directory(const char *path) {
     // Crear el directorio con permisos de lectura, escritura y ejecución para el propietario
     if (mkdir(path, 0755) == -1) {
         if (errno == EEXIST) {
-            log_info_r(&MODULE_LOGGER, "Directorio %s ya existe.", path);
+            log_info_r(&MODULE_LOGGER, "%s: El directorio ya existe.", path);
         } else {
- 
+
            log_error_r(&MODULE_LOGGER, "Error al crear el directorio %s: %s", path, strerror(errno));
         }
     } else {
-       
     log_debug_r(&MODULE_LOGGER, "Directorio %s creado exitosamente.", path);
     }
 }
-
-
-// void copy_in_block(void* pointer_to_block, void* ptro_datos, size_t desplazamiento) {
-//     // Copiar los datos al bloque respectivo
-//     if (desplazamiento > BLOCK_SIZE) {
-//         log_error_r(&MODULE_LOGGER, "Desplazamiento excede el tamaño del bloque");
-//         desplazamiento = BLOCK_SIZE;
-//     }
-//     memcpy(pointer_to_block, ptro_datos, desplazamiento);
-// }
-
-       
-/* void write_data(void *memory_dump) {
-    
-    size_t  cantidad_bloques = array->size;
-
-    for(size_t pos_index=1; cantidad_bloques <= pos_index; pos_index++) {
-
-            t_Block_Pointer nro_bloque = array[pos_index];
-
-            // apuntar a la posicion de los datos del memory dump desde donde vamos a copiar
-            char* ptro_memory_dump_block = get_pointer_to_memory(memory_dump, BLOCK_SIZE, nro_bloque);
-
-            write_block(nro_bloque, ptro_memory_dump_block, BLOCK_SIZE);
-    }  
-}*/
-
-/* 
-void* get_pointer_index_bloquesdat(t_Block_Pointer file_block_pos) { // 2
-    if(file_block_pos >= BLOCK_COUNT) {  // BLOCK_COUNT=8 entonces: bloque_pos=0,1,2,...,7
-        log_error_r(&MODULE_LOGGER, "Error: el bloque %d no existe en bloques.dat", file_block_pos);
-        return NULL;
-    }
-    return get_pointer_to_memory(PTRO_BLOCKS, BLOCK_SIZE, file_block_pos);
-}
-
-*/

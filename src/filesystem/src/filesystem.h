@@ -28,22 +28,12 @@
 #include "utils/package.h"
 #include "socket.h"
 
-// typedef struct t_FS_File {
-//     char *name;
-
-//     uint32_t initial_bloq;
-//     uint32_t len;
-//     uint32_t size;
-// } t_FS_File;
-
 typedef uint32_t t_Block_Pointer; //tipo array de bloques para copiar 
 
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
     size_t blocks_free; // contar los bits libres (0)
 } t_Bitmap;
-
-
 
 extern t_Server SERVER_FILESYSTEM;
 

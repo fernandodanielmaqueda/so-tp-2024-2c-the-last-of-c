@@ -141,14 +141,14 @@ int module(int argc, char* argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_CLIENTS);
 
-    // MUTEX_JOBS_KERNEL
+    // LIST_MEMORY_JOBS
     if((status = pthread_mutex_init(&(SHARED_LIST_CLIENTS.mutex), NULL))) {
         report_error_pthread_mutex_init(status);
         exit_sigint();
     }
     pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_CLIENTS.mutex));
 
-    // LIST_JOBS_KERNEL
+    // LIST_MEMORY_JOBS
     SHARED_LIST_CLIENTS.list = list_create();
     if(SHARED_LIST_CLIENTS.list == NULL) {
         log_error_r(&MODULE_LOGGER, "list_create: No se pudo crear la lista de clientes del kernel");
@@ -174,8 +174,8 @@ int module(int argc, char* argv[]) {
 	// Cleanup
     pthread_cleanup_pop(1); // wait_client_threads
     pthread_cleanup_pop(1); // MUTEX_CLIENT_CPU
-	pthread_cleanup_pop(1); // LIST_JOBS_KERNEL
-	pthread_cleanup_pop(1); // MUTEX_JOBS_KERNEL
+	pthread_cleanup_pop(1); // LIST_MEMORY_JOBS
+	pthread_cleanup_pop(1); // MUTEX_MEMORY_JOBS
 	pthread_cleanup_pop(1); // COND_CLIENTS
 	pthread_cleanup_pop(1); // MAIN_MEMORY
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER

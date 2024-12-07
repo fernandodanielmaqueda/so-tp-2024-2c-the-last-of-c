@@ -30,12 +30,14 @@ extern t_Logger SOCKET_LOGGER;
 
 extern t_Server SERVER_FILESYSTEM;
 
-extern t_Shared_List SHARED_LIST_CLIENTS_MEMORY;
-
-int initialize_sockets(void);
-int finish_sockets(void);
+extern t_Shared_List SHARED_LIST_CLIENTS;
+extern pthread_cond_t COND_CLIENTS;
 
 void filesystem_client_handler(t_Client *new_client);
 void *filesystem_thread_for_client(t_Client *new_client);
+int remove_client_thread(t_Client *client);
+
+int wait_client_threads(void);
+int signal_client_threads(void);
 
 #endif // FILESYSTEM_SOCKET_H

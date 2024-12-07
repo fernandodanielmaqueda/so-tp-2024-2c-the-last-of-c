@@ -31,9 +31,6 @@ extern pthread_mutex_t MUTEX_CLIENT_CPU;
 extern t_Shared_List SHARED_LIST_CLIENTS;
 extern pthread_cond_t COND_CLIENTS;
 
-int initialize_sockets(void);
-int finish_sockets(void);
-
 void memory_client_handler(t_Client *new_client);
 void *memory_thread_for_client(t_Client *new_client);
 int remove_client_thread(t_Client *client);
@@ -41,4 +38,4 @@ int remove_client_thread(t_Client *client);
 int wait_client_threads(void);
 int signal_client_threads(void);
 
-#endif /* MEMORIA_SOCKET_H */
+#endif // MEMORIA_SOCKET_H

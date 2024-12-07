@@ -5,56 +5,179 @@
 
 t_Server SERVER_FILESYSTEM;
 
-t_Shared_List SHARED_LIST_CLIENTS_MEMORY = { .list = NULL };
-
-int initialize_sockets(void) {
-
-	// [Servidor] Filesystem <- [Cliente(s)] Memoria
-	server_thread_coordinator(&SERVER_FILESYSTEM, filesystem_client_handler);
-
-	return 0;
-}
-
-int finish_sockets(void) {
-	int retval = 0;
-
-	/*
-	if(close(CONNECTION_KERNEL.fd_connection)) {
-		report_error_close();
-		retval = -1;
-	}
-	if(close(CONNECTION_MEMORY.fd_connection)) {
-		report_error_close();
-		retval = -1;
-	}
-	*/
-
-	return retval;
-}
+t_Shared_List SHARED_LIST_CLIENTS = { .list = NULL };
+pthread_cond_t COND_CLIENTS;
 
 void filesystem_client_handler(t_Client *new_client) {
-	pthread_create(&(new_client->socket_client.bool_thread.thread), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client);
-	new_client->socket_client.bool_thread.running = true;
-	pthread_detach(new_client->socket_client.bool_thread.thread);
+    int status;
+
+	bool created = false;
+	t_Conditional_Cleanup new_client_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) new_client, .condition = &created, .negate_condition = true };
+    pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &new_client_cleanup);
+    t_Conditional_Cleanup fd_client_cleanup = { .function = (void (*)(void *)) wrapper_close, .argument = (void *) &(new_client->socket_client.fd), .condition = &created, .negate_condition = true };
+    pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &fd_client_cleanup);
+
+        new_client->socket_client.bool_thread.running = false;
+
+        bool join = false;
+        t_Conditional_Cleanup join_cleanup = { .function = (void (*)(void *)) wrapper_pthread_join, .argument = (void *) &(new_client->socket_client.bool_thread.thread), .condition = &join, .negate_condition = false };
+        pthread_cleanup_push((void (*)(void *)) conditional_cleanup, (void *) &join_cleanup);
+
+            if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
+                report_error_pthread_mutex_lock(status);
+                exit_sigint();
+            }
+            pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+
+                if((status = pthread_create(&(new_client->socket_client.bool_thread.thread), NULL, (void *(*)(void *)) filesystem_thread_for_client, (void *) new_client))) {
+                    report_error_pthread_create(status);
+                    exit_sigint();
+                }
+                pthread_cleanup_push((void (*)(void *)) wrapper_pthread_cancel, &(new_client->socket_client.bool_thread.thread));
+
+                    created = true;
+
+                    join = true;
+                        if((status = pthread_detach(new_client->socket_client.bool_thread.thread))) {
+                            report_error_pthread_detach(status);
+                            exit_sigint();
+                        }
+                    join = false;
+
+                pthread_cleanup_pop(0); // cancel_thread
+
+                new_client->socket_client.bool_thread.running = true;
+
+                list_add((SHARED_LIST_CLIENTS.list), new_client);
+
+            pthread_cleanup_pop(0);
+            if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
+                join = false;
+                report_error_pthread_mutex_unlock(status);
+                exit_sigint();
+            }
+
+        pthread_cleanup_pop(0); // join_thread
+
+    pthread_cleanup_pop(0); // fd_client
+    pthread_cleanup_pop(0); // new_client
+
 }
 
 void *filesystem_thread_for_client(t_Client *new_client) {
-	log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
 
-    if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->socket_client.fd)) {
-        if(close(new_client->socket_client.fd)) {
-			report_error_close();
+    //pthread_t thread = pthread_self();
+
+	pthread_cleanup_push((void (*)(void *)) remove_client_thread, new_client);
+
+    	log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s iniciado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+
+		if(server_handshake(new_client->server->server_type, new_client->server->clients_type, new_client->socket_client.fd)) {
+			goto cleanup_new_client;
 		}
-		free(new_client);
-        return NULL;
-	}
 
-	filesystem_client_handler_for_memory(new_client->socket_client.fd);
+		filesystem_client_handler_for_memory(new_client->socket_client.fd);
 
-	log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s finalizado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
-    if(close(new_client->socket_client.fd)) {
-		report_error_close();
-	}
-	free(new_client);
+		log_trace_r(&MODULE_LOGGER, "[%d] Manejador de [Cliente] %s finalizado", new_client->socket_client.fd, PORT_NAMES[new_client->client_type]);
+
+		cleanup_new_client:
+		pthread_cleanup_pop(0); // new_client
+		if(remove_client_thread(new_client)) {
+			exit_sigint();
+		}
+
     return NULL;
+}
+
+int remove_client_thread(t_Client *client) {
+	int retval = 0, status;
+
+    pthread_cleanup_push((void (*)(void *)) free, client);
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, &(client->socket_client.fd));
+
+        if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
+            report_error_pthread_mutex_lock(status);
+            retval = -1;
+            goto cleanup_fd_client;
+        }
+        pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+
+            list_remove_by_condition_with_comparation(SHARED_LIST_CLIENTS.list, (bool (*)(void *, void *)) pointers_match, client);
+
+            if(signal_client_threads()) {
+                retval = -1;
+                goto cleanup_mutex_clients;
+            }
+
+        cleanup_mutex_clients:
+        pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
+        if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
+            report_error_pthread_mutex_unlock(status);
+            retval = -1;
+            goto cleanup_fd_client;
+        }
+
+    cleanup_fd_client:
+    pthread_cleanup_pop(0); // fd_client
+    if(close(client->socket_client.fd)) {
+        report_error_close();
+        retval = -1;
+    }
+
+    pthread_cleanup_pop(1); // new_client
+
+    return retval;
+}
+
+int wait_client_threads(void) {
+    int retval = 0, status;
+
+    if((status = pthread_mutex_lock(&(SHARED_LIST_CLIENTS.mutex)))) {
+        report_error_pthread_mutex_lock(status);
+        return -1;
+    }
+    pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_CLIENTS.mutex));
+
+        t_link_element *current = SHARED_LIST_CLIENTS.list->head;
+        while(current != NULL) {
+            t_Client *client = current->data;
+            if((status = pthread_cancel(client->socket_client.bool_thread.thread))) {
+                report_error_pthread_cancel(status);
+                retval = -1;
+                goto cleanup_mutex_clients;
+            }
+            current = current->next;
+        }
+
+        //log_trace_r(&MODULE_LOGGER, "Esperando a que finalicen los hilos de [Cliente] %s", PORT_NAMES[MEMORY_PORT_TYPE]);
+        
+        while(SHARED_LIST_CLIENTS.list->head != NULL) {
+            if((status = pthread_cond_wait(&COND_CLIENTS, &(SHARED_LIST_CLIENTS.mutex)))) {
+                report_error_pthread_cond_wait(status);
+                retval = -1;
+                break;
+            }
+        }
+
+    cleanup_mutex_clients:
+    pthread_cleanup_pop(0); // SHARED_LIST_CLIENTS.mutex
+    if((status = pthread_mutex_unlock(&(SHARED_LIST_CLIENTS.mutex)))) {
+        report_error_pthread_mutex_unlock(status);
+        return -1;
+    }
+
+    return retval;
+}
+
+int signal_client_threads(void) {
+    int status;
+
+    if(SHARED_LIST_CLIENTS.list->head == NULL) {
+        if((status = pthread_cond_signal(&COND_CLIENTS))) {
+            report_error_pthread_cond_signal(status);
+            return -1;
+        }
+    }
+
+    return 0;
 }
