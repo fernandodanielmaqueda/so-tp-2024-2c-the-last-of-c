@@ -102,8 +102,119 @@ int module(int argc, char *argv[]) {
     pthread_cleanup_pop(1); // path_files
 
 
-	bitmap_init(); //bitmap.dat
-    bloques_init(); //bloques.dat
+    // BITMAP.DAT INIT
+    // cantidad de Bytes del archivo bitmap.dat.  Nota: cantidad bits = cantidad de bloques (bytes) sobre 8.
+    BITMAP_FILE_SIZE = necessary_bits(BLOCK_COUNT);
+
+    //QUIERO IMPRIMIR EL TAMANIO BITMAP_FILE_SIZE
+    log_trace_r(&MODULE_LOGGER, "######## TAMANIO DE BITMAP_FILE_SIZE: %zu", BITMAP_FILE_SIZE);
+
+    int fd_bitmap = -1, fd_bloques = -1;
+
+    // ruta al archivo
+    char *path_file_bitmap = string_new();
+    //pthread_cleanup_push((void (*)(void *)) free, path_file_bitmap);
+        string_append(&path_file_bitmap, MOUNT_DIR);
+        string_append(&path_file_bitmap, "/bitmap.dat");
+        
+        // Abrir el archivo, si no existe lo crea
+        fd_bitmap = open(path_file_bitmap, O_RDWR | O_CREAT , S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    free(path_file_bitmap);
+    //pthread_cleanup_pop(1); // path_file_bitmap
+    
+    if(fd_bitmap == -1) { //NO pudo abrir el archivo 
+        log_error_r(&MODULE_LOGGER, "Error al abrir el archivo bitmap.dat: %s", strerror(errno));
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, &fd_bitmap);
+
+    // Darle el tamaño correcto al bitmap -- y nos inicia todo en 0
+    if(ftruncate(fd_bitmap, BITMAP_FILE_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
+        log_error_r(&MODULE_LOGGER, "Error al ajustar el tamaño del archivo bitmap.dat: %s", strerror(errno));
+        exit_sigint();
+    }
+
+    // traer un archivo a memoria, poder manejarlo 
+    // PTRO_BITMAP = referencia en memoria del bitmap
+    PTRO_BITMAP = mmap(NULL, BITMAP_FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd_bitmap, 0);
+    pthread_cleanup_push((void (*)(void *)) munmap, PTRO_BITMAP);
+    
+    if(PTRO_BITMAP == MAP_FAILED) {
+        log_error_r(&MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
+        exit_sigint();
+    }
+
+    char *data_string_bitmap = mem_hexstring(PTRO_BITMAP, BITMAP_FILE_SIZE);
+    //pthread_cleanup_push((void (*)(void *)) free, data_string);
+        log_trace_r(&MODULE_LOGGER, "## DATA STRING BITMAP.dat:\n%s", data_string_bitmap);
+    //pthread_cleanup_pop(1); // data_string
+    free(data_string_bitmap);
+
+    //puntero a la estructura del bitarray (commons)
+    t_bitarray *bit_array = bitarray_create_with_mode((char *) PTRO_BITMAP, BITMAP_FILE_SIZE, LSB_FIRST);      
+    if(bit_array == NULL) {
+        log_error_r(&MODULE_LOGGER, "Error al crear la estructura del bitmap");
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) bitarray_destroy, bit_array);
+
+    // Instanciar el bitmap
+    BITMAP.bits_blocks = bit_array;      
+
+    set_bitmap_bits_free(&BITMAP);
+
+    // Forzamos que los cambios en momoria ppal se reflejen en el archivo.
+    // vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
+    if(msync(PTRO_BITMAP, BITMAP_FILE_SIZE, MS_SYNC) == -1) {
+        log_error_r(&MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
+        exit_sigint();
+    }
+    log_trace_r(&MODULE_LOGGER," Archivo Creado y sincronizado: bitmap.dat. Tamaño: <%zu>", BITMAP_FILE_SIZE);
+
+
+    // BLOQUES.DAT
+    // Ruta al archivo
+    char *path_file_blocks = string_new();
+    //pthread_cleanup_push((void (*)(void *)) free, path_file_blocks);
+        string_append(&path_file_blocks, MOUNT_DIR);
+        string_append(&path_file_blocks, "/bloques.dat");
+
+        // Abrir el archivo, si no existe lo crea
+        fd_bloques = open(path_file_blocks, O_RDWR | O_CREAT , S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+        free(path_file_blocks);
+    //pthread_cleanup_pop(1); // path_file_blocks
+    if(fd_bloques == -1) { //NO pudo abrir el archivo 
+        log_error_r(&MODULE_LOGGER, "Error al abrir el archivo bloques.dat: %s", strerror(errno));
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) wrapper_close, &fd_bloques);
+
+    // Darle el tamaño correcto al bitmap -- y nos inicia todo en 0
+    if(ftruncate(fd_bloques, BLOCKS_TOTAL_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
+        log_error_r(&MODULE_LOGGER, "Error al ajustar el tamaño del archivo bloques.dat: %s", strerror(errno));
+        exit_sigint();
+    }
+
+    // Traer un archivo a memoria, poder manejarlo 
+    // PTRO_BITMAP = referencia en memoria del bitmap
+    PTRO_BLOCKS = mmap(NULL, BLOCKS_TOTAL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd_bloques, 0);
+    if(PTRO_BLOCKS == MAP_FAILED) {
+        log_error_r(&MODULE_LOGGER, "Error al mapear el archivo bloques.dat a memoria: %s", strerror(errno));
+        exit_sigint();
+    }
+    pthread_cleanup_push((void (*)(void *)) munmap, PTRO_BLOCKS);
+
+    //SINCRONIZO CON EL ARCHIVO
+    if(msync(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE, MS_SYNC) == -1) {
+        log_error_r(&MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
+        exit_sigint();
+    }
+
+    char *data_string_bloques = mem_hexstring(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE);
+    //pthread_cleanup_push((void (*)(void *)) free, data_string_bloques);
+        log_trace_r(&MODULE_LOGGER, "## DATA COMPOSICION  BLOQUES.dat:\n%s", data_string_bloques);
+    //pthread_cleanup_pop(1); // data_string_bloques
+    free(data_string_bloques);
 
 
 	// COND_CLIENTS
@@ -139,6 +250,11 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // LIST_FILESYSTEM_JOBS
 	pthread_cleanup_pop(1); // MUTEX_FILESYSTEM_JOBS
 	pthread_cleanup_pop(1); // COND_CLIENTS
+    pthread_cleanup_pop(1); // PTRO_BLOCKS
+    pthread_cleanup_pop(1); // fd_bloques
+    pthread_cleanup_pop(1); // bitarray_destroy
+    pthread_cleanup_pop(1); // PTRO_BITMAP
+    pthread_cleanup_pop(1); // fd_bitmap
 	pthread_cleanup_pop(1); // SERIALIZE_LOGGER
 	pthread_cleanup_pop(1); // SOCKET_LOGGER
 	pthread_cleanup_pop(1); // MINIMAL_LOGGER
@@ -163,136 +279,6 @@ int read_module_config(t_config* MODULE_CONFIG) {
 	BLOCK_COUNT = config_get_int_value(MODULE_CONFIG, "BLOCK_COUNT");
 	BLOCK_ACCESS_DELAY = config_get_int_value(MODULE_CONFIG, "RETARDO_ACCESO_BLOQUE");
 	LOG_LEVEL = log_level_from_string(config_get_string_value(MODULE_CONFIG, "LOG_LEVEL"));
-
-    return 0;
-}
-
-int bitmap_init() {
-
-    // cantidad de Bytes del archivo bitmap.dat.  Nota: cantidad bits = cantidad de bloques (bytes) sobre 8.
-	BITMAP_FILE_SIZE = necessary_bits(BLOCK_COUNT);
-
-    //QUIERO IMPRIMIR EL TAMANIO BITMAP_FILE_SIZE
-    log_trace_r(&MODULE_LOGGER, "######## TAMANIO DE BITMAP_FILE_SIZE: %zu", BITMAP_FILE_SIZE);
-
-	// ruta al archivo
-	char* path_file_bitmap = string_new();
-	string_append(&path_file_bitmap, MOUNT_DIR);
-	string_append(&path_file_bitmap, "/bitmap.dat");
-	
-	// Abrir el archivo, si no existe lo crea
-    int fd = open(path_file_bitmap, O_RDWR | O_CREAT , S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    
-    if(fd == -1) { //NO pudo abrir el archivo 
-    log_error_r(&MODULE_LOGGER, "Error al abrir el archivo bitmap.dat: %s", strerror(errno));
-    return -1;
-    }
-
-	// Darle el tamaño correcto al bitmap -- y nos inicia todo en 0
-    if(ftruncate(fd, BITMAP_FILE_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
-        log_error_r(&MODULE_LOGGER, "Error al ajustar el tamaño del archivo bitmap.dat: %s", strerror(errno));
-        if(close(fd)) {
-            report_error_close();
-        }
-        return -1;
-    }
-
-	// traer un archivo a memoria, poder manejarlo 
-	// PTRO_BITMAP = referencia en memoria del bitmap
-    PTRO_BITMAP = mmap(NULL, BITMAP_FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    
-    
-	if(PTRO_BITMAP == MAP_FAILED) {
-        log_error_r(&MODULE_LOGGER, "Error al mapear el archivo bitmap.dat a memoria: %s", strerror(errno));
-        if(close(fd)) {
-            report_error_close();
-        }
-        return -1;
-    }
-
-    char *data_string = mem_hexstring(PTRO_BITMAP, BITMAP_FILE_SIZE);
-    log_trace_r(&MODULE_LOGGER, "## DATA STRING BITMAP.dat:\n%s", data_string);
-    free(data_string);
-
-    //puntero a la estructura del bitarray (commons)
-    t_bitarray *bit_array = bitarray_create_with_mode((char *) PTRO_BITMAP, BITMAP_FILE_SIZE, LSB_FIRST);
-    
-    if(bit_array == NULL) {
-        log_error_r(&MODULE_LOGGER, "Error al crear la estructura del bitmap");
-        munmap(PTRO_BITMAP, BITMAP_FILE_SIZE);//liberar la memoria reservada
-        if(close(fd)) {
-            report_error_close();
-        }
-        return -1;
-    }
-
-	// Instanciar el bitmap
-	//t_Bitmap* bit_map = malloc(sizeof(t_Bitmap));
-   	BITMAP.bits_blocks = bit_array;
-   // log_trace_r(&MODULE_LOGGER, "##### Tamanio bits_blocks: %zu", bitarray_get_max_bit(BITMAP.bits_blocks));
-    
-   
-	//BITMAP.blocks_free = BLOCK_COUNT; // Inicialmente todos los bloques estan disponibles
-    set_bitmap_bits_free(&BITMAP);
-    //log_trace_r(&MODULE_LOGGER, "### Tamanio de los blocks_free: %zu", BITMAP.blocks_free);
-
-	// Forzamos que los cambios en momoria ppal se reflejen en el archivo.
-	// vamos a trabajar siempre en memoria ppal?? si: no hace falta sicronizar siempre.
-    if(msync(PTRO_BITMAP, BITMAP_FILE_SIZE, MS_SYNC) == -1) {
-        log_error_r(&MODULE_LOGGER, "Error al sincronizar los cambios en bitmap.dat con el archivo: %s", strerror(errno));
-        return -1;
-    }
-    log_trace_r(&MODULE_LOGGER," Archivo Creado y sincronizado: bitmap.dat. Tamaño: <%zu>", BITMAP_FILE_SIZE);
-
-    
-	return 0;
-}
-
-//bloques.dat
-int bloques_init(void) {
-
-    // Ruta al archivo
-    char *path_file_blocks = string_new();
-    string_append(&path_file_blocks, MOUNT_DIR);
-    string_append(&path_file_blocks, "/bloques.dat");
-
-    // Abrir el archivo, si no existe lo crea
-    int fd = open(path_file_blocks, O_RDWR | O_CREAT , S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    if(fd == -1) { //NO pudo abrir el archivo 
-        log_error_r(&MODULE_LOGGER, "Error al abrir el archivo bloques.dat: %s", strerror(errno));
-        return -1;
-    }
-
-    // Darle el tamaño correcto al bitmap -- y nos inicia todo en 0
-    if(ftruncate(fd, BLOCKS_TOTAL_SIZE) == -1) {// No puede darle al archivo el tamaño correcto para bitmap.dat (lo completa con ceros, si no lo recorta)
-        log_error_r(&MODULE_LOGGER, "Error al ajustar el tamaño del archivo bloques.dat: %s", strerror(errno));
-        if(close(fd)) {
-            report_error_close();
-        }
-        return -1;
-    }
-
-    // Traer un archivo a memoria, poder manejarlo 
-    // PTRO_BITMAP = referencia en memoria del bitmap
-    PTRO_BLOCKS = mmap(NULL, BLOCKS_TOTAL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-    if(PTRO_BLOCKS == MAP_FAILED) {
-        log_error_r(&MODULE_LOGGER, "Error al mapear el archivo bloques.dat a memoria: %s", strerror(errno));
-        if(close(fd)) {
-            report_error_close();
-        }
-        return -1;
-    }
-
-    //SINCRONIZO CON EL ARCHIVO
-    if(msync(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE, MS_SYNC) == -1) {
-        log_error_r(&MODULE_LOGGER, "Error al sincronizar los cambios en bloques.dat con el archivo: %s", strerror(errno));
-        return -1;
-    }
-
-    char *data_string = mem_hexstring(PTRO_BLOCKS, BLOCKS_TOTAL_SIZE);
-    log_trace_r(&MODULE_LOGGER, "## DATA COMPOSICION  BLOQUES.dat:\n%s", data_string);
-  
 
     return 0;
 }
@@ -332,9 +318,15 @@ void filesystem_client_handler_for_memory(int fd_client) {
     size_t blocks_necessary;
     int status;
 
-    receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client);//bloqueante
+    if(receive_dump_memory(&filename, &memory_dump, &dump_size, fd_client)) {
+        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir operación de volcado de memoria de [Cliente] %s", fd_client, PORT_NAMES[MEMORY_PORT_TYPE]);
+        pthread_exit(NULL);
+    }
+    char *dump_string = mem_hexstring(memory_dump, dump_size);
+    pthread_cleanup_push((void (*)(void *)) free, dump_string);
+        log_trace_r(&MODULE_LOGGER, "[%d] Se recibe operación de volcado de memoria de [Cliente] %s [Archivo: %s - Tamaño: %zu]\n%s", fd_client, PORT_NAMES[MEMORY_PORT_TYPE], filename, dump_size, dump_string);
+    pthread_cleanup_pop(1); // dump_string
     
-
     // agregamos un log para ver los datos recibidos
     log_trace_r(&MODULE_LOGGER, "##### Recibi la solicitud - Archivo: <%s> - Dump Size: <%zu> Bytes - BLOCKS_TOTAL_SIZE: <%zu> Bytes  #####", filename, dump_size, BLOCKS_TOTAL_SIZE);
 
@@ -347,8 +339,9 @@ void filesystem_client_handler_for_memory(int fd_client) {
  	//Inicio bloqueo zona critica 
     if((status = pthread_mutex_lock(&MUTEX_BITMAP))) {
         report_error_pthread_mutex_lock(status);
-        // TODO
+        pthread_exit(NULL);
     }
+    //pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, (void *) &MUTEX_BITMAP);
 
         // Verificar que no excedas la cantidad de punteros que un indice puede almacenar
         size_t bytes_ptro = 4;
@@ -360,7 +353,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
         if(nro_bloques_datos > nro_max_ptros) {
             if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
                 report_error_pthread_mutex_unlock(status);
-                // TODO
+                pthread_exit(NULL);
             }
             send_result_with_header(DUMP_MEMORY_HEADER, 1, fd_client);
 			log_warning_r(&MODULE_LOGGER, "Excede el maximo numero de punteros <%zu> para almacenar los punteros a los bloques de datos <%zu>", nro_max_ptros, nro_bloques_datos);
@@ -371,7 +364,7 @@ void filesystem_client_handler_for_memory(int fd_client) {
 		if(BITMAP.blocks_free < blocks_necessary ) {
 			if((status = pthread_mutex_unlock(&MUTEX_BITMAP))) {
                 report_error_pthread_mutex_unlock(status);
-                // TODO
+                pthread_exit(NULL);
             }
             send_result_with_header(DUMP_MEMORY_HEADER, 1, fd_client);
 			log_warning_r(&MODULE_LOGGER, "No hay suficientes bloques libres para almacenar el archivo %s", filename);

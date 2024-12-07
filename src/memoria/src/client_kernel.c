@@ -431,17 +431,17 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
 
                         if(send_dump_memory(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.socket_connection.fd)) {
                             log_error_r(&MODULE_LOGGER,
-                            "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
+                            "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [Archivo: %s - Tamaño: %zu]\n"
                             "%s"
-                            , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                            , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], filename, ARRAY_PROCESS_MEMORY[pid]->size
                             , dump_string
                             );
                             exit_sigint();
                         }
                         log_trace_r(&MODULE_LOGGER,
-                        "[%d] Se envía operación de volcado de memoria a [Servidor] %s [PID: %u - TID: %u - Archivo: %s - Tamaño: %zu]\n"
+                        "[%d] Se envía operación de volcado de memoria a [Servidor] %s [Archivo: %s - Tamaño: %zu]\n"
                         "%s"
-                        , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, filename, ARRAY_PROCESS_MEMORY[pid]->size
+                        , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], filename, ARRAY_PROCESS_MEMORY[pid]->size
                         , dump_string
                         );
 
