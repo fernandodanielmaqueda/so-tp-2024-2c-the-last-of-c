@@ -1029,7 +1029,7 @@ int array_list_ready_destroy(void) {
 			report_error_pthread_mutex_destroy(status);
 			retval = -1;
 		}
-		list_destroy_and_free_elements(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].list);
+		list_destroy(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].list);
 	}
 	free(ARRAY_LIST_READY);
 	PRIORITY_COUNT = 0;
