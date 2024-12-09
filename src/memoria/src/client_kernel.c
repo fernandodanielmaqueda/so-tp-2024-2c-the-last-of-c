@@ -120,7 +120,7 @@ void attend_process_create(int fd_client, t_Payload *payload) {
         log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
         exit_sigint();
     }
-    log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de creacion de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
+    log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
 
 }
 

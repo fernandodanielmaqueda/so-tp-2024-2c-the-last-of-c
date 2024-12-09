@@ -140,18 +140,18 @@ void seek_cpu_context(t_Payload *payload) {
 
     if(send_exec_context(context, CLIENT_CPU->socket_client.fd)) {
         log_error_r(&MODULE_LOGGER,
-          "[%d] Error al enviar contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]\n"
-          "* PC: %u\n"
-          "* AX: %u\n"
-          "* BX: %u\n"
-          "* CX: %u\n"
-          "* DX: %u\n"
-          "* EX: %u\n"
-          "* FX: %u\n"
-          "* GX: %u\n"
-          "* HX: %u\n"
-          "* base: %u\n"
-          "* limit: %u"
+          "[%d] Error al enviar contexto de ejecución a [Cliente] %s [PID: %u - TID: %u"
+          " - PC: %u"
+          " - AX: %u"
+          " - BX: %u"
+          " - CX: %u"
+          " - DX: %u"
+          " - EX: %u"
+          " - FX: %u"
+          " - GX: %u"
+          " - HX: %u"
+          " - base: %u"
+          " - limit: %u]"
           , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
           , context.cpu_registers.PC
           , context.cpu_registers.AX
@@ -168,18 +168,18 @@ void seek_cpu_context(t_Payload *payload) {
         exit_sigint();
     }
     log_trace_r(&MODULE_LOGGER,
-      "[%d] Se envía contexto de ejecución a [Cliente] %s [PID: %u - TID: %u]\n"
-      "* PC: %u\n"
-      "* AX: %u\n"
-      "* BX: %u\n"
-      "* CX: %u\n"
-      "* DX: %u\n"
-      "* EX: %u\n"
-      "* FX: %u\n"
-      "* GX: %u\n"
-      "* HX: %u\n"
-      "* base: %u\n"
-      "* limit: %u"
+      "[%d] Se envía contexto de ejecución a [Cliente] %s [PID: %u - TID: %u"
+      " - PC: %u"
+      " - AX: %u"
+      " - BX: %u"
+      " - CX: %u"
+      " - DX: %u"
+      " - EX: %u"
+      " - FX: %u"
+      " - GX: %u"
+      " - HX: %u"
+      " - base: %u"
+      " - limit: %u]"
       , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
       , context.cpu_registers.PC
       , context.cpu_registers.AX
@@ -216,17 +216,17 @@ void update_cpu_context(t_Payload *payload) {
 
     log_trace_r(&MODULE_LOGGER,
       "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]\n"
-      "* PC: %u\n"
-      "* AX: %u\n"
-      "* BX: %u\n"
-      "* CX: %u\n"
-      "* DX: %u\n"
-      "* EX: %u\n"
-      "* FX: %u\n"
-      "* GX: %u\n"
-      "* HX: %u\n"
-      "* base: %u\n"
-      "* limit: %u"
+      " - PC: %u"
+      " - AX: %u"
+      " - BX: %u"
+      " - CX: %u"
+      " - DX: %u"
+      " - EX: %u"
+      " - FX: %u"
+      " - GX: %u"
+      " - HX: %u"
+      " - base: %u"
+      " - limit: %u]"
       , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid
       , context.cpu_registers.PC
       , context.cpu_registers.AX
