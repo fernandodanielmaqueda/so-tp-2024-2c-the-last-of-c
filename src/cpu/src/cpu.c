@@ -238,18 +238,18 @@ void instruction_cycle(void)
                     exit_sigint();
                 }
                 log_trace_r(&MODULE_LOGGER,
-                "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u]\n"
-                "* PC: %u\n"
-                "* AX: %u\n"
-                "* BX: %u\n"
-                "* CX: %u\n"
-                "* DX: %u\n"
-                "* EX: %u\n"
-                "* FX: %u\n"
-                "* GX: %u\n"
-                "* HX: %u\n"
-                "* base: %u\n"
-                "* limit: %u"
+                "[%d] Se recibe contexto de ejecución de [Servidor] %s [PID: %u - TID: %u"
+                " - PC: %u"
+                " - AX: %u"
+                " - BX: %u"
+                " - CX: %u"
+                " - DX: %u"
+                " - EX: %u"
+                " - FX: %u"
+                " - GX: %u"
+                " - HX: %u"
+                " - base: %u"
+                " - limit: %u]"
                 , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
                 , EXEC_CONTEXT.cpu_registers.PC
                 , EXEC_CONTEXT.cpu_registers.AX
@@ -423,18 +423,18 @@ void instruction_cycle(void)
 
                 if(send_exec_context_update(PID, TID, EXEC_CONTEXT, CONNECTION_MEMORY.socket_connection.fd)) {
                     log_error_r(&MODULE_LOGGER,
-                      "[%d] Error al enviar actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]\n"
-                      "* PC: %u\n"
-                      "* AX: %u\n"
-                      "* BX: %u\n"
-                      "* CX: %u\n"
-                      "* DX: %u\n"
-                      "* EX: %u\n"
-                      "* FX: %u\n"
-                      "* GX: %u\n"
-                      "* HX: %u\n"
-                      "* base: %u\n"
-                      "* limit: %u"
+                      "[%d] Error al enviar actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u"
+                      " - PC: %u"
+                      " - AX: %u"
+                      " - BX: %u"
+                      " - CX: %u"
+                      " - DX: %u"
+                      " - EX: %u"
+                      " - FX: %u"
+                      " - GX: %u"
+                      " - HX: %u"
+                      " - base: %u"
+                      " - limit: %u]"
                       , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
                       , EXEC_CONTEXT.cpu_registers.PC
                       , EXEC_CONTEXT.cpu_registers.AX
@@ -451,18 +451,18 @@ void instruction_cycle(void)
                     exit_sigint();
                 }
                 log_trace_r(&MODULE_LOGGER,
-                  "[%d] Se envía actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u]\n"
-                  "* PC: %u\n"
-                  "* AX: %u\n"
-                  "* BX: %u\n"
-                  "* CX: %u\n"
-                  "* DX: %u\n"
-                  "* EX: %u\n"
-                  "* FX: %u\n"
-                  "* GX: %u\n"
-                  "* HX: %u\n"
-                  "* base: %u\n"
-                  "* limit: %u"
+                  "[%d] Se envía actualización de contexto de ejecución a [Servidor] %s [PID: %u - TID: %u"
+                  " - PC: %u"
+                  " - AX: %u"
+                  " - BX: %u"
+                  " - CX: %u"
+                  " - DX: %u"
+                  " - EX: %u"
+                  " - FX: %u"
+                  " - GX: %u"
+                  " - HX: %u"
+                  " - base: %u"
+                  " - limit: %u]"
                   , CONNECTION_MEMORY.socket_connection.fd, PORT_NAMES[CONNECTION_MEMORY.server_type], PID, TID
                   , EXEC_CONTEXT.cpu_registers.PC
                   , EXEC_CONTEXT.cpu_registers.AX
