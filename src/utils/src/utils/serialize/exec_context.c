@@ -135,18 +135,7 @@ int exec_context_deserialize(t_Payload *payload, t_Exec_Context *destination) {
 
 int exec_context_log(e_Serialization serialization, t_Exec_Context source) {
   log_trace_r(&SERIALIZE_LOGGER,
-    "[%s] t_Exec_Context:\n"
-    "* PC: %u\n"
-    "* AX: %u\n"
-    "* BX: %u\n"
-    "* CX: %u\n"
-    "* DX: %u\n"
-    "* EX: %u\n"
-    "* FX: %u\n"
-    "* GX: %u\n"
-    "* HX: %u\n"
-    "* base: %u\n"
-    "* limit: %u"
+    "[%s] t_Exec_Context: [PC: %u - AX: %u - BX: %u - CX: %u - DX: %u - EX: %u - FX: %u - GX: %u - HX: %u - base: %u - limit: %u]"
     , SERIALIZATION_NAMES[serialization]
     , source.cpu_registers.PC
     , source.cpu_registers.AX
