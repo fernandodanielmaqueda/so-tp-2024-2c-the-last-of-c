@@ -9,11 +9,12 @@ t_Shared_List SHARED_LIST_NEW = { .list = NULL };
 
 pthread_rwlock_t RWLOCK_ARRAY_READY;
 
-t_Ready *ARRAY_LIST_READY = NULL;
+t_Ready **ARRAY_READY = NULL;
 t_Priority PRIORITY_COUNT = 0;
 
 t_TCB *TCB_EXEC = NULL;
 pthread_mutex_t MUTEX_EXEC;
+sem_t *SEM_READY;
 
 t_Shared_List SHARED_LIST_BLOCKED_DUMP_MEMORY = { .list = NULL };
 pthread_cond_t COND_BLOCKED_DUMP_MEMORY;
@@ -31,16 +32,15 @@ sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_EXIT = { .running = false };
 sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-bool IS_TCB_IN_CPU = false;
-pthread_mutex_t MUTEX_IS_TCB_IN_CPU;
-pthread_condattr_t CONDATTR_IS_TCB_IN_CPU;
-pthread_cond_t COND_IS_TCB_IN_CPU;
-
-t_Time QUANTUM;
+t_Time QUANTUM = 0;
 t_Bool_Thread THREAD_QUANTUM_INTERRUPTER = { .running = false };
 sem_t BINARY_QUANTUM_INTERRUPTER;
+pthread_mutex_t MUTEX_QUANTUM_INTERRUPTER;
+pthread_condattr_t CONDATTR_QUANTUM_INTERRUPTER;
 pthread_cond_t COND_QUANTUM_INTERRUPTER;
-bool QUANTUM_EXPIRED = false;
+bool FINISH_QUANTUM;
+bool QUANTUM_EXPIRED;
+bool IS_TCB_IN_CPU;
 
 sem_t SEM_SHORT_TERM_SCHEDULER;
 sem_t BINARY_SHORT_TERM_SCHEDULER;
@@ -78,21 +78,11 @@ void initialize_scheduling(void) {
 	}
 	THREAD_LONG_TERM_SCHEDULER_EXIT.running = true;
 
-	// Quantum Interrupter (Push)
-	switch(SCHEDULING_ALGORITHM) {
-
-		case FIFO_SCHEDULING_ALGORITHM:
-		case PRIORITIES_SCHEDULING_ALGORITHM:
-			break;
-
-		case MLQ_SCHEDULING_ALGORITHM:
-			if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER.thread, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
-				report_error_pthread_create(status);
-				exit_sigint();
-			}
-			THREAD_QUANTUM_INTERRUPTER.running = true;
-			break;
+	if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER.thread, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
+		report_error_pthread_create(status);
+		exit_sigint();
 	}
+	THREAD_QUANTUM_INTERRUPTER.running = true;
 
 	// IO Device
 	if((status = pthread_create(&THREAD_IO_DEVICE.thread, NULL, (void *(*)(void *)) io_device, NULL))) {
@@ -177,16 +167,16 @@ void *long_term_scheduler_new(void) {
 			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
 
 				if(send_process_create(pcb->PID, pcb->size, connection_memory.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de creación de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de creacion de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de creación de proceso a [Servidor] %s [PID: %u - Tamaño: %zu]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, pcb->size);
 
 				if(receive_result_with_expected_header(PROCESS_CREATE_HEADER, &result, connection_memory.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de creacion de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de creación de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creacion de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de creación de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
 
 			pthread_cleanup_pop(0);
 			if(close(connection_memory.socket_connection.fd)) {
@@ -254,7 +244,7 @@ void *long_term_scheduler_new(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
-			if(array_list_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
+			if(array_ready_update(((t_TCB **) (pcb->thread_manager.array))[0]->priority)) {
 				exit_sigint();
 			}
 
@@ -398,119 +388,6 @@ void *long_term_scheduler_exit(void) {
 	return NULL;
 }
 
-void *quantum_interrupter(void) {
-
-	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
-
-	struct timespec ts_now, ts_quantum, ts_abstime;
-	int interrupt, status;
-
-	while(1) {
-		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
-			report_error_sem_wait();
-			exit_sigint();
-		}
-
-		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
-			report_error_clock_gettime();
-			exit_sigint();
-		}
-		ts_quantum = timespec_from_ms(TCB_EXEC->quantum);
-
-		ts_abstime = timespec_add(ts_now, ts_quantum);
-
-		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-			report_error_pthread_mutex_lock(status);
-			exit_sigint();
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
-
-			while((IS_TCB_IN_CPU) && (status == 0)) {
-				status = pthread_cond_timedwait(&COND_IS_TCB_IN_CPU, &MUTEX_IS_TCB_IN_CPU, &ts_abstime);
-			}
-
-			switch(status) {
-				case 0:
-					// El hilo fue desalojado antes de que se agote el quantum
-					interrupt = 0;
-					break;
-				case ETIMEDOUT:
-					// Se agotó el quantum
-					QUANTUM_EXPIRED = true;
-					interrupt = 1;
-					break;
-				default:
-					report_error_pthread_cond_timedwait(status);
-					exit_sigint();
-			}
-
-		pthread_cleanup_pop(0);
-		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-			report_error_pthread_mutex_unlock(status);
-			exit_sigint();
-		}
-
-		if(TCB_EXEC->pcb->PID == 0 && TCB_EXEC->TID == 0) {
-			interrupt = 0;
-		}
-
-		if(!interrupt) {
-			goto post_binary_short_term_scheduler;
-		}
-		
-		if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
-			report_error_pthread_rwlock_wrlock(status);
-			//return -1;
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
-			if(sem_wait(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
-				report_error_sem_wait();
-				//return -1;
-			}
-			if(sem_post(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
-				report_error_sem_post();
-				//return -1;
-			}
-		pthread_cleanup_pop(0);
-		if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
-			report_error_pthread_rwlock_unlock(status);
-			//return -1;
-		}
-
-		if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-			report_error_pthread_mutex_lock(status);
-			exit_sigint();
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
-			if(!IS_TCB_IN_CPU) {
-				interrupt = 0;
-			}
-		pthread_cleanup_pop(0);
-		if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-			report_error_pthread_mutex_unlock(status);
-			exit_sigint();
-		}
-
-		if(!interrupt) {
-			goto post_binary_short_term_scheduler;
-		}
-
-		if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
-			exit_sigint();
-		}
-		log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupcion por quantum tras %li ms a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, TCB_EXEC->quantum, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
-
-		post_binary_short_term_scheduler:
-		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
-			report_error_sem_post();
-			exit_sigint();
-		}
-	}
-
-	return NULL;
-}
-
 void *short_term_scheduler(void) {
 
 	log_trace_r(&MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
@@ -518,6 +395,7 @@ void *short_term_scheduler(void) {
 	t_TCB *tcb;
 	e_Eviction_Reason eviction_reason;
 	int status;
+	bool did_quantum_expire = false;
 
 	while(1) {
 		if(sem_wait(&SEM_SHORT_TERM_SCHEDULER)) {
@@ -533,7 +411,7 @@ void *short_term_scheduler(void) {
 
 			KILL_EXEC_TCB = false;
 
-			if(get_state_ready(&tcb)) {
+			if(get_state_ready(&tcb, &SEM_READY)) {
 				exit_sigint();
 			}
 
@@ -545,11 +423,32 @@ void *short_term_scheduler(void) {
 				exit_sigint();
 			}
 
-			if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
-				log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_lock(status);
 				exit_sigint();
 			}
-			log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+
+				IS_TCB_IN_CPU = true;
+				FINISH_QUANTUM = false;
+				QUANTUM_EXPIRED = false;
+
+				if(sem_post(&BINARY_QUANTUM_INTERRUPTER)) {
+					report_error_sem_post();
+					exit_sigint();
+				}
+
+				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					exit_sigint();
+				}
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_unlock(status);
+				exit_sigint();
+			}
 
 		cleanup_rwlock_scheduling:
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
@@ -565,84 +464,22 @@ void *short_term_scheduler(void) {
 		SHOULD_REDISPATCH = 1;
 		do {
 
-			if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-				report_error_pthread_mutex_lock(status);
-				exit_sigint();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
-				IS_TCB_IN_CPU = true;
-				QUANTUM_EXPIRED = false;
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-				report_error_pthread_mutex_unlock(status);
-				exit_sigint();
-			}
-
-			switch(SCHEDULING_ALGORITHM) {
-
-				case FIFO_SCHEDULING_ALGORITHM:
-				case PRIORITIES_SCHEDULING_ALGORITHM:
-					break;
-
-				case MLQ_SCHEDULING_ALGORITHM:
-					if(sem_post(&BINARY_QUANTUM_INTERRUPTER)) {
-						report_error_sem_post();
-						exit_sigint();
-					}
-					break;
-
-			}
-
 			if(receive_thread_eviction(&eviction_reason, &(TCB_EXEC->syscall_instruction), CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
 				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir desalojo de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 				exit_sigint();
 			}
 			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe desalojo de hilo de [Servidor] %s [PID: %u - TID: %u - Motivo: %s]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, EVICTION_REASON_NAMES[eviction_reason]);
 
-			switch(SCHEDULING_ALGORITHM) {
-
-				case FIFO_SCHEDULING_ALGORITHM:
-				case PRIORITIES_SCHEDULING_ALGORITHM:
-					break;
-
-				case MLQ_SCHEDULING_ALGORITHM:
-
-					if((status = pthread_mutex_lock(&MUTEX_IS_TCB_IN_CPU))) {
-						report_error_pthread_mutex_lock(status);
-						exit_sigint();
-					}
-					pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_IS_TCB_IN_CPU);
-						IS_TCB_IN_CPU = false;
-						pthread_cond_signal(&COND_IS_TCB_IN_CPU);
-						// QUANTUM_EXPIRED = false;
-					pthread_cleanup_pop(0);
-					if((status = pthread_mutex_unlock(&MUTEX_IS_TCB_IN_CPU))) {
-						report_error_pthread_mutex_unlock(status);
-						exit_sigint();
-					}
-						
-						if((status = pthread_rwlock_rdlock(&RWLOCK_ARRAY_READY))) {
-							report_error_pthread_rwlock_wrlock(status);
-							//return -1;
-						}
-						pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
-							if(sem_post(&(ARRAY_LIST_READY[TCB_EXEC->priority].sem_ready))) {
-								report_error_sem_post();
-								//return -1;
-							}
-						pthread_cleanup_pop(0);
-						if((status = pthread_rwlock_unlock(&RWLOCK_ARRAY_READY))) {
-							report_error_pthread_rwlock_unlock(status);
-							//return -1;
-						}
-
-					if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
-						report_error_sem_wait();
-						exit_sigint();
-					}
-
-					break;
-
+			if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_lock(status);
+				exit_sigint();
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+				IS_TCB_IN_CPU = false;
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_unlock(status);
+				exit_sigint();
 			}
 
 			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
@@ -701,7 +538,7 @@ void *short_term_scheduler(void) {
 					SHOULD_REDISPATCH = 0;
 					break;
 					
-				case SYSCALL_EVICTION_REASON:
+				case SYSCALL_EVICTION_REASON: {
 
 					if(KILL_EXEC_TCB) {
 						TCB_EXEC->exit_reason = KILL_EXIT_REASON;
@@ -729,6 +566,7 @@ void *short_term_scheduler(void) {
 
 					// La syscall se encarga de settear el e_Exit_Reason (en TCB_EXEC) y/o el SHOULD_REDISPATCH
 					break;
+				}
 
 				case QUANTUM_KERNEL_INTERRUPT_EVICTION_REASON:
 					log_info_r(&MINIMAL_LOGGER, "## (%u:%u) - Desalojado por fin de Quantum", TCB_EXEC->pcb->PID, TCB_EXEC->TID);
@@ -755,12 +593,61 @@ void *short_term_scheduler(void) {
 					break;
 			}
 
-			if(SHOULD_REDISPATCH) {
-				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_lock(status);
+				exit_sigint();
+			}
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+
+				did_quantum_expire = QUANTUM_EXPIRED;
+	
+				if(SHOULD_REDISPATCH && (!QUANTUM_EXPIRED)) {
+					IS_TCB_IN_CPU = true;
+
+					if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
+						log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+						exit_sigint();
+					}
+					log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+				}
+
+				if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
+					report_error_pthread_cond_signal(status);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
+			pthread_cleanup_pop(0);
+			if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
+				report_error_pthread_mutex_unlock(status);
+				exit_sigint();
+			}
+
+			if(SHOULD_REDISPATCH && did_quantum_expire) {
+				if(get_state_exec(&TCB_EXEC)) {
+					exit_sigint();
+				}
+				if(insert_state_ready(TCB_EXEC)) {
+					exit_sigint();
+				}
+				SHOULD_REDISPATCH = 0;
+			}
+
+			if(!SHOULD_REDISPATCH) {
+				if(sem_post(SEM_READY)) {
+					report_error_sem_post();
+					exit_sigint();
+				}
+
+				if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
+					report_error_sem_wait();
+					exit_sigint();
+				}
+
+				errno = 0;
+				if(sem_trywait(SEM_READY) && (errno != EAGAIN)) {
+					report_error_sem_trywait();
+					exit_sigint();
+				}
 			}
 
 			pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
@@ -773,6 +660,108 @@ void *short_term_scheduler(void) {
 	}
 
 	exit_sigint();
+}
+
+void *quantum_interrupter(void) {
+
+	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
+
+	struct timespec ts_now, ts_quantum, ts_abstime;
+	int interrupt, status;
+
+	while(1) {
+		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
+			report_error_sem_wait();
+			exit_sigint();
+		}
+
+		if((TCB_EXEC->quantum) == 0) {
+			interrupt = 0;
+			goto sem_post_binary_short_term_scheduler;
+		}
+
+		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
+			report_error_clock_gettime();
+			exit_sigint();
+		}
+		ts_quantum = timespec_from_ms(TCB_EXEC->quantum);
+
+		ts_abstime = timespec_add(ts_now, ts_quantum);
+
+		if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
+			report_error_pthread_mutex_lock(status);
+			exit_sigint();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+
+			while((!FINISH_QUANTUM) && (status == 0)) {
+				status = pthread_cond_timedwait(&COND_QUANTUM_INTERRUPTER, &MUTEX_QUANTUM_INTERRUPTER, &ts_abstime);
+			}
+
+			switch(status) {
+				case 0:
+					interrupt = 0;
+					log_trace_r(&MODULE_LOGGER, "(%u:%u): Le quedó quantum remanente", TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					break;
+				case ETIMEDOUT:
+					interrupt = 1;
+					log_trace_r(&MODULE_LOGGER, "(%u:%u): Se expiró su quantum de %li ms", TCB_EXEC->pcb->PID, TCB_EXEC->TID, TCB_EXEC->quantum);
+					break;
+				default:
+					report_error_pthread_cond_timedwait(status);
+					exit_sigint();
+			}
+
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
+			report_error_pthread_mutex_unlock(status);
+			exit_sigint();
+		}
+
+		if(!interrupt) {
+			goto sem_post_binary_short_term_scheduler;
+		}
+
+		if(sem_wait(SEM_READY)) {
+			report_error_sem_wait();
+			exit_sigint();
+		}
+
+		if(sem_post(SEM_READY)) {
+			report_error_sem_post();
+			exit_sigint();
+		}
+
+		if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
+			report_error_pthread_mutex_lock(status);
+			exit_sigint();
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+
+			QUANTUM_EXPIRED = true;
+
+			if(IS_TCB_IN_CPU) {
+				if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					exit_sigint();
+				}
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+			}
+
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
+			report_error_pthread_mutex_unlock(status);
+			exit_sigint();
+		}
+
+		sem_post_binary_short_term_scheduler:
+		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
+			report_error_sem_post();
+			exit_sigint();
+		}
+	}
+
+	return NULL;
 }
 
 void *io_device(void) {

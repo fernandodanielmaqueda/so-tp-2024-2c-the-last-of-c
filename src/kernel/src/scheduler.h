@@ -35,11 +35,12 @@ extern t_Shared_List SHARED_LIST_NEW;
 
 extern pthread_rwlock_t RWLOCK_ARRAY_READY;
 
-extern t_Ready *ARRAY_LIST_READY;
+extern t_Ready **ARRAY_READY;
 extern t_Priority PRIORITY_COUNT;
 
 extern t_TCB *TCB_EXEC;
 extern pthread_mutex_t MUTEX_EXEC;
+extern sem_t *SEM_READY;
 
 extern t_Shared_List SHARED_LIST_BLOCKED_DUMP_MEMORY;
 extern pthread_cond_t COND_BLOCKED_DUMP_MEMORY;
@@ -57,16 +58,15 @@ extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
 extern t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_EXIT;
 extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
-extern bool IS_TCB_IN_CPU;
-extern pthread_mutex_t MUTEX_IS_TCB_IN_CPU;
-extern pthread_condattr_t CONDATTR_IS_TCB_IN_CPU;
-extern pthread_cond_t COND_IS_TCB_IN_CPU;
-
 extern t_Time QUANTUM;
 extern t_Bool_Thread THREAD_QUANTUM_INTERRUPTER;
 extern sem_t BINARY_QUANTUM_INTERRUPTER;
+extern pthread_mutex_t MUTEX_QUANTUM_INTERRUPTER;
+extern pthread_condattr_t CONDATTR_QUANTUM_INTERRUPTER;
 extern pthread_cond_t COND_QUANTUM_INTERRUPTER;
+extern bool FINISH_QUANTUM;
 extern bool QUANTUM_EXPIRED;
+extern bool IS_TCB_IN_CPU;
 
 extern sem_t SEM_SHORT_TERM_SCHEDULER;
 extern sem_t BINARY_SHORT_TERM_SCHEDULER;
@@ -93,8 +93,8 @@ int finish_scheduling(void);
 
 void *long_term_scheduler_new(void);
 void *long_term_scheduler_exit(void);
-void *quantum_interrupter(void);
 void *short_term_scheduler(void);
+void *quantum_interrupter(void);
 void *io_device(void);
 void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition);
 

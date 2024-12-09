@@ -11,7 +11,7 @@ int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason);
 int locate_and_remove_state(t_TCB *tcb);
 
 int get_state_new(t_PCB **pcb);
-int get_state_ready(t_TCB **tcb);
+int get_state_ready(t_TCB **tcb, sem_t **sem_ready);
 int get_state_exec(t_TCB **tcb);
 int get_state_blocked_join(t_TCB **tcb, t_TCB *target);
 int get_state_blocked_mutex(t_TCB **tcb, t_Resource *resource);
