@@ -29,6 +29,12 @@ typedef struct t_Shared_List {
     pthread_mutex_t mutex;
 } t_Shared_List;
 
+typedef struct t_Cond_Bool {
+    pthread_mutex_t mutex;
+    bool boolean;
+    pthread_cond_t cond;
+} t_Cond_Bool;
+
 typedef struct t_Conditional_Cleanup {
     bool *condition;
     bool negate_condition;
@@ -146,6 +152,7 @@ void report_error_fclose(void);
 void report_error_sem_init(void);
 void report_error_sem_destroy(void);
 void report_error_sem_wait(void);
+void report_error_sem_trywait(void);
 void report_error_sem_post(void);
 
 void report_error_pthread_mutex_init(int status);
@@ -194,6 +201,9 @@ bool pointers_match(void * ptr_1, void *ptr_2);
 
 int shared_list_init(t_Shared_List *shared_list);
 int shared_list_destroy(t_Shared_List *shared_list);
+
+int cond_bool_init(t_Cond_Bool *cond_bool, bool boolean);
+int cond_bool_destroy(t_Cond_Bool *cond_bool);
 
 void conditional_cleanup(t_Conditional_Cleanup *this);
 
