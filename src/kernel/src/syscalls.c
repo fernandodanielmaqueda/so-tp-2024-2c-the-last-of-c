@@ -94,6 +94,9 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
 }
 
 int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
+    int result = 0;
+
+    t_TCB *new_tcb;
 
     char *pseudocode_filename;
     t_Priority priority;
@@ -101,33 +104,40 @@ int thread_create_kernel_syscall(t_Payload *syscall_arguments) {
     if(text_deserialize(syscall_arguments, &pseudocode_filename)) {
         exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) free, pseudocode_filename);
+
     if(payload_remove(syscall_arguments, &priority, sizeof(priority))) {
         exit_sigint();
     }
 
     log_trace_r(&MODULE_LOGGER, "THREAD_CREATE %s %u", pseudocode_filename, priority);
 
-    t_TCB *new_tcb = tcb_create(TCB_EXEC->pcb, pseudocode_filename, priority);
+    new_tcb = tcb_create(TCB_EXEC->pcb, pseudocode_filename, priority);
     if(new_tcb == NULL) {
         exit_sigint();
     }
+    pthread_cleanup_pop(0); // pseudocode_filename
+    pthread_cleanup_push((void (*)(void *)) tcb_destroy, new_tcb);
 
-    int result;
     if(request_thread_create(TCB_EXEC->pcb, new_tcb->TID, &result)) {
         exit_sigint();
     }
 
-    // Ya tengo rdlock de RWLOCK_SCHEDULING
+    pthread_cleanup_pop(0); // tcb_destroy
     if(result) {
-        // TODO: Revisar la lógica acá
-    }
-    else {            
-        if(array_list_ready_update(new_tcb->priority)) {
-            exit_sigint();
-        }
-        insert_state_ready(new_tcb);
+        log_warning_r(&MODULE_LOGGER, "No se pudo crear el hilo");
+        goto ret;
     }
 
+    // Ya tengo rdlock de RWLOCK_SCHEDULING
+    if(array_ready_update(new_tcb->priority)) {
+        exit_sigint();
+    }
+    if(insert_state_ready(new_tcb)) {
+        exit_sigint();
+    }
+
+    ret:
     SHOULD_REDISPATCH = 1;
     return 0;
 }

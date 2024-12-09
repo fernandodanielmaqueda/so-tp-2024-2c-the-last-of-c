@@ -158,11 +158,11 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_destroy, (void *) &RWLOCK_ARRAY_READY);
 
-	// ARRAY_LIST_READY
-	if(array_list_ready_init()) {
+	// ARRAY_READY
+	if(array_ready_init()) {
 		exit_sigint();
 	}
-	pthread_cleanup_push((void (*)(void *)) array_list_ready_destroy, NULL);
+	pthread_cleanup_push((void (*)(void *)) array_ready_destroy, NULL);
 
 	// MUTEX_EXEC
 	if((status = pthread_mutex_init(&MUTEX_EXEC, NULL))) {
@@ -236,36 +236,30 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_EXIT);
 
-	if((status = pthread_mutex_init(&MUTEX_IS_TCB_IN_CPU, NULL))) {
-		report_error_pthread_mutex_init(status);
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_IS_TCB_IN_CPU);
-
-	if((status = pthread_condattr_init(&CONDATTR_IS_TCB_IN_CPU))) {
-		report_error_pthread_condattr_init(status);
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_IS_TCB_IN_CPU);
-
-	if((status = pthread_condattr_setclock(&CONDATTR_IS_TCB_IN_CPU, CLOCK_MONOTONIC))) {
-		report_error_pthread_condattr_setclock(status);
-		exit_sigint();
-	}
-
-	if((status = pthread_cond_init(&COND_IS_TCB_IN_CPU, &CONDATTR_IS_TCB_IN_CPU))) {
-		report_error_pthread_cond_init(status);
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &COND_IS_TCB_IN_CPU);
-
 	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
 		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &BINARY_QUANTUM_INTERRUPTER);
 
-	if((status = pthread_cond_init(&COND_QUANTUM_INTERRUPTER, NULL))) {
+	if((status = pthread_mutex_init(&MUTEX_QUANTUM_INTERRUPTER, NULL))) {
+		report_error_pthread_mutex_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_QUANTUM_INTERRUPTER);
+
+	if((status = pthread_condattr_init(&CONDATTR_QUANTUM_INTERRUPTER))) {
+		report_error_pthread_condattr_init(status);
+		exit_sigint();
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_condattr_destroy, (void *) &CONDATTR_QUANTUM_INTERRUPTER);
+
+	if((status = pthread_condattr_setclock(&CONDATTR_QUANTUM_INTERRUPTER, CLOCK_MONOTONIC))) {
+		report_error_pthread_condattr_setclock(status);
+		exit_sigint();
+	}
+
+	if((status = pthread_cond_init(&COND_QUANTUM_INTERRUPTER, &CONDATTR_QUANTUM_INTERRUPTER))) {
 		report_error_pthread_cond_init(status);
 		exit_sigint();
 	}
@@ -377,10 +371,9 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // BINARY_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // SEM_SHORT_TERM_SCHEDULER
 	pthread_cleanup_pop(1); // COND_QUANTUM_INTERRUPTER
+	pthread_cleanup_pop(1); // CONDATTR_QUANTUM_INTERRUPTER
+	pthread_cleanup_pop(1); // MUTEX_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // BINARY_QUANTUM_INTERRUPTER
-	pthread_cleanup_pop(1); // COND_IS_TCB_IN_CPU
-	pthread_cleanup_pop(1); // CONDATTR_IS_TCB_IN_CPU
-	pthread_cleanup_pop(1); // MUTEX_IS_TCB_IN_CPU
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_EXIT
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_NEW
 	pthread_cleanup_pop(1); // LIST_EXIT
@@ -392,7 +385,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // LIST_BLOCKED_DUMP_MEMORY
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_DUMP_MEMORY
 	pthread_cleanup_pop(1); // MUTEX_EXEC
-	pthread_cleanup_pop(1); // ARRAY_LIST_READY
+	pthread_cleanup_pop(1); // ARRAY_READY
 	pthread_cleanup_pop(1); // RWLOCK_ARRAY_READY
 	pthread_cleanup_pop(1); // LIST_NEW
 	pthread_cleanup_pop(1); // MUTEX_NEW
@@ -942,12 +935,12 @@ int request_thread_create(t_PCB *pcb, t_TID tid, int *result) {
 	return retval;
 }
 
-int array_list_ready_init(void) {
+int array_ready_init(void) {
 	// Todos los algoritmos de planificación requieren la lista de READY 0
-	return array_list_ready_resize(0);
+	return array_ready_resize(0);
 }
 
-int array_list_ready_update(t_Priority priority) {
+int array_ready_update(t_Priority priority) {
 	switch(SCHEDULING_ALGORITHM) {
 
 		case FIFO_SCHEDULING_ALGORITHM:
@@ -955,7 +948,7 @@ int array_list_ready_update(t_Priority priority) {
 
 		case PRIORITIES_SCHEDULING_ALGORITHM:
 		case MLQ_SCHEDULING_ALGORITHM:
-			if(array_list_ready_resize(priority)) {
+			if(array_ready_resize(priority)) {
 				return -1;
 			}
 			break;
@@ -964,7 +957,7 @@ int array_list_ready_update(t_Priority priority) {
 	return 0;
 }
 
-int array_list_ready_resize(t_Priority priority) {
+int array_ready_resize(t_Priority priority) {
 	int status;
 
 	// Si la lista de READY ya fue creada, retorna inmediatamente
@@ -974,7 +967,7 @@ int array_list_ready_resize(t_Priority priority) {
 
 	// Valida que no se produzca un overflow por el tamaño en bytes o por la cantidad de elementos del array
 	if(priority >= PRIORITY_LIMIT) {
-		log_error_r(&MODULE_LOGGER, "array_list_ready_resize: %s", strerror(ERANGE));
+		log_error_r(&MODULE_LOGGER, "array_ready_resize: %s", strerror(ERANGE));
 		errno = ERANGE;
 		return -1;
 	}
@@ -985,34 +978,28 @@ int array_list_ready_resize(t_Priority priority) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_ARRAY_READY);
 
-		t_Ready *new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Ready) * (priority + 1));
-		if(new_array_list_ready == NULL) {
-			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready) * PRIORITY_COUNT, sizeof(t_Shared_List) * (priority + 1));
+		t_Ready **new_array_ready = realloc(ARRAY_READY, sizeof(t_Ready *) * (priority + 1));
+		if(new_array_ready == NULL) {
+			log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready *) * PRIORITY_COUNT, sizeof(t_Ready *) * (priority + 1));
 			errno = ENOMEM;
 			return -1;
 		}
-		ARRAY_LIST_READY = new_array_list_ready;
+		ARRAY_READY = new_array_ready;
 
 		for(t_Priority i = PRIORITY_COUNT; i <= priority; i++) {
-			if(sem_init(&(ARRAY_LIST_READY[i].sem_ready), 0, 0)) {
-				report_error_sem_init();
-				return -1;
-			}
-
-			if(shared_list_init(&(ARRAY_LIST_READY[i].shared_list))) {
-				/*
+			ARRAY_READY[i] = ready_new();
+			if(ARRAY_READY[i] == NULL) {
 				// Si una de las inicializaciones falla, Se trunca el array para sólo incluir las listas de READY que se pudieron inicializar
-				new_array_list_ready = realloc(ARRAY_LIST_READY, sizeof(t_Ready) * i);
-				if(new_array_list_ready == NULL) {
-					log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready) * PRIORITY_COUNT, sizeof(t_Shared_List) * i);
+				new_array_ready = realloc(ARRAY_READY, sizeof(t_Ready *) * i);
+				if(new_array_ready == NULL) {
+					log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", sizeof(t_Ready *) * PRIORITY_COUNT, sizeof(t_Ready *) * i);
 				}
 				else {
-					ARRAY_LIST_READY = new_array_list_ready;
+					ARRAY_READY = new_array_ready;
 					PRIORITY_COUNT = i;
 				}
 
 				return -1;
-				*/
 			}
 		}
 
@@ -1028,35 +1015,106 @@ int array_list_ready_resize(t_Priority priority) {
 
 }
 
-int array_list_ready_destroy(void) {
-	int retval = 0, status;
+int array_ready_destroy(void) {
+	int retval = 0;
 	for(t_Priority i = 0; i < PRIORITY_COUNT; i++) {
-		if(sem_destroy(&(ARRAY_LIST_READY[i].sem_ready))) {
-			report_error_sem_destroy();
+		if(ready_destroy(ARRAY_READY[PRIORITY_COUNT - 1 - i])) {
 			retval = -1;
 		}
-
-		if((status = pthread_mutex_destroy(&(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].shared_list.mutex)))) {
-			report_error_pthread_mutex_destroy(status);
-			retval = -1;
-		}
-		list_destroy(ARRAY_LIST_READY[PRIORITY_COUNT - 1 - i].shared_list.list);
 	}
-	free(ARRAY_LIST_READY);
+	free(ARRAY_READY);
 	PRIORITY_COUNT = 0;
 	return retval;
 }
 
-void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list) {
-	char *pid_string = string_new();
-	pcb_list_to_pid_string(pcb_list, &pid_string);
-	log_trace_r(&logger, "%s: [%s]", state_name, pid_string);
-	free(pid_string);
+t_Ready *ready_new(void) {
+	int retval = 0, status;
+
+	t_Ready *ready = malloc(sizeof(t_Ready));
+	if(ready == NULL) {
+		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para la lista de READY", sizeof(t_Ready));
+		retval = -1;
+		goto ret;
+	}
+	pthread_cleanup_push((void (*)(void *)) free, ready);
+
+	if(sem_init(&(ready->sem_ready), 0, 0)) {
+		report_error_sem_init();
+		retval = -1;
+		goto cleanup_ready;
+	}
+	pthread_cleanup_push((void (*)(void *)) sem_destroy, &(ready->sem_ready));
+
+	if((status = pthread_mutex_init(&(ready->shared_list.mutex), NULL))) {
+		report_error_pthread_mutex_init(status);
+		retval = -1;
+		goto cleanup_sem;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, &(ready->shared_list.mutex));
+
+	ready->shared_list.list = list_create();
+	if(ready->shared_list.list == NULL) {
+		retval = -1;
+		goto cleanup_mutex;
+	}
+
+	cleanup_mutex:
+	pthread_cleanup_pop(0);
+	if(retval) {
+		if(pthread_mutex_destroy(&(ready->shared_list.mutex))) {
+			report_error_pthread_mutex_destroy(status);
+		}
+	}
+
+	cleanup_sem:
+	pthread_cleanup_pop(0);
+	if(retval) {
+		if(sem_destroy(&(ready->sem_ready))) {
+			report_error_sem_destroy();
+		}
+	}
+
+	cleanup_ready:
+	pthread_cleanup_pop(retval);
+
+	ret:
+	if(retval)
+		return NULL;
+	else
+		return ready;
 }
 
-void pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
-	if(pcb_list == NULL || destination == NULL || *destination == NULL)
-		return;
+int ready_destroy(t_Ready *ready) {
+	int retval = 0, status;
+
+	if(sem_destroy(&(ready->sem_ready))) {
+		report_error_sem_destroy();
+		retval = -1;
+	}
+
+	if((status = pthread_mutex_destroy(&(ready->shared_list.mutex)))) {
+		report_error_pthread_mutex_destroy(status);
+		retval = -1;
+	}
+	list_destroy(ready->shared_list.list);
+
+	return retval;
+}
+
+int log_state_list(t_Logger *logger, const char *state_name, t_list *pcb_list) {
+	char *pid_string = string_new();
+	pthread_cleanup_push((void (*)(void *)) free, pid_string);
+		pcb_list_to_pid_string(pcb_list, &pid_string);
+		log_trace_r(logger, "%s: [%s]", state_name, pid_string);
+	pthread_cleanup_pop(1);
+
+	return 0;
+}
+
+int pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
+	if(pcb_list == NULL || destination == NULL || *destination == NULL) {
+		return -1;
+	}
 
 	t_link_element *element = pcb_list->head;
 
@@ -1065,18 +1123,21 @@ void pcb_list_to_pid_string(t_list *pcb_list, char **destination) {
 
 	char *pid_as_string;
 	while(element != NULL) {
-        pid_as_string = string_from_format("%u", ((t_PCB *) element->data)->PID);
+        pid_as_string = string_from_format("(%u)", ((t_PCB *) element->data)->PID);
         string_append(destination, pid_as_string);
         free(pid_as_string);
 		element = element->next;
         if(element != NULL)
             string_append(destination, ", ");
     }
+
+	return 0;
 }
 
-void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination) {
-	if(tcb_list == NULL || destination == NULL || *destination == NULL)
-		return;
+int tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination) {
+	if(tcb_list == NULL || destination == NULL || *destination == NULL) {
+		return -1;
+	}
 
 	t_link_element *element = tcb_list->head;
 
@@ -1092,11 +1153,14 @@ void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination) {
         if(element != NULL)
             string_append(destination, ", ");
     }
+
+	return 0;
 }
 
-void dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination) {
-	if(dump_memory_list == NULL || destination == NULL || *destination == NULL)
-		return;
+int dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination) {
+	if(dump_memory_list == NULL || destination == NULL || *destination == NULL) {
+		return -1;
+	}
 
 	t_link_element *element = dump_memory_list->head;
 
@@ -1112,6 +1176,8 @@ void dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destina
         if(element != NULL)
             string_append(destination, ", ");
     }
+
+	return 0;
 }
 
 int wait_dump_memory_threads(void) {

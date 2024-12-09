@@ -180,15 +180,18 @@ bool tcb_matches_tid(t_TCB *tcb, t_TID *tid);
 int new_process(size_t size, char *pseudocode_filename, t_Priority priority);
 int request_thread_create(t_PCB *pcb, t_TID tid, int *result);
 
-int array_list_ready_init(void);
-int array_list_ready_update(t_Priority priority);
-int array_list_ready_resize(t_Priority priority);
-int array_list_ready_destroy(void);
+int array_ready_init(void);
+int array_ready_update(t_Priority priority);
+int array_ready_resize(t_Priority priority);
+int array_ready_destroy(void);
 
-void log_state_list(t_Logger logger, const char *state_name, t_list *pcb_list);
-void pcb_list_to_pid_string(t_list *pcb_list, char **destination);
-void tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination);
-void dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);
+t_Ready *ready_new(void);
+int ready_destroy(t_Ready *ready);
+
+int log_state_list(t_Logger *logger, const char *state_name, t_list *pcb_list);
+int pcb_list_to_pid_string(t_list *pcb_list, char **destination);
+int tcb_list_to_pid_tid_string(t_list *tcb_list, char **destination);
+int dump_memory_list_to_pid_tid_string(t_list *dump_memory_list, char **destination);
 
 int wait_dump_memory_threads(void);
 
