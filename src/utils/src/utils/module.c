@@ -21,57 +21,61 @@ t_Logger SERIALIZE_LOGGER;
 void *signal_manager(pthread_t *thread_to_cancel) {
 	int status;
 
-	sigset_t set_SIGINT, set_rest;
+	sigset_t set_wait, set_unblock;
 
-	if(sigemptyset(&set_SIGINT)) {
+	if(sigemptyset(&set_wait)) {
 		report_error_sigemptyset();
 		goto cancel;
 	}
 
-	if(sigaddset(&set_SIGINT, SIGINT)) {
+	if(sigaddset(&set_wait, SIGINT)) {
 		report_error_sigaddset();
 		goto cancel;
 	}
 
 	/*
-	if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+	if((status = pthread_sigmask(SIG_BLOCK, &set_wait, NULL))) {
 		report_error_pthread_sigmask(status);
 		goto cancel;
 	}
 	*/
 
-	if(sigfillset(&set_rest)) {
+	if(sigfillset(&set_unblock)) {
 		report_error_sigfillset();
 		goto cancel;
 	}
 
-	if(sigdelset(&set_rest, SIGINT)) {
+	if(sigdelset(&set_unblock, SIGINT)) {
 		report_error_sigdelset();
 		goto cancel;
 	}
 
-	if((status = pthread_sigmask(SIG_UNBLOCK, &set_rest, NULL))) {
+	if((status = pthread_sigmask(SIG_UNBLOCK, &set_unblock, NULL))) {
 		report_error_pthread_sigmask(status);
 		goto cancel;
 	}
 
 	siginfo_t info;
 	int signo;
-	while((signo = sigwaitinfo(&set_SIGINT, &info)) == -1) {
+	while((signo = sigwaitinfo(&set_wait, &info)) == -1) {
 		if(errno != EINTR) {
 			report_error_sigwaitinfo();
 			//goto cancel;
 		}
 	}
 
-	fprintf(stderr, "\nSIGINT recibida\n");
+	fprintf(stderr, "\nSignal recibida: %s [%d]\n", strsignal(signo), signo);
+
+	if(signo == SIGINT) {
+		fprintf(stderr, "SIGINT: Terminando programa\n");
+	}
 
 	cancel:
-		if((status = pthread_sigmask(SIG_BLOCK, &set_SIGINT, NULL))) {
+		if((status = pthread_sigmask(SIG_BLOCK, &set_wait, NULL))) {
 			report_error_pthread_sigmask(status);
 		}
 
-		if((status = pthread_sigmask(SIG_BLOCK, &set_rest, NULL))) {
+		if((status = pthread_sigmask(SIG_BLOCK, &set_unblock, NULL))) {
 			report_error_pthread_sigmask(status);
 		}
 
@@ -81,75 +85,6 @@ void *signal_manager(pthread_t *thread_to_cancel) {
 
 		pthread_exit(NULL);
 }
-
-/*
-void *signal_manager(pthread_t *thread_to_cancel) {
-	int status;
-
-	sigset_t set_wait;
-
-	if(sigfillset(&set_wait)) {
-		report_error_sigfillset();
-		goto cancel;
-	}
-	
-	if((status = pthread_sigmask(SIG_BLOCK, &set_wait, NULL))) {
-		report_error_pthread_sigmask(status);
-		goto cancel;
-	}
-
-	siginfo_t info;
-	int signo;
-	while(1) {
-		if((signo = sigwaitinfo(&set_wait, &info)) == -1) {
-			report_error_sigwaitinfo();
-			goto cancel;
-		}
-
-		fprintf(stderr, "\nSignal recibida: %s [%d]\n", strsignal(signo), signo);
-
-        if(signo == SIGINT) {
-            fprintf(stderr, "SIGINT: Terminando programa\n");
-            break;
-        } else {
-			sigset_t set_signal;
-
-			if(sigemptyset(&set_signal)) {
-				report_error_sigemptyset();
-				goto cancel;
-			}
-
-			if(sigaddset(&set_signal, signo)) {
-				report_error_sigaddset();
-				goto cancel;
-			}
-
-			if((status = pthread_sigmask(SIG_UNBLOCK, &set_signal, NULL))) {
-				report_error_pthread_sigmask(status);
-				goto cancel;
-			}
-
-			if((status = pthread_kill(pthread_self(), signo))) {
-				report_error_pthread_kill(status);
-				goto cancel;
-			}
-
-			if((status = pthread_sigmask(SIG_BLOCK, &set_signal, NULL))) {
-				report_error_pthread_sigmask(status);
-				goto cancel;
-			}
-
-		}
-	}
-
-	cancel:
-		if((status = pthread_cancel(*thread_to_cancel))) {
-			report_error_pthread_cancel(status);
-		}
-
-		pthread_exit(NULL);
-}
-*/
 
 bool config_has_properties(t_config *config, ...) {
     va_list args;
@@ -224,6 +159,10 @@ void report_error_sem_destroy(void) {
 
 void report_error_sem_wait(void) {
 	fprintf(stderr, "sem_wait: %s\n", strerror(errno));
+}
+
+void report_error_sem_trywait(void) {
+	fprintf(stderr, "sem_trywait: %s\n", strerror(errno));
 }
 
 void report_error_sem_post(void) {
@@ -451,11 +390,17 @@ int shared_list_init(t_Shared_List *shared_list) {
 	if(shared_list->list == NULL) {
 		log_error_r(&MODULE_LOGGER, "shared_list_init: No se pudo crear la lista");
 		retval = -1;
-		goto cleanup;
+		goto cleanup_mutex;
 	}
 
-	cleanup:
-	pthread_cleanup_pop(status); // shared_list->mutex
+	cleanup_mutex:
+	pthread_cleanup_pop(0); // shared_list->mutex
+	if(retval) {
+		if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
+			report_error_pthread_mutex_destroy(status);
+		}
+	}
+
 	ret:
 	return retval;
 }
@@ -467,6 +412,52 @@ int shared_list_destroy(t_Shared_List *shared_list) {
 
 	if((status = pthread_mutex_destroy(&(shared_list->mutex)))) {
 		report_error_pthread_mutex_destroy(status);
+		retval = -1;
+	}
+
+	return retval;
+}
+
+int cond_bool_init(t_Cond_Bool *cond_bool, bool boolean) {
+	int retval = 0, status;
+
+	if((status = pthread_cond_init(&(cond_bool->cond), NULL))) {
+		report_error_pthread_cond_init(status);
+		retval = -1;
+		goto ret;
+	}
+	pthread_cleanup_push((void (*)(void *)) pthread_cond_destroy, (void *) &(cond_bool->cond));
+
+	if((status = pthread_mutex_init(&(cond_bool->mutex), NULL))) {
+		report_error_pthread_mutex_init(status);
+		retval = -1;
+		goto cleanup_cond;
+	}
+
+	cond_bool->boolean = boolean;
+
+	cleanup_cond:
+	pthread_cleanup_pop(0); // cond_bool->cond
+	if(retval) {
+		if((status = pthread_cond_destroy(&(cond_bool->cond)))) {
+			report_error_pthread_cond_destroy(status);
+		}
+	}
+
+	ret:
+	return retval;
+}
+
+int cond_bool_destroy(t_Cond_Bool *cond_bool) {
+	int retval = 0, status;
+
+	if((status = pthread_mutex_destroy(&(cond_bool->mutex)))) {
+		report_error_pthread_mutex_destroy(status);
+		retval = -1;
+	}
+
+	if((status = pthread_cond_destroy(&(cond_bool->cond)))) {
+		report_error_pthread_cond_destroy(status);
 		retval = -1;
 	}
 
