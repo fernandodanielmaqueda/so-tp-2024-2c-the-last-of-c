@@ -40,18 +40,14 @@
 #undef MODULE_LOGGER_NAME
 #define MODULE_LOGGER_NAME "CPU"
 
+extern pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
+extern bool EXECUTING;
 extern t_PID PID;
 extern t_TID TID;
+extern e_Kernel_Interrupt KERNEL_INTERRUPT;
 extern t_Exec_Context EXEC_CONTEXT;
-extern pthread_mutex_t MUTEX_EXEC_CONTEXT;
-
-extern bool EXECUTING;
-extern pthread_mutex_t MUTEX_EXECUTING;
 
 extern e_Eviction_Reason EVICTION_REASON;
-
-extern e_Kernel_Interrupt KERNEL_INTERRUPT;
-extern pthread_mutex_t MUTEX_KERNEL_INTERRUPT;
 
 extern bool SYSCALL_CALLED;
 extern t_Payload SYSCALL_INSTRUCTION;

@@ -376,7 +376,6 @@ void *long_term_scheduler_exit(void) {
 				report_error_pthread_mutex_unlock(status);
 				exit_sigint();
 			}
-			
 
 			if(signal_free_memory()) {
 				exit_sigint();
@@ -443,6 +442,12 @@ void *short_term_scheduler(void) {
 					exit_sigint();
 				}
 				log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
+				if(receive_expected_header(THREAD_DISPATCH_HEADER, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de dispatch de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					exit_sigint();
+				}
+				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de dispatch de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
 
 			pthread_cleanup_pop(0);
 			if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
@@ -609,6 +614,13 @@ void *short_term_scheduler(void) {
 						exit_sigint();
 					}
 					log_trace_r(&MODULE_LOGGER, "[%d] Se envía dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
+					if(receive_expected_header(THREAD_DISPATCH_HEADER, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
+						log_error_r(&MODULE_LOGGER, "[%d] Error al recibir confirmación de dispatch de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+						exit_sigint();
+					}
+					log_trace_r(&MODULE_LOGGER, "[%d] Se recibe confirmación de dispatch de hilo de [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+
 				}
 
 				if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
@@ -680,19 +692,20 @@ void *quantum_interrupter(void) {
 			goto sem_post_binary_short_term_scheduler;
 		}
 
-		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
-			report_error_clock_gettime();
-			exit_sigint();
-		}
 		ts_quantum = timespec_from_ms(TCB_EXEC->quantum);
-
-		ts_abstime = timespec_add(ts_now, ts_quantum);
 
 		if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
 			report_error_pthread_mutex_lock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
+
+			if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
+				report_error_clock_gettime();
+				exit_sigint();
+			}
+
+			ts_abstime = timespec_add(ts_now, ts_quantum);
 
 			while((!FINISH_QUANTUM) && (status == 0)) {
 				status = pthread_cond_timedwait(&COND_QUANTUM_INTERRUPTER, &MUTEX_QUANTUM_INTERRUPTER, &ts_abstime);
@@ -742,10 +755,10 @@ void *quantum_interrupter(void) {
 
 			if(IS_TCB_IN_CPU) {
 				if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
 			}
 
 		pthread_cleanup_pop(0);
@@ -808,24 +821,24 @@ void *io_device(void) {
 			exit_sigint();
 		}
 
-
 		if(tcb == NULL) {
 			continue;
 		}
 
-		if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
-			report_error_clock_gettime();
-			exit_sigint();
-		}
 		ts_time = timespec_from_ms(time);
-
-		ts_abstime = timespec_add(ts_now, ts_time);
 
 		if((status = pthread_mutex_lock(&MUTEX_CANCEL_IO_OPERATION))) {
 			report_error_pthread_mutex_lock(status);
 			exit_sigint();
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CANCEL_IO_OPERATION);
+
+			if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
+				report_error_clock_gettime();
+				exit_sigint();
+			}
+
+			ts_abstime = timespec_add(ts_now, ts_time);
 
 			while((!CANCEL_IO_OPERATION) && (status == 0)) {
 				status = pthread_cond_timedwait(&COND_CANCEL_IO_OPERATION, &MUTEX_CANCEL_IO_OPERATION, &ts_abstime);
