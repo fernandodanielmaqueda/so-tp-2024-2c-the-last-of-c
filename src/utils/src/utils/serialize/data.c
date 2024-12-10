@@ -69,7 +69,7 @@ int data_log(e_Serialization serialization, void *data, size_t size) {
   log_trace_r(&SERIALIZE_LOGGER,
     "[%s] data:\n"
     "* size: %zu\n"
-    "* stream: %p\n"
+    "* stream: %p"
     "%s"
     , SERIALIZATION_NAMES[serialization]
     , size

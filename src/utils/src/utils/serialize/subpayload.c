@@ -36,7 +36,7 @@ int subpayload_log(e_Serialization serialization, t_Payload source) {
   log_trace_r(&SERIALIZE_LOGGER,
     "[%s] t_Payload:\n"
     "* size: %zd\n"
-    "* stream: %p\n"
+    "* stream: %p"
     "%s"
     , SERIALIZATION_NAMES[serialization]
     , source.size
