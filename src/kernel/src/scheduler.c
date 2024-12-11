@@ -298,6 +298,14 @@ void *short_term_scheduler(void) {
 					report_error_sem_post();
 					exit_sigint();
 				}
+				if(sem_wait(&BINARY_SHORT_TERM_SCHEDULER)) {
+					report_error_sem_post();
+					exit_sigint();
+				}
+				if(sem_post(&BINARY_QUANTUM_INTERRUPTER)) {
+					report_error_sem_wait();
+					exit_sigint();
+				}
 
 				if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
 					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
@@ -466,10 +474,10 @@ void *short_term_scheduler(void) {
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
 
+				IS_TCB_IN_CPU = true;
 				did_quantum_expire = QUANTUM_EXPIRED;
 	
-				if(SHOULD_REDISPATCH && (!QUANTUM_EXPIRED)) {
-					IS_TCB_IN_CPU = true;
+				if(SHOULD_REDISPATCH && (!did_quantum_expire)) {
 
 					if(send_pid_and_tid_with_header(THREAD_DISPATCH_HEADER, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_DISPATCH.socket_connection.fd)) {
 						log_error_r(&MODULE_LOGGER, "[%d] Error al enviar dispatch de hilo a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_DISPATCH.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_DISPATCH.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID);
@@ -485,9 +493,12 @@ void *short_term_scheduler(void) {
 
 				}
 
-				if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
-					report_error_pthread_cond_signal(status);
-					exit_sigint();
+				if(!SHOULD_REDISPATCH) {
+					FINISH_QUANTUM = true;
+					if((status = pthread_cond_signal(&COND_QUANTUM_INTERRUPTER))) {
+						report_error_pthread_cond_signal(status);
+						exit_sigint();
+					}
 				}
 
 			pthread_cleanup_pop(0);
@@ -549,12 +560,26 @@ void *quantum_interrupter(void) {
 			exit_sigint();
 		}
 
-		if((TCB_EXEC->quantum) == 0) {
+		t_Time quantum = TCB_EXEC->quantum;
+		t_PID pid = TCB_EXEC->pcb->PID;
+		t_TID tid = TCB_EXEC->TID;
+
+		if(sem_post(&BINARY_SHORT_TERM_SCHEDULER)) {
+			report_error_sem_post();
+			exit_sigint();
+		}
+
+		if(sem_wait(&BINARY_QUANTUM_INTERRUPTER)) {
+			report_error_sem_wait();
+			exit_sigint();
+		}
+
+		if((quantum) == 0) {
 			interrupt = 0;
 			goto sem_post_binary_short_term_scheduler;
 		}
 
-		ts_quantum = timespec_from_ms(TCB_EXEC->quantum);
+		ts_quantum = timespec_from_ms(quantum);
 
 		if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
 			report_error_pthread_mutex_lock(status);
@@ -562,7 +587,7 @@ void *quantum_interrupter(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
 
-			if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
+			if(clock_gettime(CLOCK_MONOTONIC, &ts_now)) {
 				report_error_clock_gettime();
 				exit_sigint();
 			}
@@ -576,11 +601,11 @@ void *quantum_interrupter(void) {
 			switch(status) {
 				case 0:
 					interrupt = 0;
-					log_trace_r(&MODULE_LOGGER, "(%u:%u): Le quedó quantum remanente", TCB_EXEC->pcb->PID, TCB_EXEC->TID);
+					log_trace_r(&MODULE_LOGGER, "(%u:%u): Le quedó quantum remanente", pid, tid);
 					break;
 				case ETIMEDOUT:
 					interrupt = 1;
-					log_trace_r(&MODULE_LOGGER, "(%u:%u): Se expiró su quantum de %li ms", TCB_EXEC->pcb->PID, TCB_EXEC->TID, TCB_EXEC->quantum);
+					log_trace_r(&MODULE_LOGGER, "(%u:%u): Se expiró su quantum de %li ms", pid, tid, quantum);
 					break;
 				default:
 					report_error_pthread_cond_timedwait(status);
@@ -616,11 +641,11 @@ void *quantum_interrupter(void) {
 			QUANTUM_EXPIRED = true;
 
 			if(IS_TCB_IN_CPU) {
-				if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, TCB_EXEC->pcb->PID, TCB_EXEC->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
+				if(send_kernel_interrupt(QUANTUM_KERNEL_INTERRUPT, pid, tid, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
+					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], pid, tid, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
 					exit_sigint();
 				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], TCB_EXEC->pcb->PID, TCB_EXEC->TID, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
+				log_trace_r(&MODULE_LOGGER, "[%d] Se envía interrupción a [Servidor] %s [PID: %u - TID: %u - Interrupción: %s]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], pid, tid, KERNEL_INTERRUPT_NAMES[QUANTUM_KERNEL_INTERRUPT]);
 			}
 
 		pthread_cleanup_pop(0);
@@ -695,7 +720,7 @@ void *io_device(void) {
 		}
 		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_CANCEL_IO_OPERATION);
 
-			if(clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now)) {
+			if(clock_gettime(CLOCK_MONOTONIC, &ts_now)) {
 				report_error_clock_gettime();
 				exit_sigint();
 			}
@@ -927,7 +952,7 @@ bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petiti
 
 int signal_free_memory(void) {
 	int retval = 0, status;
-	
+
 	if((status = pthread_mutex_lock(&MUTEX_FREE_MEMORY))) {
 		report_error_pthread_mutex_lock(status);
 		retval = -1;
