@@ -24,13 +24,8 @@ t_Shared_List SHARED_LIST_BLOCKED_IO_READY = { .list = NULL };
 t_TCB *TCB_BLOCKED_IO_EXEC = NULL;
 pthread_mutex_t MUTEX_BLOCKED_IO_EXEC;
 
-t_Shared_List SHARED_LIST_EXIT = { .list = NULL };
-
 t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_NEW = { .running = false };
 sem_t SEM_LONG_TERM_SCHEDULER_NEW;
-
-t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_EXIT = { .running = false };
-sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
 t_Time QUANTUM = 0;
 t_Bool_Thread THREAD_QUANTUM_INTERRUPTER = { .running = false };
@@ -72,12 +67,6 @@ void initialize_scheduling(void) {
 	}
 	THREAD_LONG_TERM_SCHEDULER_NEW.running = true;
 
-	if((status = pthread_create(&THREAD_LONG_TERM_SCHEDULER_EXIT.thread, NULL, (void *(*)(void *)) long_term_scheduler_exit, NULL))) {
-		report_error_pthread_create(status);
-		exit_sigint();
-	}
-	THREAD_LONG_TERM_SCHEDULER_EXIT.running = true;
-
 	if((status = pthread_create(&THREAD_QUANTUM_INTERRUPTER.thread, NULL, (void *(*)(void *)) quantum_interrupter, NULL))) {
 		report_error_pthread_create(status);
 		exit_sigint();
@@ -95,7 +84,7 @@ void initialize_scheduling(void) {
 int finish_scheduling(void) {
 	int retval = 0, status;
 
-	t_Bool_Thread *threads[] = { &THREAD_LONG_TERM_SCHEDULER_NEW, &THREAD_LONG_TERM_SCHEDULER_EXIT, &THREAD_QUANTUM_INTERRUPTER, &THREAD_IO_DEVICE, NULL};
+	t_Bool_Thread *threads[] = { &THREAD_LONG_TERM_SCHEDULER_NEW, &THREAD_QUANTUM_INTERRUPTER, &THREAD_IO_DEVICE, NULL};
 	register unsigned int i;
 
 	for(i = 0; threads[i] != NULL; i++) {
@@ -258,133 +247,6 @@ void *long_term_scheduler_new(void) {
 			exit_sigint();
 		}
 	}
-}
-
-void *long_term_scheduler_exit(void) {
-
-	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en EXIT) iniciado");
-
-	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
-	t_TCB *tcb;
-	t_PCB *pcb;
-	int status;
-
-	while(1) {
-		if(sem_wait(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-			report_error_sem_wait();
-			exit_sigint();
-		}
-
-		if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
-			report_error_pthread_rwlock_rdlock(status);
-			exit_sigint();
-		}
-		pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
-
-			if(get_state_exit(&tcb)) {
-				exit_sigint();
-			}
-
-		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
-		if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
-			report_error_pthread_rwlock_unlock(status);
-			exit_sigint();
-		}
-
-		if(tcb == NULL) {
-			continue;
-		}
-
-		log_trace_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
-
-		client_thread_connect_to_server(&connection_memory);
-		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
-
-			if(send_thread_destroy(tcb->pcb->PID, tcb->TID, connection_memory.socket_connection.fd)) {
-				log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
-				exit_sigint();
-			}
-			log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
-
-			int result;
-			if(receive_result_with_expected_header(THREAD_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
-				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
-				exit_sigint();
-			}
-			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID, result);
-
-		pthread_cleanup_pop(0);
-		if(close(connection_memory.socket_connection.fd)) {
-			report_error_close();
-			exit_sigint();
-		}
-
-		log_info_r(&MINIMAL_LOGGER, "## (%u:%u) Finaliza el hilo", tcb->pcb->PID, tcb->TID);
-
-		pcb = tcb->pcb;
-
-		resources_unassign(tcb);
-
-		if(join_threads(tcb)) {
-			exit_sigint();
-		}
-
-		if(tcb_destroy(tcb)) {
-			exit_sigint();
-		}
-
-		if((pcb->thread_manager.counter) == 0) {
-
-			client_thread_connect_to_server(&connection_memory);
-			pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
-
-				if(send_process_destroy(pcb->PID, connection_memory.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
-					exit_sigint();
-				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
-
-				int result;
-				if(receive_result_with_expected_header(PROCESS_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
-					exit_sigint();
-				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
-
-			pthread_cleanup_pop(0);
-			if(close(connection_memory.socket_connection.fd)) {
-				report_error_close();
-				exit_sigint();
-			}
-
-			log_info_r(&MINIMAL_LOGGER, "## Finaliza el proceso %u", pcb->PID);
-
-			if(pcb_destroy(pcb)) {
-				exit_sigint();
-			}
-
-			if((status = pthread_mutex_lock(&(PID_MANAGER.mutex)))) {
-				report_error_pthread_mutex_lock(status);
-				exit_sigint();
-			}
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(PID_MANAGER.mutex));
-				if((PID_MANAGER.counter) == 0) {
-					log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
-				}
-			pthread_cleanup_pop(0);
-			if((status = pthread_mutex_unlock(&(PID_MANAGER.mutex)))) {
-				report_error_pthread_mutex_unlock(status);
-				exit_sigint();
-			}
-
-			if(signal_free_memory()) {
-				exit_sigint();
-			}
-
-		}
-	}
-
-	return NULL;
 }
 
 void *short_term_scheduler(void) {

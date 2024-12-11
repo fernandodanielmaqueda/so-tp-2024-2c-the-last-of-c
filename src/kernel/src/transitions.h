@@ -18,7 +18,6 @@ int get_state_blocked_mutex(t_TCB **tcb, t_Resource *resource);
 //int get_state_blocked_dump_memory(t_TCB **tcb);
 int get_state_blocked_io_ready(t_TCB **tcb);
 int get_state_blocked_io_exec(t_TCB **tcb);
-int get_state_exit(t_TCB **tcb);
 
 int insert_state_new(t_PCB *pcb);
 int insert_state_ready(t_TCB *tcb);

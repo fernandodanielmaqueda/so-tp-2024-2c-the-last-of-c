@@ -49,30 +49,26 @@ int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason) {
 
         case EXEC_STATE:
         {
-			bool interrupt;
 
 			KILL_EXIT_REASON = exit_reason;
             KILL_EXEC_TCB = 1;
-
 
 			if((status = pthread_mutex_lock(&MUTEX_QUANTUM_INTERRUPTER))) {
 				report_error_pthread_mutex_lock(status);
 				return -1;
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_QUANTUM_INTERRUPTER);
-				interrupt = IS_TCB_IN_CPU;
+				if(IS_TCB_IN_CPU) {
+					if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
+						log_error_r(&MODULE_LOGGER, "[%d] Error al enviar %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[KILL_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+						return -1;
+					}
+					log_trace_r(&MODULE_LOGGER, "[%d] Se envía %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[KILL_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
+				}
 			pthread_cleanup_pop(0);
 			if((status = pthread_mutex_unlock(&MUTEX_QUANTUM_INTERRUPTER))) {
 				report_error_pthread_mutex_unlock(status);
 				return -1;
-			}
-
-			if(interrupt) {
-				if(send_kernel_interrupt(KILL_KERNEL_INTERRUPT, tcb->pcb->PID, tcb->TID, CONNECTION_CPU_INTERRUPT.socket_connection.fd)) {
-					log_error_r(&MODULE_LOGGER, "[%d] Error al enviar %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[KILL_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
-					return -1;
-				}
-				log_trace_r(&MODULE_LOGGER, "[%d] Se envía %s a [Servidor] %s [PID: %u - TID: %u]", CONNECTION_CPU_INTERRUPT.socket_connection.fd, KERNEL_INTERRUPT_NAMES[KILL_KERNEL_INTERRUPT], PORT_NAMES[CONNECTION_CPU_INTERRUPT.server_type], tcb->pcb->PID, tcb->TID);
 			}
 
 			return 0;
@@ -545,30 +541,6 @@ int get_state_blocked_io_exec(t_TCB **tcb) {
 	return 0;
 }
 
-int get_state_exit(t_TCB **tcb) {
-	int status;
-
-	if((status = pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex)))) {
-		report_error_pthread_mutex_lock(status);
-		return -1;
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_EXIT.mutex));
-		if((SHARED_LIST_EXIT.list)->head == NULL) {
-			*tcb = NULL;
-		}
-		else {
-			*tcb = (t_TCB *) list_remove((SHARED_LIST_EXIT.list), 0);
-			(*tcb)->location = NULL;
-		}
-	pthread_cleanup_pop(0);
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex)))) {
-		report_error_pthread_mutex_unlock(status);
-		return -1;
-	}
-
-	return 0;
-}
-
 int insert_state_new(t_PCB *pcb) {
 	int status;
 
@@ -889,32 +861,127 @@ int insert_state_blocked_io_exec(t_TCB *tcb) {
 }
 
 int insert_state_exit(t_TCB *tcb) {
-	int status;
+	int retval = 0, status;
 
 	e_Process_State previous_state = tcb->current_state;
 	tcb->current_state = EXIT_STATE;
 
-	if((status = pthread_mutex_lock(&(SHARED_LIST_EXIT.mutex)))) {
-		report_error_pthread_mutex_lock(status);
-		return -1;
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(SHARED_LIST_EXIT.mutex));
-		list_add((SHARED_LIST_EXIT.list), tcb);
-		tcb->location = &SHARED_LIST_EXIT;
-	pthread_cleanup_pop(0);
-	if((status = pthread_mutex_unlock(&(SHARED_LIST_EXIT.mutex)))) {
-		report_error_pthread_mutex_unlock(status);
-		return -1;
-	}
-
 	log_trace_r(&MODULE_LOGGER, "(%u:%u): Estado Anterior: %s - Estado Actual: EXIT", tcb->pcb->PID, tcb->TID, STATE_NAMES[previous_state]);
 
-	if(sem_post(&SEM_LONG_TERM_SCHEDULER_EXIT)) {
-		report_error_sem_post();
-		return -1;
+	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
+
+	log_trace_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
+
+	client_thread_connect_to_server(&connection_memory);
+	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
+
+		if(send_thread_destroy(tcb->pcb->PID, tcb->TID, connection_memory.socket_connection.fd)) {
+			log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			retval = -1;
+			goto cleanup_connection_memory_thread_destroy;
+		}
+		log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de hilo a [Servidor] %s [PID: %u - TID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+
+		int result;
+		if(receive_result_with_expected_header(THREAD_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
+			log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID);
+			retval = -1;
+			goto cleanup_connection_memory_thread_destroy;
+		}
+		log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de hilo de [Servidor] %s [PID: %u - TID %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], tcb->pcb->PID, tcb->TID, result);
+
+	cleanup_connection_memory_thread_destroy:
+	pthread_cleanup_pop(0);
+	if(close(connection_memory.socket_connection.fd)) {
+		report_error_close();
+		retval = -1;
+		goto ret;
 	}
 
-	return 0;
+	if(retval) {
+		goto ret;
+	}
+
+	log_info_r(&MINIMAL_LOGGER, "## (%u:%u) Finaliza el hilo", tcb->pcb->PID, tcb->TID);
+
+	t_PCB *pcb = tcb->pcb;
+
+	resources_unassign(tcb);
+
+	if(join_threads(tcb)) {
+		retval = -1;
+		goto ret;
+	}
+
+	if(tcb_destroy(tcb)) {
+		retval = -1;
+		goto ret;
+	}
+
+	if((pcb->thread_manager.counter) == 0) {
+
+		client_thread_connect_to_server(&connection_memory);
+		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
+
+			if(send_process_destroy(pcb->PID, connection_memory.socket_connection.fd)) {
+				log_error_r(&MODULE_LOGGER, "[%d] Error al enviar solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				retval = -1;
+				goto cleanup_connection_memory_process_destroy;
+			}
+			log_trace_r(&MODULE_LOGGER, "[%d] Se envía solicitud de finalización de proceso a [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+
+			int result;
+			if(receive_result_with_expected_header(PROCESS_DESTROY_HEADER, &result, connection_memory.socket_connection.fd)) {
+				log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de finalización de proceso de [Servidor] %s [PID: %u]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID);
+				retval = -1;
+				goto cleanup_connection_memory_process_destroy;
+			}
+			log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de finalización de proceso de [Servidor] %s [PID: %u - Resultado: %d]", connection_memory.socket_connection.fd, PORT_NAMES[connection_memory.server_type], pcb->PID, result);
+
+		cleanup_connection_memory_process_destroy:
+		pthread_cleanup_pop(0);
+		if(close(connection_memory.socket_connection.fd)) {
+			report_error_close();
+			retval = -1;
+			goto ret;
+		}
+
+		if(retval) {
+			goto ret;
+		}
+
+		log_info_r(&MINIMAL_LOGGER, "## Finaliza el proceso %u", pcb->PID);
+
+		if(pcb_destroy(pcb)) {
+			retval = -1;
+			goto ret;
+		}
+
+		if((status = pthread_mutex_lock(&(PID_MANAGER.mutex)))) {
+			report_error_pthread_mutex_lock(status);
+			retval = -1;
+			goto ret;
+		}
+		pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &(PID_MANAGER.mutex));
+			if((PID_MANAGER.counter) == 0) {
+				log_debug_r(&MODULE_LOGGER, "Terminaron todos los procesos");
+			}
+		pthread_cleanup_pop(0);
+		if((status = pthread_mutex_unlock(&(PID_MANAGER.mutex)))) {
+			report_error_pthread_mutex_unlock(status);
+			retval = -1;
+			goto ret;
+		}
+
+		if(signal_free_memory()) {
+			retval = -1;
+			goto ret;
+		}
+
+	}
+
+	ret:
+	return retval;
 }
 
 int reinsert_state_new(t_PCB *pcb) {

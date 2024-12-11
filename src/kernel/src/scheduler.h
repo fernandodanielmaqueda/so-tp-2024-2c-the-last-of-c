@@ -50,13 +50,8 @@ extern t_Shared_List SHARED_LIST_BLOCKED_IO_READY;
 extern t_TCB *TCB_BLOCKED_IO_EXEC;
 extern pthread_mutex_t MUTEX_BLOCKED_IO_EXEC;
 
-extern t_Shared_List SHARED_LIST_EXIT;
-
 extern t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_NEW;
 extern sem_t SEM_LONG_TERM_SCHEDULER_NEW;
-
-extern t_Bool_Thread THREAD_LONG_TERM_SCHEDULER_EXIT;
-extern sem_t SEM_LONG_TERM_SCHEDULER_EXIT;
 
 extern t_Time QUANTUM;
 extern t_Bool_Thread THREAD_QUANTUM_INTERRUPTER;
@@ -92,7 +87,6 @@ void initialize_scheduling(void);
 int finish_scheduling(void);
 
 void *long_term_scheduler_new(void);
-void *long_term_scheduler_exit(void);
 void *short_term_scheduler(void);
 void *quantum_interrupter(void);
 void *io_device(void);

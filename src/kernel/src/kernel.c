@@ -211,30 +211,11 @@ int module(int argc, char *argv[]) {
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &MUTEX_BLOCKED_IO_EXEC);
 
-	// SHARED_LIST_EXIT
-	if((status = pthread_mutex_init(&(SHARED_LIST_EXIT.mutex), NULL))) {
-		report_error_pthread_mutex_init(status);
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_destroy, (void *) &(SHARED_LIST_EXIT.mutex));
-
-	SHARED_LIST_EXIT.list = list_create();
-	if(SHARED_LIST_EXIT.list == NULL) {
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) list_destroy, (void *) SHARED_LIST_EXIT.list);
-
 	if(sem_init(&SEM_LONG_TERM_SCHEDULER_NEW, 0, 0)) {
 		report_error_sem_init();
 		exit_sigint();
 	}
 	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_NEW);
-
-	if(sem_init(&SEM_LONG_TERM_SCHEDULER_EXIT, 0, 0)) {
-		report_error_sem_init();
-		exit_sigint();
-	}
-	pthread_cleanup_push((void (*)(void *)) sem_destroy, (void *) &SEM_LONG_TERM_SCHEDULER_EXIT);
 
 	if(sem_init(&BINARY_QUANTUM_INTERRUPTER, 0, 0)) {
 		report_error_sem_init();
@@ -374,10 +355,7 @@ int module(int argc, char *argv[]) {
 	pthread_cleanup_pop(1); // CONDATTR_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // MUTEX_QUANTUM_INTERRUPTER
 	pthread_cleanup_pop(1); // BINARY_QUANTUM_INTERRUPTER
-	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_EXIT
 	pthread_cleanup_pop(1); // SEM_LONG_TERM_SCHEDULER_NEW
-	pthread_cleanup_pop(1); // LIST_EXIT
-	pthread_cleanup_pop(1); // MUTEX_EXIT
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_EXEC
 	pthread_cleanup_pop(1); // LIST_BLOCKED_IO_READY
 	pthread_cleanup_pop(1); // MUTEX_BLOCKED_IO_READY
