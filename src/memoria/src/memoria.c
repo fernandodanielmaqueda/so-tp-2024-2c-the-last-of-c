@@ -229,7 +229,7 @@ t_Memory_Process *memory_process_create(t_PID pid, size_t size) {
 
     t_Memory_Process *new_process = malloc(sizeof(t_Memory_Process));
     if(new_process == NULL) {
-        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
+        log_warning_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el nuevo proceso.", sizeof(t_Memory_Process));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_process);
@@ -281,7 +281,7 @@ t_Memory_Thread *memory_thread_create(t_TID tid, char *argument_path) {
 
     t_Memory_Thread *new_thread = malloc(sizeof(t_Memory_Thread));
     if(new_thread == NULL) {
-        log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
+        log_warning_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el hilo", sizeof(t_Memory_Thread));
         return NULL;
     }
     pthread_cleanup_push((void (*)(void *)) free, new_thread);

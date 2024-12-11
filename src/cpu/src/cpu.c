@@ -262,7 +262,7 @@ void instruction_cycle(void)
                 if((status = arguments_use(arguments, ir))) {
                     switch(errno) {
                         case E2BIG:
-                            log_error_r(&MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", ir);
+                            log_warning_r(&MODULE_LOGGER, "%s: Demasiados argumentos en la instruccion", ir);
                             evict = true;
                             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
                             goto cleanup_ir;
@@ -488,14 +488,14 @@ void cpu_fetch_next_instruction(char **line) {
 int mmu(size_t logical_address, size_t bytes, size_t *destination) {
     // Verifico que el puntero de destino no sea nulo
     if(destination == NULL) {
-        log_error_r(&MODULE_LOGGER, "mmu: %s", strerror(EINVAL));
+        log_warning_r(&MODULE_LOGGER, "mmu: %s", strerror(EINVAL));
         errno = EINVAL;
         return -1;
     }
 
     // Verifico que no produzca overflow
     if(logical_address > (SIZE_MAX - EXEC_CONTEXT.base) || bytes > (SIZE_MAX - (EXEC_CONTEXT.base + logical_address))) {
-        log_error_r(&MODULE_LOGGER, "mmu: %s", strerror(ERANGE));
+        log_warning_r(&MODULE_LOGGER, "mmu: %s", strerror(ERANGE));
         errno = ERANGE;
         return -1;
     }

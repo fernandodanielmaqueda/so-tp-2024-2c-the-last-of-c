@@ -29,7 +29,7 @@ t_Package *package_create(void) {
 
   t_Package *package = malloc(sizeof(t_Package));
   if(package == NULL) {
-    log_error_r(&SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
+    log_warning_r(&SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para crear el paquete", sizeof(t_Package));
     return NULL;
   }
 
@@ -72,8 +72,12 @@ int package_send(t_Package *package, int fd_socket) {
   t_Size size_serialized;
   size_serialized = (t_Size) package->payload.size;
 
-  payload_add(&(package->payload), &(header_serialized), sizeof(header_serialized));
-  payload_add(&(package->payload), &(size_serialized), sizeof(size_serialized));
+  if(payload_add(&(package->payload), &(header_serialized), sizeof(header_serialized))) {
+    return -1;
+  }
+  if(payload_add(&(package->payload), &(size_serialized), sizeof(size_serialized))) {
+    return -1;
+  }
 
   size_t bufferSize = package->payload.size;
 
@@ -81,8 +85,12 @@ int package_send(t_Package *package, int fd_socket) {
 
   payload_seek(&(package->payload), 0, SEEK_SET);
 
-  payload_remove(&(package->payload), NULL, sizeof(header_serialized));
-  payload_remove(&(package->payload), NULL, sizeof(size_serialized));
+  if(payload_remove(&(package->payload), NULL, sizeof(header_serialized))) {
+    return -1;
+  }
+  if(payload_remove(&(package->payload), NULL, sizeof(size_serialized))) {
+    return -1;
+  }
 
   payload_seek(&(package->payload), previous_offset, SEEK_CUR);
 
@@ -143,7 +151,7 @@ int package_receive_payload(t_Package *package, int fd_socket) {
 
   package->payload.stream = malloc((size_t) package->payload.size);
   if(package->payload.stream == NULL) {
-    log_error_r(&SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
+    log_warning_r(&SERIALIZE_LOGGER, "malloc: No se pudieron reservar %zu bytes para recibir el stream del payload", (size_t) package->payload.size);
     return -1;
   }
 

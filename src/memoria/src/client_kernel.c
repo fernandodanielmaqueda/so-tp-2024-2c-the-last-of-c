@@ -8,13 +8,13 @@ void listen_kernel(int fd_client) {
 
     t_Package* package = package_create();
     if(package == NULL) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) package_destroy, package);
 
     if(package_receive(package, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al recibir paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe paquete de [Cliente] %s", fd_client, PORT_NAMES[KERNEL_PORT_TYPE]);
 
@@ -57,10 +57,10 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     size_t size;
 
     if(payload_remove(payload, &pid, sizeof(pid))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     if(size_deserialize(payload, &size)) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de creación de proceso de [Cliente] %s [PID: %u - Tamaño: %zu]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, size);
@@ -70,13 +70,13 @@ void attend_process_create(int fd_client, t_Payload *payload) {
 
     t_Memory_Process *new_process = memory_process_create(pid, size);
     if(new_process == NULL) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) memory_process_destroy, new_process);
 
         if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
             report_error_pthread_rwlock_wrlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -102,8 +102,8 @@ void attend_process_create(int fd_client, t_Payload *payload) {
             new_process->partition = partition;
 
             if(add_element_to_array_process(new_process)) {
-                log_debug_r(&MODULE_LOGGER, "[%d] No se pudo agregar nuevo proceso al listado para el pedido del proceso %d", fd_client, new_process->pid);
-                exit_sigint();
+                log_warning_r(&MODULE_LOGGER, "[%d] No se pudo agregar el nuevo proceso al array de procesos", fd_client);
+                pthread_exit(NULL);
             }
 
             log_info_r(&MINIMAL_LOGGER, "## Proceso Creado - PID: %u - TAMAÑO: %zu", new_process->pid, new_process->size);
@@ -117,8 +117,8 @@ void attend_process_create(int fd_client, t_Payload *payload) {
     pthread_cleanup_pop(result); // new_process
 
     if(send_result_with_header(PROCESS_CREATE_HEADER, result, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de creación de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
 
@@ -131,7 +131,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     t_PID pid;
 
     if(payload_remove(payload, &pid, sizeof(pid))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de proceso de [Cliente] %s [PID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid);
@@ -141,7 +141,7 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
     if((status = pthread_rwlock_wrlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_wrlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -158,14 +158,14 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
 
         if(MEMORY_MANAGEMENT_SCHEME == DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME)
             if(verify_and_join_splited_partitions(process->partition)) {
-                exit_sigint();
+                pthread_exit(NULL);
             }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_unlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     if(result) {
@@ -173,15 +173,15 @@ void attend_process_destroy(int fd_client, t_Payload *payload) {
     }
 
     if(memory_process_destroy(process)) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     log_info_r(&MINIMAL_LOGGER, "## Proceso Destruido - PID: %u - TAMAÑO: %zu", pid, size);
 
     send_result:
     if(send_result_with_header(PROCESS_DESTROY_HEADER, result, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar confirmación de finalización de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al enviar confirmación de finalización de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía confirmación de finalización de proceso a [Cliente] %s [PID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, result);
 }
@@ -194,13 +194,13 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     char *argument_path;
 
     if(payload_remove(payload, &pid, sizeof(pid))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     if(payload_remove(payload, &tid, sizeof(tid))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     if(text_deserialize(payload, &argument_path)) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) free, argument_path);
 
@@ -208,13 +208,13 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
     t_Memory_Thread *new_thread = memory_thread_create(tid, argument_path);
     if(new_thread == NULL) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) memory_thread_destroy, new_thread);
 
     // Inicializar instrucciones
     if(parse_pseudocode_file(argument_path, new_thread)) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     if((new_thread->instructions_count) == 0) {
@@ -224,7 +224,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_rdlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -236,7 +236,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
 
         if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             report_error_pthread_rwlock_wrlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
 
@@ -249,7 +249,7 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
             ARRAY_PROCESS_MEMORY[pid]->array_memory_threads = realloc(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads, sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1)); 
             if(ARRAY_PROCESS_MEMORY[pid]->array_memory_threads == NULL) {
                 log_warning_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para el array de threads", sizeof(t_Memory_Thread *) * ((ARRAY_PROCESS_MEMORY[pid]->tid_count) + 1));
-                exit_sigint();
+                pthread_exit(NULL);
             }
 
             ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid] = new_thread;
@@ -261,14 +261,14 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
         pthread_cleanup_pop(0); // rwlock_array_memory_threads
         if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             report_error_pthread_rwlock_unlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_unlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     cleanup_new_thread:
@@ -276,8 +276,8 @@ void attend_thread_create(int fd_client, t_Payload *payload) {
     pthread_cleanup_pop(1); // argument_path
 
     if(send_result_with_header(THREAD_CREATE_HEADER, result, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de creación de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de creación de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de creación de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 
@@ -290,10 +290,10 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
     t_TID tid;
 
     if(payload_remove(payload, &pid, sizeof(t_PID))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     if(payload_remove(payload, &tid, sizeof(t_TID))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe solicitud de finalización de hilo de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
@@ -302,7 +302,7 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
 
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_rdlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
@@ -314,7 +314,7 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
 
         if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             report_error_pthread_rwlock_wrlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
 
@@ -331,14 +331,14 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
         pthread_cleanup_pop(0); // rwlock_array_memory_threads
         if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
             report_error_pthread_rwlock_unlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
 
     cleanup_rwlock_proceses_and_partitions:
     pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_unlock(status);
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     if(result) {
@@ -346,15 +346,15 @@ void attend_thread_destroy(int fd_client, t_Payload *payload) {
     }
 
     if(memory_thread_destroy(thread)) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
             
     log_info_r(&MINIMAL_LOGGER, "## Hilo Destruido - (PID:TID) - (%u:%u)", pid, tid);
 
     send_result:
     if(send_result_with_header(THREAD_DESTROY_HEADER, result, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de finalización de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de finalización de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de finalización de hilo a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 }
@@ -366,10 +366,10 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
     t_TID tid;
 
     if(payload_remove(payload, &pid, sizeof(t_PID))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
     if(payload_remove(payload, &tid, sizeof(t_TID))) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     log_trace_r(&MODULE_LOGGER, "[%d] Kernel: Se recibe solicitud de volcado de memoria de [Cliente] %s [PID: %u - TID: %u]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid);
@@ -377,15 +377,15 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
     // Ejemplo de nombre de archivo: 1-0-12:51:59:331.dmp
     char *filename = string_from_format("%u-%u-", pid, tid);
     if(filename == NULL) {
-        log_error_r(&MODULE_LOGGER, "string_from_format: No se pudo crear el nombre del archivo");
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "string_from_format: No se pudo crear el nombre del archivo");
+        pthread_exit(NULL);
     }
     pthread_cleanup_push((void (*)(void *)) free, filename);
 
         char *string_time = temporal_get_string_time("%H:%M:%S:%MS");
         if(string_time == NULL) {
-            log_error_r(&MODULE_LOGGER, "temporal_get_string_time: No se pudo obtener la hora actual como un string");
-            exit_sigint();
+            log_warning_r(&MODULE_LOGGER, "temporal_get_string_time: No se pudo obtener la hora actual como un string");
+            pthread_exit(NULL);
         }        
         pthread_cleanup_push((void (*)(void *)) free, string_time);
             string_append(&filename, string_time);
@@ -395,7 +395,7 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
         
         if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
             report_error_pthread_rwlock_rdlock(status);
-            exit_sigint();
+            pthread_exit(NULL);
         }
         bool clean_rwlock_partitions_and_processes = true;
         t_Conditional_Cleanup rwlock_partitions_and_processes_cleanup = { .condition = &clean_rwlock_partitions_and_processes, .negate_condition = false, .function = (void (*)(void *)) pthread_rwlock_unlock, .argument = &RWLOCK_PARTITIONS_AND_PROCESSES };
@@ -409,7 +409,7 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
 
             if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
                 report_error_pthread_rwlock_rdlock(status);
-                exit_sigint();
+                pthread_exit(NULL);
             }
             bool clean_rwlock_array_memory_threads = true;
             t_Conditional_Cleanup rwlock_array_memory_threads_cleanup = { .condition = &clean_rwlock_array_memory_threads, .negate_condition = false, .function = (void (*)(void *)) pthread_rwlock_unlock, .argument = &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads) };
@@ -430,13 +430,13 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
                     pthread_cleanup_push((void (*)(void *)) free, dump_string);
 
                         if(send_dump_memory(filename, (void *)(((uint8_t *) MAIN_MEMORY) + ARRAY_PROCESS_MEMORY[pid]->partition->base), ARRAY_PROCESS_MEMORY[pid]->size, connection_filesystem.socket_connection.fd)) {
-                            log_error_r(&MODULE_LOGGER,
+                            log_warning_r(&MODULE_LOGGER,
                             "[%d] Error al enviar operación de volcado de memoria a [Servidor] %s [Archivo: %s - Tamaño: %zu]"
                             "%s"
                             , connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], filename, ARRAY_PROCESS_MEMORY[pid]->size
                             , dump_string
                             );
-                            exit_sigint();
+                            pthread_exit(NULL);
                         }
                         log_trace_r(&MODULE_LOGGER,
                         "[%d] Se envía operación de volcado de memoria a [Servidor] %s [Archivo: %s - Tamaño: %zu]"
@@ -452,25 +452,25 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
                     clean_rwlock_array_memory_threads = false;
                     if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
                         report_error_pthread_rwlock_unlock(status);
-                        exit_sigint();
+                        pthread_exit(NULL);
                     }
 
                     clean_rwlock_partitions_and_processes = false;
                     if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
                         report_error_pthread_rwlock_unlock(status);
-                        exit_sigint();
+                        pthread_exit(NULL);
                     }
 
                     if(receive_result_with_expected_header(DUMP_MEMORY_HEADER, &result, connection_filesystem.socket_connection.fd)) {
-                        log_error_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
-                        exit_sigint();
+                        log_warning_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
+                        pthread_exit(NULL);
                     }
                     log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
 
                 pthread_cleanup_pop(0);
                 if(close(connection_filesystem.socket_connection.fd)) {
                     report_error_close();
-                    exit_sigint();
+                    pthread_exit(NULL);
                 }
 
             cleanup_rwlock_array_memory_threads:
@@ -478,7 +478,7 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
             if(clean_rwlock_array_memory_threads) {
                 if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
                     report_error_pthread_rwlock_unlock(status);
-                    exit_sigint();
+                    pthread_exit(NULL);
                 }
             }
         
@@ -487,22 +487,22 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
         if(clean_rwlock_partitions_and_processes) {
             if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
                 report_error_pthread_rwlock_unlock(status);
-                exit_sigint();
+                pthread_exit(NULL);
             }
         }
 
     pthread_cleanup_pop(1); // filename
 
     if(send_result_with_header(DUMP_MEMORY_HEADER, result, fd_client)) {
-        log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
-        exit_sigint();
+        log_warning_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
+        pthread_exit(NULL);
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de volcado de memoria a [Cliente] %s [PID: %u - TID: %u - Resultado: %d]", fd_client, PORT_NAMES[KERNEL_PORT_TYPE], pid, tid, result);
 }
 
 void allocate_partition(t_Partition **partition, size_t *index_partition, size_t required_size) {
     if(partition == NULL) {
-        exit_sigint();
+        pthread_exit(NULL);
     }
 
     *partition = NULL;
@@ -580,7 +580,7 @@ void allocate_partition(t_Partition **partition, size_t *index_partition, size_t
         case DYNAMIC_PARTITIONING_MEMORY_MANAGEMENT_SCHEME: {
 
             if(split_partition(*index_partition, required_size)) {
-                exit_sigint();
+                pthread_exit(NULL);
             }
 
             break;
@@ -709,7 +709,7 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
     // Ruta relativa
     target_path = malloc((INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
     if(target_path == NULL) {
-        log_error_r(&MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
+        log_warning_r(&MODULE_LOGGER, "malloc: No se pudo reservar %zu bytes para la ruta relativa.", (INSTRUCTIONS_PATH[0] ? (strlen(INSTRUCTIONS_PATH) + 1) : 0) + strlen(argument_path) + 1);
         retval = -1;
         goto ret;
     }
@@ -769,7 +769,7 @@ int parse_pseudocode_file(char *argument_path, t_Memory_Thread *new_thread) {
 
                 char **new_array_instructions = realloc(new_thread->array_instructions, ((new_thread->instructions_count) + 1) * sizeof(char *));
                 if(new_array_instructions == NULL) {
-                    log_error_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", (new_thread->instructions_count) * sizeof(char *), ((new_thread->instructions_count) + 1) * sizeof(char *));
+                    log_warning_r(&MODULE_LOGGER, "realloc: No se pudo redimensionar de %zu bytes a %zu bytes", (new_thread->instructions_count) * sizeof(char *), ((new_thread->instructions_count) + 1) * sizeof(char *));
                     retval = -1;
                     goto cleanup_line;
                 }

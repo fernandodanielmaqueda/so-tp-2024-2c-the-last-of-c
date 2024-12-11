@@ -729,8 +729,8 @@ int insert_state_blocked_dump_memory(t_TCB *tcb) {
 
 	t_Dump_Memory_Petition *dump_memory_petition = malloc(sizeof(t_Dump_Memory_Petition));
 	if(dump_memory_petition == NULL) {
-		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
-		exit_sigint();
+		log_warning_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para una peticion de DUMP_MEMORY", sizeof(t_Dump_Memory_Petition));
+		return -1;
 	}
 	bool created = false;
 	t_Conditional_Cleanup free_cleanup = { .function = (void (*)(void *)) free, .argument = (void *) dump_memory_petition, .condition = &created, .negate_condition = true };

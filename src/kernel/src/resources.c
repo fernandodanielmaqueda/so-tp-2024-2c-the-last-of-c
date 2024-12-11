@@ -8,7 +8,7 @@ t_Resource *resource_create(int instances) {
 
 	t_Resource *resource = malloc(sizeof(t_Resource));
 	if(resource == NULL) {
-		log_error_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
+		log_warning_r(&MODULE_LOGGER, "malloc: No se pudieron reservar %zu bytes para un recurso", sizeof(t_Resource));
 		retval = -1;
 		goto ret;
 	}

@@ -43,7 +43,7 @@ void listen_cpu(void) {
                 break;
 
             default:
-                log_error_r(&MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
+                log_warning_r(&MODULE_LOGGER, "%s: Header invalido (%d)", HEADER_NAMES[package->header], package->header);
                 break;
         }
 
