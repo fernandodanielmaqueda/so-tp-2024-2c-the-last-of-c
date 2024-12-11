@@ -29,6 +29,18 @@
 		},
 		{
 			"path": "src/utils"
+		},
+		{
+			"path": "deploy"
+		},
+		{
+			"path": "docs"
+		},
+		{
+			"path": "scripts"
+		},
+		{
+			"path": "thirdparty/the-last-of-c-pruebas"
 		}
 	]
 }
