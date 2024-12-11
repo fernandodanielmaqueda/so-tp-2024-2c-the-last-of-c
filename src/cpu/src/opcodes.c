@@ -307,7 +307,7 @@ int log_cpu_operation(int argc, char **argv) {
     uint32_t value_cpu_register;
     get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register);
 
-    log_info_r(&MODULE_LOGGER, "(%u:%u) LOG %s: %u", TID, PID, argv[1], value_cpu_register);
+    log_info_r(&MODULE_LOGGER, "(%u:%u) LOG %s: %u", PID, TID, argv[1], value_cpu_register);
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
