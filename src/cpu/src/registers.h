@@ -14,7 +14,7 @@ typedef enum e_CPU_Register {
     EX_REGISTER,
     FX_REGISTER,
     GX_REGISTER,
-    HX_REGISTER    
+    HX_REGISTER
 } e_CPU_Register;
 
 typedef enum e_CPU_Register_DataType {

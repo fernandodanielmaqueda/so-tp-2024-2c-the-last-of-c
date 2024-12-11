@@ -33,7 +33,7 @@ void *get_register_pointer(t_Exec_Context *exec_context, e_CPU_Register cpu_regi
     if(exec_context == NULL)
         return NULL;
 
-    switch (cpu_register) {
+    switch(cpu_register) {
         case PC_REGISTER:
             return (void *) &(exec_context->cpu_registers.PC);
         case AX_REGISTER:

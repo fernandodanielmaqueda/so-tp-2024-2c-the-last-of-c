@@ -60,7 +60,11 @@ int set_cpu_operation(int argc, char **argv) {
         return -1;
     }
 
-    set_register_value(&EXEC_CONTEXT, destination_register, value);
+    if(set_register_value(&EXEC_CONTEXT, destination_register, value)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al asignar valor a %s", argv[1], argv[2]);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
@@ -92,7 +96,11 @@ int read_mem_cpu_operation(int argc, char **argv) {
     }
 
     uint32_t logical_address;
-    get_register_value(EXEC_CONTEXT, register_address, &logical_address);
+    if(get_register_value(EXEC_CONTEXT, register_address, &logical_address)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_address].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     size_t bytes = get_register_size(register_data);
 
@@ -152,7 +160,11 @@ int write_mem_cpu_operation(int argc, char **argv) {
     size_t bytes = get_register_size(register_data);
 
     uint32_t logical_address;
-    get_register_value(EXEC_CONTEXT, register_address, &logical_address);
+    if(get_register_value(EXEC_CONTEXT, register_address, &logical_address)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_address].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     size_t physical_address;
     if(mmu((size_t) logical_address, bytes, &physical_address)) {
@@ -206,10 +218,22 @@ int sum_cpu_operation(int argc, char **argv) {
 
     uint32_t value_register_destination;
     uint32_t value_register_origin;
-    get_register_value(EXEC_CONTEXT, register_destination, &value_register_destination);
-    get_register_value(EXEC_CONTEXT, register_origin, &value_register_origin);
+    if(get_register_value(EXEC_CONTEXT, register_destination, &value_register_destination)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_destination].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
+    if(get_register_value(EXEC_CONTEXT, register_origin, &value_register_origin)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_origin].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
-    set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination + value_register_origin));
+    if(set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination + value_register_origin))) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al asignar valor", CPU_REGISTERS[register_destination].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
@@ -242,10 +266,22 @@ int sub_cpu_operation(int argc, char **argv) {
 
     uint32_t value_register_destination;
     uint32_t value_register_origin;
-    get_register_value(EXEC_CONTEXT, register_destination, &value_register_destination);
-    get_register_value(EXEC_CONTEXT, register_origin, &value_register_origin);
+    if(get_register_value(EXEC_CONTEXT, register_destination, &value_register_destination)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_destination].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
+    if(get_register_value(EXEC_CONTEXT, register_origin, &value_register_origin)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[register_origin].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
-    set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination - value_register_origin));
+    if(set_register_value(&EXEC_CONTEXT, register_destination, (value_register_destination - value_register_origin))) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al asignar valor", CPU_REGISTERS[register_destination].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
@@ -277,7 +313,11 @@ int jnz_cpu_operation(int argc, char **argv) {
     }
 
     uint32_t value_cpu_register;
-    get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register);
+    if(get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[cpu_register].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     if(value_cpu_register)
         EXEC_CONTEXT.cpu_registers.PC = instruction;
@@ -305,7 +345,11 @@ int log_cpu_operation(int argc, char **argv) {
     }
 
     uint32_t value_cpu_register;
-    get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register);
+    if(get_register_value(EXEC_CONTEXT, cpu_register, &value_cpu_register)) {
+        log_error_r(&MODULE_LOGGER, "%s: Error al obtener valor", CPU_REGISTERS[cpu_register].name);
+        EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
+        return -1;
+    }
 
     log_info_r(&MODULE_LOGGER, "(%u:%u) LOG %s: %u", PID, TID, argv[1], value_cpu_register);
 
@@ -326,22 +370,30 @@ int process_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE);
-    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_CREATE_CPU_OPCODE)) {
+        exit_sigint();
+    }
+    if(text_serialize(&SYSCALL_INSTRUCTION, argv[1])) {
+        exit_sigint();
+    }
         size_t size;
         if(str_to_size(argv[2], &size)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[2]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    size_serialize(&SYSCALL_INSTRUCTION, size);
+    if(size_serialize(&SYSCALL_INSTRUCTION, size)) {
+        exit_sigint();
+    }
         t_Priority priority;
         if(str_to_priority(argv[3], &priority)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[3]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority));
+    if(payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(t_Priority))) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -358,7 +410,9 @@ int process_exit_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_EXIT_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, PROCESS_EXIT_CPU_OPCODE)) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -375,15 +429,21 @@ int thread_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE);
-    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CREATE_CPU_OPCODE)) {
+        exit_sigint();
+    }
+    if(text_serialize(&SYSCALL_INSTRUCTION, argv[1])) {
+        exit_sigint();
+    }
         t_Priority priority;
         if(str_to_priority(argv[2], &priority)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[2]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(priority));
+    if(payload_add(&SYSCALL_INSTRUCTION, &priority, sizeof(priority))) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -400,14 +460,18 @@ int thread_join_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_JOIN_CPU_OPCODE)) {
+        exit_sigint();
+    }
         t_TID tid;
         if(str_to_tid(argv[1], &tid)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
+    if(payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(tid))) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -424,14 +488,18 @@ int thread_cancel_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_CANCEL_CPU_OPCODE)) {
+        exit_sigint();
+    }
         t_TID tid;
         if(str_to_tid(argv[1], &tid)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(t_TID));
+    if(payload_add(&SYSCALL_INSTRUCTION, &tid, sizeof(tid))) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -448,7 +516,9 @@ int thread_exit_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_EXIT_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, THREAD_EXIT_CPU_OPCODE)) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -465,8 +535,12 @@ int mutex_create_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_CREATE_CPU_OPCODE);
-    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_CREATE_CPU_OPCODE)) {
+        exit_sigint();
+    }
+    if(text_serialize(&SYSCALL_INSTRUCTION, argv[1])) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -483,8 +557,12 @@ int mutex_lock_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_LOCK_CPU_OPCODE);
-    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_LOCK_CPU_OPCODE)) {
+        exit_sigint();
+    }
+    if(text_serialize(&SYSCALL_INSTRUCTION, argv[1])) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -501,8 +579,12 @@ int mutex_unlock_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_UNLOCK_CPU_OPCODE);
-    text_serialize(&SYSCALL_INSTRUCTION, argv[1]);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, MUTEX_UNLOCK_CPU_OPCODE)) {
+        exit_sigint();
+    }
+    if(text_serialize(&SYSCALL_INSTRUCTION, argv[1])) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -519,7 +601,9 @@ int dump_memory_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, DUMP_MEMORY_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, DUMP_MEMORY_CPU_OPCODE)) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
@@ -536,14 +620,18 @@ int io_cpu_operation(int argc, char **argv) {
 
     EXEC_CONTEXT.cpu_registers.PC++;
 
-    cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE);
+    if(cpu_opcode_serialize(&SYSCALL_INSTRUCTION, IO_CPU_OPCODE)) {
+        exit_sigint();
+    }
         t_Time time;
         if(str_to_time(argv[1], &time)) {
             log_error_r(&MODULE_LOGGER, "%s: No es un valor valido", argv[1]);
             EVICTION_REASON = UNEXPECTED_ERROR_EVICTION_REASON;
             return -1;
         }
-    payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(time));
+    if(payload_add(&SYSCALL_INSTRUCTION, &time, sizeof(time))) {
+        exit_sigint();
+    }
 
     SYSCALL_CALLED = 1;
     return 0;
