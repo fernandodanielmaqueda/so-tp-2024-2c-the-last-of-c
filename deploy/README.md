@@ -696,6 +696,11 @@ ssh utnso@NúmeroIP -p 22
 - Seleccionar el botón `Save`
 - En `Close window on exit` seleccionar la casilla `Never`
 
+### Alternativa 3: Usar Cmder
+
+- https://cmder.app/
+- https://github.com/cmderdev/cmder/blob/master/README.md
+
 -----------------------------
 
 ## 24. (NO en el Deploy) Configurar VSCode
