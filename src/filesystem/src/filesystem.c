@@ -425,11 +425,15 @@ void filesystem_client_handler_for_memory(int fd_client) {
         // nro de particion: posicion del bloque o particion (0,1,2,...)
         size_t memory_partition_size = BLOCK_SIZE;
           
+
+       
+
         // Entra en el caso del ultimo bloque del datos dump
         if( array_pos == (blocks_necessary-1)){
-            memory_partition_size = ((BLOCK_SIZE * (blocks_necessary-1)) - dump_size) ; // 250 - ( 64 * (4-1)) =   250 - 192 = 58
+            memory_partition_size = dump_size - (BLOCK_SIZE *(blocks_necessary-2))  ; //  96 - (32 * (4-2))  = 32  -- le resto el bloque indidce y el ultimo bloque    
+            
         }
-        log_info_r(&MODULE_LOGGER, "##  Archivo: <%s> - Bloque Datos - Nro Bloque <%u>", filename, bloques_data_pos_init);
+        log_info_r(&MODULE_LOGGER, "##  Archivo: <%s> - Bloque Datos - Nro Bloque <%u> " , filename, bloques_data_pos_init);
              
       
         // ptro al espacio de memoria de bloques.dat donde inicia el bloque de la posicion [pos]
