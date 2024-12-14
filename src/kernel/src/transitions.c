@@ -1018,15 +1018,18 @@ int reinsert_state_new(t_PCB *pcb) {
 }
 
 int join_threads(t_TCB *tcb) {
-	int retval = 0, status;
+	int retval = 0;
 
 	t_TCB *tcb_join;
 
+	// Se asume que ya se invoca con el lock correspondiente
+	/*
 	if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 		report_error_pthread_rwlock_rdlock(status);
 		return -1;
 	}
 	pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
+	*/
 
 		while(1) {
 			if(get_state_blocked_join(&tcb_join, tcb)) {
@@ -1044,11 +1047,13 @@ int join_threads(t_TCB *tcb) {
 			}
 		}
 
+	/*
 	pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
 	if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 		report_error_pthread_rwlock_unlock(status);
 		return -1;
 	}
+	*/
 
 	return retval;
 }
