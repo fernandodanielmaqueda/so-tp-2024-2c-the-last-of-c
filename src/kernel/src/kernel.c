@@ -1076,6 +1076,8 @@ int ready_destroy(t_Ready *ready) {
 	}
 	list_destroy(ready->shared_list.list);
 
+	free(ready);
+
 	return retval;
 }
 

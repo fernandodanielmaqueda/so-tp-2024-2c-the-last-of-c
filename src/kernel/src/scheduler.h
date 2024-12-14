@@ -87,13 +87,26 @@ void initialize_scheduling(void);
 int finish_scheduling(void);
 
 void *long_term_scheduler_new(void);
-void *short_term_scheduler(void);
-void *quantum_interrupter(void);
-void *io_device(void);
-void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition);
+void record_init_long_term_scheduler_new(void);
+void record_finish_long_term_scheduler_new(void);
 
+void *short_term_scheduler(void);
+void record_init_short_term_scheduler(void);
+void record_finish_short_term_scheduler(void);
+
+void *quantum_interrupter(void);
+void record_init_quantum_interrupter(void);
+void record_finish_quantum_interrupter(void);
+
+void *io_device(void);
+void record_init_io_device(void);
+void record_finish_io_device(void);
+
+void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition);
 int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition);
 bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petition, t_TCB *tcb);
+void record_init_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition);
+void record_finish_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition);
 
 int wait_free_memory(void);
 int signal_free_memory(void);

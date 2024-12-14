@@ -3,13 +3,17 @@
 
 #include "transitions.h"
 
-int kill_process(t_PCB *pcb, e_Exit_Reason exit_reason) {
-	t_TCB *tcb;
+int kill_process(t_TCB *tcb, e_Exit_Reason exit_reason) {
+	t_TCB *aux_tcb;
 
-	for(t_TID tid = 0; tid < pcb->thread_manager.size; tid++) {
-		tcb = ((t_TCB **) pcb->thread_manager.array)[tid];
-		if(tcb != NULL) {
-			if(kill_thread(tcb, exit_reason)) {
+	for(t_TID tid = 0; tid < tcb->pcb->thread_manager.size; tid++) {
+		if(tid == tcb->TID) {
+			continue;
+		}
+
+		aux_tcb = ((t_TCB **) tcb->pcb->thread_manager.array)[tid];
+		if(aux_tcb != NULL) {
+			if(kill_thread(aux_tcb, exit_reason)) {
 				return -1;
 			}
 		}
@@ -870,7 +874,7 @@ int insert_state_exit(t_TCB *tcb) {
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 
-	log_trace_r(&MODULE_LOGGER, "Finaliza el hilo %u:%u - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
+	log_trace_r(&MODULE_LOGGER, "(%u:%u): Finaliza el hilo - Motivo: %s", tcb->pcb->PID, tcb->TID, EXIT_REASONS[tcb->exit_reason]);
 
 	client_thread_connect_to_server(&connection_memory);
 	pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));
@@ -919,6 +923,8 @@ int insert_state_exit(t_TCB *tcb) {
 	}
 
 	if((pcb->thread_manager.counter) == 0) {
+
+		log_trace_r(&MODULE_LOGGER, "(%u): Finaliza el proceso", pcb->PID);
 
 		client_thread_connect_to_server(&connection_memory);
 		pthread_cleanup_push((void (*)(void *)) wrapper_close, &(connection_memory.socket_connection.fd));

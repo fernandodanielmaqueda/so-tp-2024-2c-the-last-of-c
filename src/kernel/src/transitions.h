@@ -6,7 +6,7 @@
 
 #include "kernel.h"
 
-int kill_process(t_PCB *pcb, e_Exit_Reason exit_reason);
+int kill_process(t_TCB *tcb, e_Exit_Reason exit_reason);
 int kill_thread(t_TCB *tcb, e_Exit_Reason exit_reason);
 int locate_and_remove_state(t_TCB *tcb);
 

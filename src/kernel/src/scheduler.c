@@ -110,7 +110,8 @@ int finish_scheduling(void) {
 
 void *long_term_scheduler_new(void) {
 
-	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
+	record_init_long_term_scheduler_new();
+	pthread_cleanup_push((void (*)(void *)) record_finish_long_term_scheduler_new, NULL);
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 	t_PCB *pcb;
@@ -247,11 +248,24 @@ void *long_term_scheduler_new(void) {
 			exit_sigint();
 		}
 	}
+
+	pthread_cleanup_pop(1); // record_finish_long_term_scheduler_new
+
+	return NULL;
+}
+
+void record_init_long_term_scheduler_new(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) iniciado");
+}
+
+void record_finish_long_term_scheduler_new(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de largo plazo (en NEW) finalizado");
 }
 
 void *short_term_scheduler(void) {
 
-	log_trace_r(&MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
+	record_init_short_term_scheduler();
+	pthread_cleanup_push((void (*)(void *)) record_finish_short_term_scheduler, NULL);
 
 	t_TCB *tcb;
 	e_Eviction_Reason eviction_reason;
@@ -544,12 +558,23 @@ void *short_term_scheduler(void) {
 		} while(SHOULD_REDISPATCH);
 	}
 
-	exit_sigint();
+	pthread_cleanup_pop(1); // record_finish_short_term_scheduler
+
+	return NULL;
+}
+
+void record_init_short_term_scheduler(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de corto plazo iniciado");
+}
+
+void record_finish_short_term_scheduler(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo planificador de corto plazo finalizado");
 }
 
 void *quantum_interrupter(void) {
 
-	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
+	record_init_quantum_interrupter();
+	pthread_cleanup_push((void (*)(void *)) record_finish_quantum_interrupter, NULL);
 
 	struct timespec ts_now, ts_quantum, ts_abstime;
 	int interrupt, status;
@@ -661,14 +686,27 @@ void *quantum_interrupter(void) {
 		}
 	}
 
+	pthread_cleanup_pop(1); // record_finish_quantum_interrupter
+
 	return NULL;
+}
+
+void record_init_quantum_interrupter(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum iniciado");
+}
+
+void record_finish_quantum_interrupter(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo de interrupciones de quantum finalizado");
 }
 
 void *io_device(void) {
 
-	log_trace_r(&MODULE_LOGGER, "Hilo de IO iniciado");
+	record_init_io_device();
+	pthread_cleanup_push((void (*)(void *)) record_finish_io_device, NULL);
 
 	t_TCB *tcb;
+	t_PID pid;
+	t_TID tid;
 	t_Time time;
 	struct timespec ts_now, ts_time, ts_abstime;
 	int status;
@@ -700,6 +738,8 @@ void *io_device(void) {
 			payload_remove(&(TCB_BLOCKED_IO_EXEC->syscall_instruction), &time, sizeof(time));
 
 			CANCEL_IO_OPERATION = false;
+			pid = TCB_BLOCKED_IO_EXEC->pcb->PID;
+			tid = TCB_BLOCKED_IO_EXEC->TID;
 
 		cleanup_rwlock_scheduling:
 		pthread_cleanup_pop(0); // RWLOCK_SCHEDULING
@@ -727,15 +767,19 @@ void *io_device(void) {
 
 			ts_abstime = timespec_add(ts_now, ts_time);
 
+			log_trace_r(&MODULE_LOGGER, "(%u:%u) Se inicia operación de IO de %li ms", pid, tid, time);
+
 			while((!CANCEL_IO_OPERATION) && (status == 0)) {
 				status = pthread_cond_timedwait(&COND_CANCEL_IO_OPERATION, &MUTEX_CANCEL_IO_OPERATION, &ts_abstime);
 			}
 			switch(status) {
 				case 0:
 					// La operación de entrada/salida fue cancelada
+					log_trace_r(&MODULE_LOGGER, "(%u:%u) Se canceló su operación de IO de %li ms", pid, tid, time);
 					break;
 				case ETIMEDOUT:
 					// Se terminó la operación de entrada/salida
+					log_trace_r(&MODULE_LOGGER, "(%u:%u) Se finalizó su operación de IO de %li ms", pid, tid, time);
 					break;
 				default:
 					report_error_pthread_cond_timedwait(status);
@@ -760,7 +804,7 @@ void *io_device(void) {
 			}
 
 			if(tcb != NULL) {
-				log_info_r(&MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", tcb->pcb->PID, tcb->TID);
+				log_info_r(&MINIMAL_LOGGER, "## (%u:%u) finalizó IO y pasa a READY", pid, tid);
 				if(insert_state_ready(tcb)) {
 					exit_sigint();
 				}
@@ -773,7 +817,17 @@ void *io_device(void) {
 		}
 	}
 
-	exit_sigint();
+	pthread_cleanup_pop(1); // report_finish_io_device
+
+	return NULL;
+}
+
+void record_init_io_device(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo de IO iniciado");
+}
+
+void record_finish_io_device(void) {
+	log_trace_r(&MODULE_LOGGER, "Hilo de IO finalizado");
 }
 
 int wait_free_memory(void) {
@@ -811,7 +865,7 @@ void *dump_memory_petitioner(t_Dump_Memory_Petition *dump_memory_petition) {
 
 	pthread_cleanup_push((void (*)(void *)) remove_dump_memory_thread, dump_memory_petition);
 
-	log_trace_r(&MODULE_LOGGER, "Hilo de petición de volcado de memoria iniciado");
+	record_init_dump_memory_thread(dump_memory_petition);
 
 	t_Connection connection_memory = CONNECTION_MEMORY_INITIALIZER;
 
@@ -849,12 +903,14 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 
 	pthread_cleanup_push((void (*)(void *)) free, dump_memory_petition);
 
+	pthread_cleanup_push((void (*)(void *)) record_finish_dump_memory_thread, dump_memory_petition);
+
 		if((*(dump_memory_petition->result)) == 0) {
 
 			if((status = pthread_rwlock_rdlock(&RWLOCK_SCHEDULING))) {
 				report_error_pthread_rwlock_rdlock(status);
 				retval = -1;
-				goto cleanup_dump_memory_petition;
+				goto cleanup_record_finish_dump_memory_thread;
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
@@ -896,7 +952,7 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 				report_error_pthread_rwlock_unlock(status);
 				retval = -1;
-				goto cleanup_dump_memory_petition;
+				goto cleanup_record_finish_dump_memory_thread;
 			}
 
 		}
@@ -905,20 +961,23 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			if((status = pthread_rwlock_wrlock(&RWLOCK_SCHEDULING))) {
 				report_error_pthread_rwlock_wrlock(status);
 				retval = -1;
-				goto cleanup_dump_memory_petition;
+				goto cleanup_record_finish_dump_memory_thread;
 			}
 			pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_SCHEDULING);
 
 				if((dump_memory_petition->tcb) != NULL) {
+
+					if(kill_process(dump_memory_petition->tcb, DUMP_MEMORY_ERROR_EXIT_REASON)) {
+						retval = -1;
+						goto cleanup_rwlock_wrlock_scheduling;
+					}
+
 					dump_memory_petition->tcb->exit_reason = DUMP_MEMORY_ERROR_EXIT_REASON;
 					if(insert_state_exit(dump_memory_petition->tcb)) {
 						retval = -1;
 						goto cleanup_rwlock_wrlock_scheduling;
 					}
-					if(kill_process(dump_memory_petition->tcb->pcb, DUMP_MEMORY_ERROR_EXIT_REASON)) {
-						retval = -1;
-						goto cleanup_rwlock_wrlock_scheduling;
-					}
+					
 				}
 
 				list_remove_by_condition_with_comparation(SHARED_LIST_BLOCKED_DUMP_MEMORY.list, (bool (*)(void *, void *)) pointers_match, dump_memory_petition);
@@ -935,12 +994,14 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 			if((status = pthread_rwlock_unlock(&RWLOCK_SCHEDULING))) {
 				report_error_pthread_rwlock_unlock(status);
 				retval = -1;
-				goto cleanup_dump_memory_petition;
+				goto cleanup_record_finish_dump_memory_thread;
 			}
 
 		}
 
-	cleanup_dump_memory_petition:
+	cleanup_record_finish_dump_memory_thread:
+	pthread_cleanup_pop(1); // record_finish_dump_memory_thread
+
 	pthread_cleanup_pop(1); // dump_memory_petition
 
 	return retval;
@@ -948,6 +1009,14 @@ int remove_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
 
 bool dump_memory_petition_matches_tcb(t_Dump_Memory_Petition *dump_memory_petition, t_TCB *tcb) {
     return dump_memory_petition->tcb == tcb;
+}
+
+void record_init_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
+	log_trace_r(&MODULE_LOGGER, "(%u:%u) Hilo de petición de volcado de memoria iniciado", dump_memory_petition->pid, dump_memory_petition->tid);
+}
+
+void record_finish_dump_memory_thread(t_Dump_Memory_Petition *dump_memory_petition) {
+	log_trace_r(&MODULE_LOGGER, "(%u:%u) Hilo de petición de volcado de memoria finalizado", dump_memory_petition->pid, dump_memory_petition->tid);
 }
 
 int signal_free_memory(void) {

@@ -76,7 +76,7 @@ int process_exit_kernel_syscall(t_Payload *syscall_arguments) {
         report_error_pthread_rwlock_wrlock(status);
         exit_sigint();
     }
-        if(kill_process(TCB_EXEC->pcb, PROCESS_EXIT_EXIT_REASON)) {
+        if(kill_process(TCB_EXEC, PROCESS_EXIT_EXIT_REASON)) {
             exit_sigint();
         }
     // Regreso del wrlock al rdlock
