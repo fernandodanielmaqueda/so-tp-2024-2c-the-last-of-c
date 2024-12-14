@@ -215,7 +215,7 @@ void update_cpu_context(t_Payload *payload) {
     }
 
     log_trace_r(&MODULE_LOGGER,
-      "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u]\n"
+      "[%d] Se recibe actualización de contexto de ejecución de [Cliente] %s [PID: %u - TID: %u"
       " - PC: %u"
       " - AX: %u"
       " - BX: %u"
@@ -512,16 +512,6 @@ void write_memory(t_Payload *payload) {
         exit_sigint();
     }
 
-    char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
-    pthread_cleanup_push((void (*)(void *)) free, data_string);
-        log_trace_r(&MODULE_LOGGER,
-          "[%d] Se recibe solicitud de escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]"
-          "%s"
-          , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
-          , data_string
-        );
-    pthread_cleanup_pop(1); // data_string
-
     if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
         report_error_pthread_rwlock_rdlock(status);
         exit_sigint();
@@ -563,6 +553,16 @@ void write_memory(t_Payload *payload) {
         }
         pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
             memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
+
+            char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
+            pthread_cleanup_push((void (*)(void *)) free, data_string);
+                log_trace_r(&MODULE_LOGGER,
+                "[%d] Se recibe solicitud de escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]"
+                "%s"
+                , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+                , data_string
+                );
+            pthread_cleanup_pop(1); // data_string
         pthread_cleanup_pop(0); // rwlock_partition
         if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
             report_error_pthread_rwlock_unlock(status);
