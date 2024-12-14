@@ -11,12 +11,12 @@
 			"cstdlib": "c"
 		},
 		"C_Cpp.errorSquiggles": "disabled",
-		"terminal.integrated.automationProfile.linux": null,
-		"terminal.integrated.cwd": "",
-		"terminal.integrated.defaultProfile.linux": "",
-		"terminal.integrated.env.linux": {},
-		"terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose",
-		"terminal.integrated.scrollback": 0,
+		//"terminal.integrated.automationProfile.linux": null, 
+		"terminal.integrated.cwd": "", 
+		//"terminal.integrated.defaultProfile.linux": "", 
+		//"terminal.integrated.env.linux": {}, 
+		"terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose", 
+		"terminal.integrated.scrollback": 0, 
 		"terminal.integrated.shellIntegration.history": 100
 	},
 	"folders": [
