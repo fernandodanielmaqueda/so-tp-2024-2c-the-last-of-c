@@ -59,7 +59,7 @@
     "terminal.integrated.defaultProfile.linux": "bash", 
     "terminal.integrated.env.linux": {}, 
     "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose", 
-    "terminal.integrated.scrollback": 100000, 
+    "terminal.integrated.scrollback": 100000,
     "terminal.integrated.shellIntegration.history": 100
     }
 }

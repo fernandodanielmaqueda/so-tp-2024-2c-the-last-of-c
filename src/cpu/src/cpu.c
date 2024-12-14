@@ -451,7 +451,7 @@ void *kernel_cpu_interrupt_handler(void) {
         }
         pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &MUTEX_KERNEL_INTERRUPT);
             if((!EXECUTING) || (pid != PID) || (tid != TID)) {
-                log_warning_r(&MODULE_LOGGER, "Interrupción recibida pero el hilo no se encuentra en ejecución [PID: %u - TID: %u - Interrupción: %s]", pid, tid, KERNEL_INTERRUPT_NAMES[kernel_interrupt]);
+                log_trace_r(&MODULE_LOGGER, "Interrupción recibida pero el hilo no se encuentra en ejecución [PID: %u - TID: %u - Interrupción: %s]", pid, tid, KERNEL_INTERRUPT_NAMES[kernel_interrupt]);
             }
             else {
                 // Una forma de establecer prioridad entre interrupciones que se pisan, sólo va a quedar una
