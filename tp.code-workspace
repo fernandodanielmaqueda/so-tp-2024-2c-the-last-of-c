@@ -1,54 +1,65 @@
 {
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+
 	"settings": {
-		"debug.onTaskErrors": "abort",
-		"files.associations": {
-			"*.h": "c",
-			"functional": "c",
-			"typeinfo": "c",
-			"type_traits": "c",
-			"compare": "c",
-			"cmath": "c",
-			"cstdlib": "c"
-		},
-		"C_Cpp.errorSquiggles": "disabled",
-		//"terminal.integrated.automationProfile.linux": null, 
-		"terminal.integrated.cwd": "", 
-		//"terminal.integrated.defaultProfile.linux": "", 
-		//"terminal.integrated.env.linux": {}, 
-		"terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose", 
-		"terminal.integrated.scrollback": 0, 
-		"terminal.integrated.shellIntegration.history": 100
-	},
-	"folders": [
-		{
-			"path": "src/cpu"
-		},
-		{
-			"path": "src/filesystem"
-		},
-		{
-			"path": "src/kernel"
-		},
-		{
-			"path": "src/memoria"
-		},
-		{
-			"path": "src/utils"
-		},
-		{
-			"path": "configs"
-		},
-		{
-			"path": "deploy"
-		},
-		{
-			"path": "docs"
-		},
-		{
-			"path": "scripts"
-		},
-		{
-			"path": "thirdparty/the-last-of-c-pruebas"
-		}
-	]
+
+    "debug.onTaskErrors": "abort",
+
+    // Configure glob patterns for excluding files and folders. For example, the File Explorer decides which files and folders to show or hide based on this setting. Refer to the `search.exclude` setting to define search-specific excludes.
+    "files.exclude": {
+      "**/.git": true,
+      "**/.svn": true,
+      "**/.hg": true,
+      "**/CVS": true,
+      "**/.DS_Store": true,
+      "**/Thumbs.db": true,
+
+      "mkframework": true,
+      "thirdparty/cspec": true,
+      "**/.deps": true,
+      "**/.vscode": true,
+      "**/obj": true,
+      "**/bin": true,
+      "**/Makefile": true,
+      "**/makefile": true,
+      "**/GNUmakefile": true,
+      "**/*.mk": true,
+      "**/.gitattributes": true,
+      "**/.gitignore": true,
+      "**/.gitmodules": true
+    },
+
+    "files.associations": {
+      "*.h": "c",
+      "functional": "c",
+      "typeinfo": "c",
+      "type_traits": "c",
+      "compare": "c",
+      "cmath": "c",
+      "cstdlib": "c"
+    },
+
+    // The default character set encoding to use when reading and writing files. This setting can also be configured per language.
+    "files.encoding": "utf8",
+
+    // The default end of line character.
+    "files.eol": "\n",
+
+    // When enabled, insert a final new line at the end of the file when saving it.
+    "files.insertFinalNewline": false,
+
+    "C_Cpp.errorSquiggles": "disabled",
+    
+    "terminal.integrated.automationProfile.linux": null, 
+    "terminal.integrated.cwd": "",
+    "terminal.integrated.defaultProfile.linux": "bash", 
+    "terminal.integrated.env.linux": {}, 
+    "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose", 
+    "terminal.integrated.scrollback": 100000, 
+    "terminal.integrated.shellIntegration.history": 100
+    }
 }
