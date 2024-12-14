@@ -28,7 +28,7 @@
 #include "utils/package.h"
 #include "socket.h"
 
-typedef uint32_t t_Block_Pointer; //tipo array de bloques para copiar 
+typedef uint32_t t_Block_Pointer;
 
 typedef struct t_Bitmap {
     t_bitarray *bits_blocks; // puntero a al bitarray
@@ -43,7 +43,6 @@ extern size_t BLOCK_COUNT;
 extern int BLOCK_ACCESS_DELAY;
 
 extern FILE *FILE_BLOCKS;
-extern FILE *FILE_METADATA;
 extern char *PTRO_BITMAP;
 extern size_t BITMAP_SIZE;
 
