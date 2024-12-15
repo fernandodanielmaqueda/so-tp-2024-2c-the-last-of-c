@@ -2,7 +2,22 @@
   "folders": [
     {
       "path": "."
-    }
+    },
+    {
+      "path": "src/cpu"
+    },
+    {
+      "path": "src/filesystem"
+    },
+    {
+      "path": "src/kernel"
+    },
+    {
+      "path": "src/memoria"
+    },
+    {
+      "path": "src/utils"
+    },
   ],
 
 	"settings": {
@@ -18,6 +33,7 @@
       "**/.DS_Store": true,
       "**/Thumbs.db": true,
 
+      //"src": true,
       "mkframework": true,
       "thirdparty/cspec": true,
       "**/.deps": true,
