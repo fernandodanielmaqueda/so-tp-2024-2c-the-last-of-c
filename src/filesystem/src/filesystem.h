@@ -29,29 +29,29 @@
 #include "socket.h"
 
 typedef uint32_t t_Block_Pointer;
-// sizeof(t_Block_Pointer) == 8 bytes
+// sizeof(t_Block_Pointer) == 4 bytes
 
 typedef struct t_Bitmap {
-    t_bitarray *bitarray; // Puntero al array de bits
     size_t size; // Tamaño del bitmap en bytes
+    int fd; // File descriptor del archivo de bitmap
+    void *pointer; // Puntero al archivo de bitmap
+    t_bitarray *bitarray; // Puntero al array de bits
     size_t free_blocks; // Contador de bloques libres
+    pthread_mutex_t mutex; // Mutex para el bitmaps
 } t_Bitmap;
 
-extern t_Server SERVER_FILESYSTEM;
+typedef struct t_Blocks {
+    int fd; // File descriptor del archivo de bloques
+    void *pointer; // Puntero al archivo de bloques
+} t_Blocks;
 
 extern char *MOUNT_DIR;
 extern size_t BLOCK_SIZE;
 extern size_t BLOCK_COUNT;
 extern int BLOCK_ACCESS_DELAY;
 
-extern FILE *FILE_BLOCKS;
-extern char *PTRO_BITMAP;
-extern size_t BITMAP_SIZE;
-
+extern t_Blocks BLOCKS;
 extern t_Bitmap BITMAP;
-extern pthread_mutex_t MUTEX_BITMAP;
-
-extern void *PTRO_BLOCKS;
 
 //#undef MODULE_NAME
 //#define MODULE_NAME "Filesystem"
@@ -66,8 +66,10 @@ extern void *PTRO_BLOCKS;
 #define MODULE_LOGGER_NAME "Filesystem"
 
 #define FILESYSTEM_SIZE (BLOCK_COUNT * BLOCK_SIZE) // Cantidad de bloques * Tamaño de bloque
+#define BITMAP_COUNT (BLOCK_COUNT) // Cantidad de bloques
 
 #define BITS_TO_BYTES(bits) (((bits) + 7) / 8)
+
 
 int module(int, char*[]);
 
@@ -76,8 +78,15 @@ int read_module_config(t_config *module_config);
 void make_directories(void);
 int create_directory(const char *path);
 
-int bitmap_init();
-int bloques_init(void); // void ** &PTRO_BLOCKS
+void bitmap_init(void);
+int bitmap_destroy(void);
+
+void blocks_init(void);
+int blocks_destroy(void);
+
+int open_file(int *fd, const char *filename);
+
+void check_bitmap_free_blocks(t_Bitmap *bitmap);
 
 void filesystem_client_handler_for_memory(int fd_client);
 
@@ -90,16 +99,10 @@ void block_msync(void* get_pointer_to_memory) ;
 void write_block(void* pointer_to_block, void* ptro_datos, size_t desplazamiento) ;
 void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
 
-void write_complete_index();
-void write_Complete_data () ;
-
-bool is_address_in_mapped_area(void *addr) ;	
+bool is_address_in_mapped_area(void *addr);	
 void print_memory_as_ints(void *ptro_memory_dump_block) ;
-bool is_address_in_mapped_area(void *addr) ;
-int create_directory(const char *path);
 void print_size_t_array(void *array, size_t total_size) ;
 
 void *get_pointer_to_memory_dump(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) ;
-void set_bitmap_bits_free(t_Bitmap * bit_map);
 
 #endif // FILESYSTEM_H

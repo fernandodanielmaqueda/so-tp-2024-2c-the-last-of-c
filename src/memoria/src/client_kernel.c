@@ -386,7 +386,7 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
         if(string_time == NULL) {
             log_warning_r(&MODULE_LOGGER, "temporal_get_string_time: No se pudo obtener la hora actual como un string");
             pthread_exit(NULL);
-        }        
+        }
         pthread_cleanup_push((void (*)(void *)) free, string_time);
             string_append(&filename, string_time);
         pthread_cleanup_pop(1); // string_time

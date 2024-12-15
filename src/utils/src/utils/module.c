@@ -293,6 +293,30 @@ void report_error_clock_gettime(void) {
 	fprintf(stderr, "clock_gettime: %s\n", strerror(errno));
 }
 
+void report_error_mkdir(void) {
+	fprintf(stderr, "mkdir: %s\n", strerror(errno));
+}
+
+void report_error_open(void) {
+	fprintf(stderr, "open: %s\n", strerror(errno));
+}
+
+void report_error_ftruncate(void) {
+	fprintf(stderr, "ftruncate: %s\n", strerror(errno));
+}
+
+void report_error_mmap(void) {
+	fprintf(stderr, "mmap: %s\n", strerror(errno));
+}
+
+void report_error_munmap(void) {
+	fprintf(stderr, "munmap: %s\n", strerror(errno));
+}
+
+void report_error_msync(void) {
+	fprintf(stderr, "msync: %s\n", strerror(errno));
+}
+
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation) {
 	if(list == NULL || condition == NULL || comparation == NULL) {
 		return NULL;

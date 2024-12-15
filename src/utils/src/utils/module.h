@@ -193,6 +193,13 @@ void report_error_sigwaitinfo(void);
 
 void report_error_clock_gettime(void);
 
+void report_error_mkdir(void);
+void report_error_open(void);
+void report_error_ftruncate(void);
+void report_error_mmap(void);
+void report_error_munmap(void);
+void report_error_msync(void);
+
 void *list_remove_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
 int list_add_unless_any(t_list *list, void *data, bool (*condition)(void *, void*), void *comparation);
 void *list_find_by_condition_with_comparation(t_list *list, bool (*condition)(void *, void *), void *comparation);
