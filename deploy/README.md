@@ -1230,6 +1230,11 @@ find .
 find . -type f \( -name '*.log' \) -print
 ```
 
+- Cambiar owner al usuario actual
+- ```bash
+find . -type f ! -path "./.git/*" -exec chown $USER {} +
+```
+
 - Listar CRLF o LF por cada archivo
 ```bash
 find . -type f -exec bash -c 'file="{}"; if file "$file" | grep -q "CRLF"; then echo "$file CRLF"; else echo "$file LF"; fi' \;
