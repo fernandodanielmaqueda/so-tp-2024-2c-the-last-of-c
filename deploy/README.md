@@ -696,6 +696,11 @@ ssh utnso@NúmeroIP -p 22
 - Seleccionar el botón `Save`
 - En `Close window on exit` seleccionar la casilla `Never`
 
+### Alternativa 3: Usar Cmder
+
+- https://cmder.app/
+- https://github.com/cmderdev/cmder/blob/master/README.md
+
 -----------------------------
 
 ## 24. (NO en el Deploy) Configurar VSCode
@@ -843,8 +848,8 @@ Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not pro
 
 # Alternativa 3: Autenticarse cada vez que se pida
 Cada vez que clonemos por ejemplo el repositorio nos pedirá nuestras credenciales:
-`Username for '...':` Ingresar Nuestro nombre de usuario de GitHub (no nombre que se muestra).
-`Password for '...':` Ingresar la clave PAT (Personal Access Token) que generaste.
+- `Username for '...'`: Ingresar Nuestro nombre de usuario de GitHub (no nombre que se muestra).
+- `Password for '...'`: Ingresar la clave PAT (Personal Access Token) que generaste.
 
 -----------------------------
 
@@ -977,6 +982,21 @@ bash scripts/log_rm.sh ; bash scripts/fs_rm.sh
 Los comandos del makefile están en el `Anexo 5`
 
 -----------------------------
+
+## 37. Combinaciones útiles de comandos
+
+Borrar archivos de log y de filesystem
+```bash
+clear ; bash scripts/fs_rm.sh ; sudo bash scripts/log_rm.sh 
+```
+
+Copiar las configs
+```bash
+clear ; bash scripts/cp_configs.sh ; bash scripts/kernel_exec.sh
+```
+
+-----------------------------
+
 
 ## Anexo 1: Snapshots (Instantáneas) de la VM
 
@@ -1208,6 +1228,11 @@ find .
 > Buscar archivos de log en todos los subdirectorios
 ```bash
 find . -type f \( -name '*.log' \) -print
+```
+
+- Cambiar owner al usuario actual
+- ```bash
+find . -type f ! -path "./.git/*" -exec chown $USER {} +
 ```
 
 - Listar CRLF o LF por cada archivo
