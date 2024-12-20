@@ -153,6 +153,11 @@ cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://githu
 cd /c/Users/alumno ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
+5. Moverse a la rama que corresponda
+```bash
+git checkout main
+```
+
 ### En caso de que aparezca este error:
 
 [![.NETFRAMEWORK_ERROR](https://i.sstatic.net/O9L6E.png)]()
@@ -887,6 +892,11 @@ cd ~ ; git clone --depth 1 --branch main --single-branch --no-tags https://githu
 cd /home/utnso ; git clone --depth 1 --branch main --single-branch --no-tags https://github.com/sisoputnfrba/tp-2024-2c-so
 ```
 
+5. Moverse a la rama que corresponda
+```bash
+git checkout main
+```
+
 -----------------------------
 
 ## 28. Clonarse los submódulos del repositorio
@@ -964,7 +974,7 @@ bash scripts/ip.sh
 
 Inicialmente pondremos la de la primera prueba
 ```bash
-bash scripts/cp_configs.sh
+clear ; bash scripts/cp_configs.sh ; bash scripts/kernel_exec.sh
 ```
 
 -----------------------------
@@ -980,20 +990,6 @@ bash scripts/log_rm.sh ; bash scripts/fs_rm.sh
 ## 36. Levantar los módulo(s) del TP que correspondan
 
 Los comandos del makefile están en el `Anexo 5`
-
------------------------------
-
-## 37. Combinaciones útiles de comandos
-
-Borrar archivos de log y de filesystem
-```bash
-clear ; bash scripts/fs_rm.sh ; sudo bash scripts/log_rm.sh 
-```
-
-Copiar las configs
-```bash
-clear ; bash scripts/cp_configs.sh ; bash scripts/kernel_exec.sh
-```
 
 -----------------------------
 
@@ -1231,7 +1227,7 @@ find . -type f \( -name '*.log' \) -print
 ```
 
 - Cambiar owner al usuario actual
-- ```bash
+```bash
 find . -type f ! -path "./.git/*" -exec chown $USER {} +
 ```
 
