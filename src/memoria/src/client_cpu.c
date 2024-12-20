@@ -511,70 +511,73 @@ void write_memory(t_Payload *payload) {
     if(data_deserialize(payload, &data, &bytes)) {
         exit_sigint();
     }
+    pthread_cleanup_push((void (*)(void *)) free, data);
 
-    if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        report_error_pthread_rwlock_rdlock(status);
-        exit_sigint();
-    }
-    pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
-
-        if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
-            log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
-            result = -1;
-            goto cleanup_rwlock_partitions_and_processes;
-        }
-
-        if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+        if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
             report_error_pthread_rwlock_rdlock(status);
             exit_sigint();
         }
-        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &RWLOCK_PARTITIONS_AND_PROCESSES);
 
-            if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
-                log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+            if((pid >= PID_COUNT) || ((ARRAY_PROCESS_MEMORY[pid]) == NULL)) {
+                log_warning_r(&MODULE_LOGGER, "[%d] No existe el proceso (%u)", CLIENT_CPU->socket_client.fd, pid);
                 result = -1;
-                goto cleanup_rwlock_array_memory_threads;
+                goto cleanup_rwlock_partitions_and_processes;
             }
 
-        cleanup_rwlock_array_memory_threads:
-        pthread_cleanup_pop(0); // rwlock_array_memory_threads
-        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+            if((status = pthread_rwlock_rdlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+                report_error_pthread_rwlock_rdlock(status);
+                exit_sigint();
+            }
+            pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads));
+
+                if((tid >= (ARRAY_PROCESS_MEMORY[pid]->tid_count)) || ((ARRAY_PROCESS_MEMORY[pid]->array_memory_threads[tid]) == NULL)) {
+                    log_warning_r(&MODULE_LOGGER, "[%d] No existe el hilo (%u:%u)", CLIENT_CPU->socket_client.fd, pid, tid);
+                    result = -1;
+                    goto cleanup_rwlock_array_memory_threads;
+                }
+
+            cleanup_rwlock_array_memory_threads:
+            pthread_cleanup_pop(0); // rwlock_array_memory_threads
+            if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->rwlock_array_memory_threads)))) {
+                report_error_pthread_rwlock_unlock(status);
+                exit_sigint();
+            }
+
+            if(result) {
+                goto cleanup_rwlock_partitions_and_processes;
+            }
+
+            if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+                report_error_pthread_rwlock_wrlock(status);
+                exit_sigint();
+            }
+            pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
+                memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
+
+                char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
+                pthread_cleanup_push((void (*)(void *)) free, data_string);
+                    log_trace_r(&MODULE_LOGGER,
+                    "[%d] Se recibe solicitud de escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]"
+                    "%s"
+                    , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
+                    , data_string
+                    );
+                pthread_cleanup_pop(1); // data_string
+            pthread_cleanup_pop(0); // rwlock_partition
+            if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
+                report_error_pthread_rwlock_unlock(status);
+                exit_sigint();
+            }
+
+        cleanup_rwlock_partitions_and_processes:
+        pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
+        if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
             report_error_pthread_rwlock_unlock(status);
             exit_sigint();
         }
 
-        if(result) {
-            goto cleanup_rwlock_partitions_and_processes;
-        }
-
-        if((status = pthread_rwlock_wrlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
-            report_error_pthread_rwlock_wrlock(status);
-            exit_sigint();
-        }
-        pthread_cleanup_push((void (*)(void *)) pthread_rwlock_unlock, &(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition));
-            memcpy((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), data, bytes);
-
-            char *data_string = mem_hexstring((void *)(((uint8_t *) MAIN_MEMORY) + physical_address), bytes);
-            pthread_cleanup_push((void (*)(void *)) free, data_string);
-                log_trace_r(&MODULE_LOGGER,
-                "[%d] Se recibe solicitud de escritura en espacio de usuario de [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]"
-                "%s"
-                , CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes
-                , data_string
-                );
-            pthread_cleanup_pop(1); // data_string
-        pthread_cleanup_pop(0); // rwlock_partition
-        if((status = pthread_rwlock_unlock(&(ARRAY_PROCESS_MEMORY[pid]->partition->rwlock_partition)))) {
-            report_error_pthread_rwlock_unlock(status);
-            exit_sigint();
-        }
-
-    cleanup_rwlock_partitions_and_processes:
-    pthread_cleanup_pop(0); // RWLOCK_PARTITIONS_AND_PROCESSES
-    if((status = pthread_rwlock_unlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
-        report_error_pthread_rwlock_unlock(status);
-        exit_sigint();
-    }
+    pthread_cleanup_pop(1); // data
 
     if(send_result_with_header(WRITE_REQUEST_HEADER, result, CLIENT_CPU->socket_client.fd)) {
         log_error_r(&MODULE_LOGGER, "[%d] Error al enviar resultado de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
@@ -582,5 +585,5 @@ void write_memory(t_Payload *payload) {
     }
     log_trace_r(&MODULE_LOGGER, "[%d] Se envía resultado de escritura en espacio de usuario a [Cliente] %s [PID: %u - TID: %u - Dirección física: %zu - Tamaño: %zu]", CLIENT_CPU->socket_client.fd, PORT_NAMES[CLIENT_CPU->client_type], pid, tid, physical_address, bytes);
 
-    log_info_r(&MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu> - Tamaño: %zu", pid, tid, physical_address, bytes);
+    log_info_r(&MINIMAL_LOGGER, "## Escritura - (PID:TID) - (%u:%u) - Dir. Fisica: %zu - Tamaño: %zu", pid, tid, physical_address, bytes);
 }
