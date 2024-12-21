@@ -29,7 +29,6 @@
 #include "socket.h"
 
 typedef uint32_t t_Block_Pointer;
-// sizeof(t_Block_Pointer) == 4 bytes
 
 typedef struct t_Bitmap {
     size_t size; // Tamaño del bitmap en bytes
@@ -70,6 +69,7 @@ extern t_Bitmap BITMAP;
 
 #define BITS_TO_BYTES(bits) (((bits) + 7) / 8)
 
+#define POINTERS_PER_BLOCK (BLOCK_SIZE / sizeof(t_Block_Pointer))
 
 int module(int, char*[]);
 
@@ -91,18 +91,10 @@ void check_bitmap_free_blocks(t_Bitmap *bitmap);
 void filesystem_client_handler_for_memory(int fd_client);
 
 void set_bits_bitmap(t_Bitmap *bit_map, t_Block_Pointer *array, size_t blocks_necessary, char* filename);
-//bool exist_free_bits_bitmap(t_Bitmap* bit_map, uint32_t count_block_demand);
-
-void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) ;
-//void* get_pointer_to_block_from_file(t_Block_Pointer file_block_pos);
+void *get_pointer_to_memory(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos);
 void block_msync(void* get_pointer_to_memory) ;
-void write_block(void* pointer_to_block, void* ptro_datos, size_t desplazamiento) ;
-void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block) ;
-
-bool is_address_in_mapped_area(void *addr);	
-void print_memory_as_ints(void *ptro_memory_dump_block) ;
-void print_size_t_array(void *array, size_t total_size) ;
-
-void *get_pointer_to_memory_dump(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos) ;
+void print_memory_as_ints(void *ptro_memory_dump_block);
+void *get_pointer_to_memory_dump(void * memory_ptr, size_t memory_partition_size, t_Block_Pointer memory_partition_pos);
+void create_metadata_file(const char *filename, size_t size, t_Block_Pointer index_block);
 
 #endif // FILESYSTEM_H
