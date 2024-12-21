@@ -1335,6 +1335,11 @@ vim <archivo>
 nano <archivo>
 ```
 
+- Combinar archivos de log
+```bash
+cat src/cpu/cpu.log src/cpu/minimal.log | sort -k2,2 > combinado.log
+```
+
 		- En la última línea pueden ver las distintas opciones que se pueden usar.
 			- Por ejemplo: Ctrl + X para salir.
 
@@ -1639,7 +1644,146 @@ git pull --ff-only
 
 -----------------------------
 
-## Anexo 9: tmux (Terminal MUltipleXer)
+## Anexo 9: Duración de tests
+
+> 46s
+- configs/1.1-Prueba_Planificacion_FIFO/
+
+> 48s
+- configs/1.2-Prueba_Planificacion_PRIORIDADES/
+
+> 1m39.353s
+- configs/1.3-Prueba_Planificacion_CMN/
+
+> 4m58.138s
+- configs/2.1-Prueba_Race_Condition_750_QUANTUM/
+
+> 7m23.576s
+- configs/2.1-Prueba_Race_Condition_150_QUANTUM/
+
+> 2m05.561s + 8 * duración de las IO (2 minutos por default c/u)
+> 2m05.561s - 108s
+- configs/3.1-Prueba_Particiones_Fijas_FIRST_ALGORITMO_BUSQUEDA/
+
+- configs/3.2-Prueba_Particiones_Fijas_BEST_ALGORITMO_BUSQUEDA/
+
+- configs/3.3-Prueba_Particiones_Fijas_WORST_ALGORITMO_BUSQUEDA/
+
+> LOOP INFINITO (después de 5 minutos se repiten los mismos hilos)
+- configs/4-Prueba_Particiones_Dinamicas/
+
+> Primera vuelta: 5m50.574s
+> Segunda vuelta: 5m50.574s
+- configs/5-Prueba_FS_Fibonacci_Sequence/
+> Bloque 178: Primera vuelta
+> Bloque 196: Segunda vuelta último bloque escrito antes de no poder escribir más
+
+> LOOP INFINITO (después de n minutos)
+- configs/6-Prueba_de_Stress/
+
+-----------------------------
+
+Prueba CPU Race Condition
+
+```bash
+cat src/cpu/cpu.log | grep -i "LOG DX:"
+```
+
+150
+[INFO] 00:46:45:204 CPU/(246759:246759): (1:1) LOG DX: 1
+[INFO] 00:46:45:854 CPU/(246759:246759): (1:2) LOG DX: 1
+[INFO] 00:46:46:505 CPU/(246759:246759): (1:3) LOG DX: 1
+[INFO] 00:46:47:163 CPU/(246759:246759): (1:4) LOG DX: 1
+[INFO] 00:47:02:677 CPU/(246759:246759): (1:1) LOG DX: 2
+[INFO] 00:47:03:326 CPU/(246759:246759): (1:2) LOG DX: 2
+[INFO] 00:47:03:979 CPU/(246759:246759): (1:3) LOG DX: 2
+[INFO] 00:47:04:630 CPU/(246759:246759): (1:4) LOG DX: 2
+[INFO] 00:47:20:229 CPU/(246759:246759): (1:1) LOG DX: 3
+[INFO] 00:47:20:884 CPU/(246759:246759): (1:2) LOG DX: 3
+[INFO] 00:47:21:550 CPU/(246759:246759): (1:3) LOG DX: 3
+[INFO] 00:47:22:212 CPU/(246759:246759): (1:4) LOG DX: 3
+[INFO] 00:47:37:735 CPU/(246759:246759): (1:1) LOG DX: 4
+[INFO] 00:47:38:418 CPU/(246759:246759): (1:2) LOG DX: 4
+[INFO] 00:47:39:071 CPU/(246759:246759): (1:3) LOG DX: 4
+[INFO] 00:47:39:727 CPU/(246759:246759): (1:4) LOG DX: 4
+[INFO] 00:47:55:355 CPU/(246759:246759): (1:1) LOG DX: 5
+[INFO] 00:47:56:104 CPU/(246759:246759): (1:2) LOG DX: 5
+[INFO] 00:47:56:791 CPU/(246759:246759): (1:3) LOG DX: 5
+[INFO] 00:47:57:441 CPU/(246759:246759): (1:4) LOG DX: 5
+[INFO] 00:48:13:085 CPU/(246759:246759): (1:1) LOG DX: 6
+[INFO] 00:48:13:738 CPU/(246759:246759): (1:2) LOG DX: 6
+[INFO] 00:48:14:395 CPU/(246759:246759): (1:3) LOG DX: 6
+[INFO] 00:48:15:070 CPU/(246759:246759): (1:4) LOG DX: 6
+[INFO] 00:48:30:617 CPU/(246759:246759): (1:1) LOG DX: 7
+[INFO] 00:48:31:273 CPU/(246759:246759): (1:2) LOG DX: 7
+[INFO] 00:48:31:950 CPU/(246759:246759): (1:3) LOG DX: 7
+[INFO] 00:48:32:614 CPU/(246759:246759): (1:4) LOG DX: 7
+[INFO] 00:48:48:274 CPU/(246759:246759): (1:1) LOG DX: 8
+[INFO] 00:48:48:926 CPU/(246759:246759): (1:2) LOG DX: 8
+[INFO] 00:48:49:612 CPU/(246759:246759): (1:3) LOG DX: 8
+[INFO] 00:48:50:263 CPU/(246759:246759): (1:4) LOG DX: 8
+[INFO] 00:49:06:019 CPU/(246759:246759): (1:1) LOG DX: 9
+[INFO] 00:49:06:673 CPU/(246759:246759): (1:2) LOG DX: 9
+[INFO] 00:49:07:335 CPU/(246759:246759): (1:3) LOG DX: 9
+[INFO] 00:49:07:985 CPU/(246759:246759): (1:4) LOG DX: 9
+[INFO] 00:49:34:199 CPU/(246759:246759): (1:1) LOG DX: 10
+[INFO] 00:49:34:854 CPU/(246759:246759): (1:2) LOG DX: 10
+[INFO] 00:49:35:511 CPU/(246759:246759): (1:3) LOG DX: 10
+[INFO] 00:49:36:175 CPU/(246759:246759): (1:4) LOG DX: 10
+[INFO] 00:49:44:903 CPU/(246759:246759): (1:0) LOG DX: 10
+
+-----------------------------
+
+750
+[INFO] 00:24:46:429 CPU/(240094:240094): (1:1) LOG DX: 1
+[INFO] 00:24:47:500 CPU/(240094:240094): (1:2) LOG DX: 1
+[INFO] 00:24:48:582 CPU/(240094:240094): (1:3) LOG DX: 1
+[INFO] 00:24:49:648 CPU/(240094:240094): (1:4) LOG DX: 1
+[INFO] 00:27:51:465 CPU/(241774:241774): (1:1) LOG DX: 1
+[INFO] 00:27:52:533 CPU/(241774:241774): (1:2) LOG DX: 1
+[INFO] 00:27:53:608 CPU/(241774:241774): (1:3) LOG DX: 1
+[INFO] 00:27:54:676 CPU/(241774:241774): (1:4) LOG DX: 1
+[INFO] 00:28:00:460 CPU/(241774:241774): (1:1) LOG DX: 2
+[INFO] 00:28:01:521 CPU/(241774:241774): (1:2) LOG DX: 2
+[INFO] 00:28:02:580 CPU/(241774:241774): (1:3) LOG DX: 2
+[INFO] 00:28:03:652 CPU/(241774:241774): (1:4) LOG DX: 2
+[INFO] 00:28:13:799 CPU/(241774:241774): (1:1) LOG DX: 3
+[INFO] 00:28:14:870 CPU/(241774:241774): (1:2) LOG DX: 3
+[INFO] 00:28:15:926 CPU/(241774:241774): (1:3) LOG DX: 3
+[INFO] 00:28:16:989 CPU/(241774:241774): (1:4) LOG DX: 3
+[INFO] 00:28:22:731 CPU/(241774:241774): (1:1) LOG DX: 4
+[INFO] 00:28:23:844 CPU/(241774:241774): (1:2) LOG DX: 4
+[INFO] 00:28:24:907 CPU/(241774:241774): (1:3) LOG DX: 4
+[INFO] 00:28:25:995 CPU/(241774:241774): (1:4) LOG DX: 4
+[INFO] 00:28:36:084 CPU/(241774:241774): (1:1) LOG DX: 5
+[INFO] 00:28:37:153 CPU/(241774:241774): (1:2) LOG DX: 5
+[INFO] 00:28:38:217 CPU/(241774:241774): (1:3) LOG DX: 5
+[INFO] 00:28:39:287 CPU/(241774:241774): (1:4) LOG DX: 5
+[INFO] 00:28:45:129 CPU/(241774:241774): (1:1) LOG DX: 6
+[INFO] 00:28:46:191 CPU/(241774:241774): (1:2) LOG DX: 6
+[INFO] 00:28:47:265 CPU/(241774:241774): (1:3) LOG DX: 6
+[INFO] 00:28:48:340 CPU/(241774:241774): (1:4) LOG DX: 6
+[INFO] 00:28:58:346 CPU/(241774:241774): (1:1) LOG DX: 7
+[INFO] 00:28:59:406 CPU/(241774:241774): (1:2) LOG DX: 7
+[INFO] 00:29:00:464 CPU/(241774:241774): (1:3) LOG DX: 7
+[INFO] 00:29:01:551 CPU/(241774:241774): (1:4) LOG DX: 7
+[INFO] 00:29:07:329 CPU/(241774:241774): (1:1) LOG DX: 8
+[INFO] 00:29:08:404 CPU/(241774:241774): (1:2) LOG DX: 8
+[INFO] 00:29:09:484 CPU/(241774:241774): (1:3) LOG DX: 8
+[INFO] 00:29:10:557 CPU/(241774:241774): (1:4) LOG DX: 8
+[INFO] 00:29:20:625 CPU/(241774:241774): (1:1) LOG DX: 9
+[INFO] 00:29:21:688 CPU/(241774:241774): (1:2) LOG DX: 9
+[INFO] 00:29:22:744 CPU/(241774:241774): (1:3) LOG DX: 9
+[INFO] 00:29:23:819 CPU/(241774:241774): (1:4) LOG DX: 9
+[INFO] 00:29:29:579 CPU/(241774:241774): (1:1) LOG DX: 10
+[INFO] 00:29:30:648 CPU/(241774:241774): (1:2) LOG DX: 10
+[INFO] 00:29:31:721 CPU/(241774:241774): (1:3) LOG DX: 10
+[INFO] 00:29:32:787 CPU/(241774:241774): (1:4) LOG DX: 10
+[INFO] 00:29:39:521 CPU/(241774:241774): (1:0) LOG DX: 10
+
+-----------------------------
+
+## Anexo 10: tmux (Terminal MUltipleXer)
 
 Referencia: https://gist.github.com/MohamedAlaa/2961058
 
@@ -1707,7 +1851,7 @@ tmux kill -t 'NombreDeSesion'
 
 -----------------------------
 
-## Anexo 10: Instalar OpenSSH
+## Anexo 11: Instalar OpenSSH
 
 ### Alternativa 1: Con Git para Windows
 
@@ -1778,7 +1922,7 @@ if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyCon
 
 -----------------------------
 
-## Anexo 11: Duplicar un repositorio de GitHub
+## Anexo 12: Duplicar un repositorio de GitHub
 
 1. Crear el nuevo repositorio copia pero sin inicializarlo con un `README`, `.gitignore`, `LICENSE`, ni ningún otro archivo
 
