@@ -391,7 +391,13 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
             string_append(&filename, string_time);
         pthread_cleanup_pop(1); // string_time
 
+    pthread_cleanup_pop(0);
+    pthread_cleanup_push((void (*)(void *)) free, filename);
+
         string_append(&filename, ".dmp");
+
+    pthread_cleanup_pop(0);
+    pthread_cleanup_push((void (*)(void *)) free, filename);
         
         if((status = pthread_rwlock_rdlock(&RWLOCK_PARTITIONS_AND_PROCESSES))) {
             report_error_pthread_rwlock_rdlock(status);
@@ -462,10 +468,10 @@ void attend_dump_memory(int fd_client, t_Payload *payload) {
                     }
 
                     if(receive_result_with_expected_header(DUMP_MEMORY_HEADER, &result, connection_filesystem.socket_connection.fd)) {
-                        log_warning_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
+                        log_warning_r(&MODULE_LOGGER, "[%d] Error al recibir resultado de la operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid);
                         pthread_exit(NULL);
                     }
-                    log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
+                    log_trace_r(&MODULE_LOGGER, "[%d] Se recibe resultado de la operación de volcado de memoria de [Servidor] %s [PID: %u - TID: %u - Resultado: %d]", connection_filesystem.socket_connection.fd, PORT_NAMES[connection_filesystem.server_type], pid, tid, result);
 
                 pthread_cleanup_pop(0);
                 if(close(connection_filesystem.socket_connection.fd)) {
