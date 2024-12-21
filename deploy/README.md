@@ -780,7 +780,7 @@ git config --global user.name 'Nombre y Apellido(s)'
 
 ## 26. Autenticarse en Git en la VM
 
-# Alternativa 1: Comando gh
+### Alternativa 1: Comando gh
 1. Instalar `gh` (no viene instalado en la VM de Ubuntu Server)
 ```bash
 sudo apt install gh -y
@@ -791,8 +791,8 @@ sudo apt install gh -y
 gh auth login
 ```
 
-# Alternativa 2: Generar claves SSH
-## En la VM Server:
+### Alternativa 2: Generar claves SSH
+##### En la VM Server:
 ```bash
 ssh-keygen -t ed25519 -C 'your@email.com'
 ```
@@ -819,7 +819,7 @@ Cuando se te solicite, escribí una frase de contraseña segura. Para más infor
 
 Por defecto, se van a guardar en el directorio `~/.ssh/` con los nombres `id_ed25519` y `id_ed25519.pub`
 
-## En el Host Windows:
+#### En el Host Windows:
 Por último, vamos a agregar la clave pública a nuestra cuenta de GitHub moviéndonos a `Settings` > `SSH and GPG keys` > `New SSH key`:
 - https://github.com/settings/keys
 	- https://github.com/settings/ssh/new
@@ -851,10 +851,10 @@ Si todo salió bien, deberíamos ver un mensaje de bienvenida de GitHub:
 Hi TuUsuarioDeGitHub! You've successfully authenticated, but GitHub does not provide shell access.
 ```
 
-# Alternativa 3: Autenticarse cada vez que se pida
+### Alternativa 3: Autenticarse cada vez que se pida
 Cada vez que clonemos por ejemplo el repositorio nos pedirá nuestras credenciales:
-- `Username for '...'`: Ingresar Nuestro nombre de usuario de GitHub (no nombre que se muestra).
-- `Password for '...'`: Ingresar la clave PAT (Personal Access Token) que generaste.
+- `Username for '...'`: Ingresar nuestro nombre de usuario de GitHub (no el nombre que se muestra).
+- `Password for '...'`: Ingresar la clave PAT (Personal Access Token) generada con anterioridad.
 
 -----------------------------
 
@@ -970,7 +970,7 @@ bash scripts/ip.sh
 
 -----------------------------
 
-## 34. Copiar las configs de una prueba
+## 34. (Entre prueba y prueba) Copiar las configs de una prueba
 
 Inicialmente pondremos la de la primera prueba
 ```bash
@@ -987,7 +987,13 @@ bash scripts/log_rm.sh ; bash scripts/fs_rm.sh
 
 -----------------------------
 
-## 36. Levantar los módulo(s) del TP que correspondan
+## 36. Compilar el TP
+
+Los comandos del makefile están en el `Anexo 5`
+
+-----------------------------
+
+## 37. Levantar los módulo(s) del TP que correspondan
 
 Los comandos del makefile están en el `Anexo 5`
 
@@ -1289,6 +1295,11 @@ rm -rf <directorio>
 rmdir <directorio>
 ```
 
+- Combinar archivos de log
+```bash
+cat src/cpu/cpu.log src/cpu/minimal.log | sort -k2,2 > combinado.log
+```
+
 - Leer un archivo de texto
 ```bash
 less <archivo>
@@ -1333,11 +1344,6 @@ vim <archivo>
 	- Con `nano`
 ```bash
 nano <archivo>
-```
-
-- Combinar archivos de log
-```bash
-cat src/cpu/cpu.log src/cpu/minimal.log | sort -k2,2 > combinado.log
 ```
 
 		- En la última línea pueden ver las distintas opciones que se pueden usar.
@@ -1662,6 +1668,7 @@ git pull --ff-only
 - configs/2.1-Prueba_Race_Condition_150_QUANTUM/
 
 > 2m05.561s + 8 * duración de las IO (2 minutos por default c/u)
+> 
 > 2m05.561s - 108s
 - configs/3.1-Prueba_Particiones_Fijas_FIRST_ALGORITMO_BUSQUEDA/
 
@@ -1673,10 +1680,12 @@ git pull --ff-only
 - configs/4-Prueba_Particiones_Dinamicas/
 
 > Primera vuelta: 5m50.574s
+> 
 > Segunda vuelta: 5m50.574s
 - configs/5-Prueba_FS_Fibonacci_Sequence/
 > Bloque 178: Primera vuelta
-> Bloque 196: Segunda vuelta último bloque escrito antes de no poder escribir más
+> 
+> Bloque 196: Segunda vuelta: Último bloque escrito antes de no poder escribir más
 
 > LOOP INFINITO (después de n minutos)
 - configs/6-Prueba_de_Stress/
@@ -1689,7 +1698,8 @@ Prueba CPU Race Condition
 cat src/cpu/cpu.log | grep -i "LOG DX:"
 ```
 
-150
+Con Quantum 150
+```text
 [INFO] 00:46:45:204 CPU/(246759:246759): (1:1) LOG DX: 1
 [INFO] 00:46:45:854 CPU/(246759:246759): (1:2) LOG DX: 1
 [INFO] 00:46:46:505 CPU/(246759:246759): (1:3) LOG DX: 1
@@ -1731,10 +1741,12 @@ cat src/cpu/cpu.log | grep -i "LOG DX:"
 [INFO] 00:49:35:511 CPU/(246759:246759): (1:3) LOG DX: 10
 [INFO] 00:49:36:175 CPU/(246759:246759): (1:4) LOG DX: 10
 [INFO] 00:49:44:903 CPU/(246759:246759): (1:0) LOG DX: 10
+```
 
 -----------------------------
 
-750
+Con Quantum 750
+```text
 [INFO] 00:24:46:429 CPU/(240094:240094): (1:1) LOG DX: 1
 [INFO] 00:24:47:500 CPU/(240094:240094): (1:2) LOG DX: 1
 [INFO] 00:24:48:582 CPU/(240094:240094): (1:3) LOG DX: 1
@@ -1780,6 +1792,7 @@ cat src/cpu/cpu.log | grep -i "LOG DX:"
 [INFO] 00:29:31:721 CPU/(241774:241774): (1:3) LOG DX: 10
 [INFO] 00:29:32:787 CPU/(241774:241774): (1:4) LOG DX: 10
 [INFO] 00:29:39:521 CPU/(241774:241774): (1:0) LOG DX: 10
+```
 
 -----------------------------
 
