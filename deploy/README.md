@@ -503,7 +503,7 @@ sudo vi /etc/fstab
 > Agregarle la siguiente línea al final de dicho archivo.
 > Nótese el uso de tabulaciones en lugar de espacios para separar las columnas de la línea.
 ```output
-Compartida	/home/utnso/vboxsfCompartida	vboxsf	rw,exec,uid=1000,gid=1000	0	0
+Compartida	/home/utnso/vboxsfCompartida	vboxsf	uid=1000,gid=1000,fmask=0000,dmask=0000	0	0
 ```
 
 5. Para arrancar el servicio de carpetas compartidas de VirtualBox cada vez que iniciemos la VM, editar el archivo `/etc/modules`:
@@ -564,7 +564,7 @@ sudo vi /etc/fstab
 
 > Agregarle la siguiente línea al final de dicho archivo.
 ```output
-//alumno/NombreCarpetaCompartida /home/utnso/smbCompartida cifs username=alumno,password=alumno,vers=3.0,file_mode=0777,dir_mode=0777 0 0
+//alumnoOIPHost/NombreCarpetaCompartida /home/utnso/smbCompartida cifs username=alumno,password=alumno,vers=3.0,file_mode=0777,dir_mode=0777,uid=1000,gid=1000 0 0
 ```
 
 `Nota`: `vers=3.0` es para indicar la versión de Samba (SMB) utilizada. Puede cambiarse a 2.0, por ejemplo, de ser necesario
